@@ -246,7 +246,6 @@ ACTION polcontract::rebalance(){
 
     		transfer_tokens( DAPP_CONTRACT, asset( amount_to_transfer, WAX_SYMBOL), WAX_CONTRACT, std::string("wax_lswax_liquidity") );
 
-    		s.last_rebalance_time = now();
     		s.wax_bucket.amount = safeSubInt64( s.wax_bucket.amount, amount_to_transfer );
     		s.last_rebalance_time = now();
 			state_s_3.set(s, _self);
