@@ -1,0 +1,254 @@
+{
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT ",
+    "version": "eosio::abi/1.2",
+    "types": [],
+    "structs": [
+        {
+            "name": "claimgbmvote",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "claimrefund",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "clearexpired",
+            "base": "",
+            "fields": [
+                {
+                    "name": "limit",
+                    "type": "int32"
+                }
+            ]
+        },
+        {
+            "name": "config2",
+            "base": "",
+            "fields": [
+                {
+                    "name": "liquidity_allocation_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "rental_pool_allocation_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "lswax_wax_pool_id",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "deleterental",
+            "base": "",
+            "fields": [
+                {
+                    "name": "rental_id",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "initconfig",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "initstate3",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "rebalance",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "rentcpu",
+            "base": "",
+            "fields": [
+                {
+                    "name": "renter",
+                    "type": "name"
+                },
+                {
+                    "name": "cpu_receiver",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "renters",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ID",
+                    "type": "uint64"
+                },
+                {
+                    "name": "renter",
+                    "type": "name"
+                },
+                {
+                    "name": "rent_to_account",
+                    "type": "name"
+                },
+                {
+                    "name": "amount_staked",
+                    "type": "asset"
+                },
+                {
+                    "name": "expires",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "setallocs",
+            "base": "",
+            "fields": [
+                {
+                    "name": "liquidity_allocation_percent_1e6",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "setrentprice",
+            "base": "",
+            "fields": [
+                {
+                    "name": "cost_to_rent_1_wax",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "state3",
+            "base": "",
+            "fields": [
+                {
+                    "name": "wax_available_for_rentals",
+                    "type": "asset"
+                },
+                {
+                    "name": "next_day_end_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "cost_to_rent_1_wax",
+                    "type": "asset"
+                },
+                {
+                    "name": "last_vote_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "wax_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "lswax_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "last_liquidity_addition_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "wax_allocated_to_rentals",
+                    "type": "asset"
+                },
+                {
+                    "name": "pending_refunds",
+                    "type": "asset"
+                },
+                {
+                    "name": "last_rebalance_time",
+                    "type": "uint64"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "claimgbmvote",
+            "type": "claimgbmvote",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "claimrefund",
+            "type": "claimrefund",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "clearexpired",
+            "type": "clearexpired",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "deleterental",
+            "type": "deleterental",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "initconfig",
+            "type": "initconfig",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "initstate3",
+            "type": "initstate3",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "rebalance",
+            "type": "rebalance",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "rentcpu",
+            "type": "rentcpu",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setallocs",
+            "type": "setallocs",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setrentprice",
+            "type": "setrentprice",
+            "ricardian_contract": ""
+        }
+    ],
+    "tables": [
+        {
+            "name": "config2",
+            "type": "config2",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "renters",
+            "type": "renters",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "state3",
+            "type": "state3",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "ricardian_clauses": [],
+    "variants": [],
+    "action_results": []
+}

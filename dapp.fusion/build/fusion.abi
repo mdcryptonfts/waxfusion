@@ -1,0 +1,1019 @@
+{
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT ",
+    "version": "eosio::abi/1.2",
+    "types": [],
+    "structs": [
+        {
+            "name": "addadmin",
+            "base": "",
+            "fields": [
+                {
+                    "name": "admin_to_add",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "addcpucntrct",
+            "base": "",
+            "fields": [
+                {
+                    "name": "contract_to_add",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "claimaslswax",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "expected_output",
+                    "type": "asset"
+                },
+                {
+                    "name": "max_slippage_1e6",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "claimgbmvote",
+            "base": "",
+            "fields": [
+                {
+                    "name": "cpu_contract",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "claimrefunds",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "claimrewards",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "claimswax",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "clearexpired",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "config3",
+            "base": "",
+            "fields": [
+                {
+                    "name": "minimum_stake_amount",
+                    "type": "asset"
+                },
+                {
+                    "name": "minimum_unliquify_amount",
+                    "type": "asset"
+                },
+                {
+                    "name": "seconds_between_distributions",
+                    "type": "uint64"
+                },
+                {
+                    "name": "max_snapshots_to_process",
+                    "type": "uint64"
+                },
+                {
+                    "name": "initial_epoch_start_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "cpu_rental_epoch_length_seconds",
+                    "type": "uint64"
+                },
+                {
+                    "name": "seconds_between_epochs",
+                    "type": "uint64"
+                },
+                {
+                    "name": "user_share_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "pol_share_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "ecosystem_share_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "admin_wallets",
+                    "type": "name[]"
+                },
+                {
+                    "name": "cpu_contracts",
+                    "type": "name[]"
+                },
+                {
+                    "name": "redemption_period_length_seconds",
+                    "type": "uint64"
+                },
+                {
+                    "name": "seconds_between_stakeall",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fallback_cpu_receiver",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "createfarms",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "debug",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ID",
+                    "type": "uint64"
+                },
+                {
+                    "name": "message",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "distribute",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "epochs",
+            "base": "",
+            "fields": [
+                {
+                    "name": "start_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "time_to_unstake",
+                    "type": "uint64"
+                },
+                {
+                    "name": "cpu_wallet",
+                    "type": "name"
+                },
+                {
+                    "name": "wax_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "wax_to_refund",
+                    "type": "asset"
+                },
+                {
+                    "name": "redemption_period_start_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "redemption_period_end_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "total_cpu_funds_returned",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_added_to_redemption_bucket",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "initconfig",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "initconfig3",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "initstate2",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "initstate3",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "inittop21",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "instaredeem",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "swax_to_redeem",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "liquify",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "liquifyexact",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                },
+                {
+                    "name": "expected_output",
+                    "type": "asset"
+                },
+                {
+                    "name": "max_slippage_1e6",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "lpfarms",
+            "base": "",
+            "fields": [
+                {
+                    "name": "poolId",
+                    "type": "uint64"
+                },
+                {
+                    "name": "symbol_to_incentivize",
+                    "type": "symbol"
+                },
+                {
+                    "name": "contract_to_incentivize",
+                    "type": "name"
+                },
+                {
+                    "name": "percent_share_1e6",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "reallocate",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "redeem",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "redeem_requests",
+            "base": "",
+            "fields": [
+                {
+                    "name": "epoch_id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "wax_amount_requested",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "removeadmin",
+            "base": "",
+            "fields": [
+                {
+                    "name": "admin_to_remove",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "renters",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ID",
+                    "type": "uint64"
+                },
+                {
+                    "name": "renter",
+                    "type": "name"
+                },
+                {
+                    "name": "rent_to_account",
+                    "type": "name"
+                },
+                {
+                    "name": "amount_staked",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "reqredeem",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "swax_to_redeem",
+                    "type": "asset"
+                },
+                {
+                    "name": "accept_replacing_prev_requests",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "rmvcpucntrct",
+            "base": "",
+            "fields": [
+                {
+                    "name": "contract_to_remove",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "rmvincentive",
+            "base": "",
+            "fields": [
+                {
+                    "name": "poolId",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "setfallback",
+            "base": "",
+            "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                },
+                {
+                    "name": "receiver",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "setincentive",
+            "base": "",
+            "fields": [
+                {
+                    "name": "poolId",
+                    "type": "uint64"
+                },
+                {
+                    "name": "symbol_to_incentivize",
+                    "type": "symbol"
+                },
+                {
+                    "name": "contract_to_incentivize",
+                    "type": "name"
+                },
+                {
+                    "name": "percent_share_1e6",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "setpolshare",
+            "base": "",
+            "fields": [
+                {
+                    "name": "pol_share_1e6",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "setrentprice",
+            "base": "",
+            "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                },
+                {
+                    "name": "cost_to_rent_1_wax",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "snapshots",
+            "base": "",
+            "fields": [
+                {
+                    "name": "timestamp",
+                    "type": "uint64"
+                },
+                {
+                    "name": "swax_earning_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "lswax_autocompounding_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "pol_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "ecosystem_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_distributed",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_swax_earning",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "stake",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "stakeallcpu",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "stakers",
+            "base": "",
+            "fields": [
+                {
+                    "name": "wallet",
+                    "type": "name"
+                },
+                {
+                    "name": "swax_balance",
+                    "type": "asset"
+                },
+                {
+                    "name": "claimable_wax",
+                    "type": "asset"
+                },
+                {
+                    "name": "last_update",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "state",
+            "base": "",
+            "fields": [
+                {
+                    "name": "swax_currently_earning",
+                    "type": "asset"
+                },
+                {
+                    "name": "swax_currently_backing_lswax",
+                    "type": "asset"
+                },
+                {
+                    "name": "liquified_swax",
+                    "type": "asset"
+                },
+                {
+                    "name": "revenue_awaiting_distribution",
+                    "type": "asset"
+                },
+                {
+                    "name": "user_funds_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_revenue_distributed",
+                    "type": "asset"
+                },
+                {
+                    "name": "next_distribution",
+                    "type": "uint64"
+                },
+                {
+                    "name": "wax_for_redemption",
+                    "type": "asset"
+                },
+                {
+                    "name": "redemption_period_start",
+                    "type": "uint64"
+                },
+                {
+                    "name": "redemption_period_end",
+                    "type": "uint64"
+                },
+                {
+                    "name": "last_epoch_start_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "wax_available_for_rentals",
+                    "type": "asset"
+                },
+                {
+                    "name": "cost_to_rent_1_wax",
+                    "type": "asset"
+                },
+                {
+                    "name": "current_cpu_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "next_stakeall_time",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "state2",
+            "base": "",
+            "fields": [
+                {
+                    "name": "last_incentive_distribution",
+                    "type": "uint64"
+                },
+                {
+                    "name": "incentives_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_value_locked",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "state3",
+            "base": "",
+            "fields": [
+                {
+                    "name": "total_claimable_wax",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_wax_owed",
+                    "type": "asset"
+                },
+                {
+                    "name": "contract_wax_balance",
+                    "type": "asset"
+                },
+                {
+                    "name": "last_update",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "statesnaps",
+            "base": "",
+            "fields": [
+                {
+                    "name": "timestamp",
+                    "type": "uint64"
+                },
+                {
+                    "name": "total_wax_owed",
+                    "type": "asset"
+                },
+                {
+                    "name": "contract_wax_balance",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "sync",
+            "base": "",
+            "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "synctvl",
+            "base": "",
+            "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "top21",
+            "base": "",
+            "fields": [
+                {
+                    "name": "block_producers",
+                    "type": "name[]"
+                },
+                {
+                    "name": "last_update",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "unstakecpu",
+            "base": "",
+            "fields": [
+                {
+                    "name": "epoch_id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "limit",
+                    "type": "int32"
+                }
+            ]
+        },
+        {
+            "name": "updatetop21",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "wtf",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "votes",
+                    "type": "float64"
+                },
+                {
+                    "name": "active",
+                    "type": "bool"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "addadmin",
+            "type": "addadmin",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addcpucntrct",
+            "type": "addcpucntrct",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "claimaslswax",
+            "type": "claimaslswax",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "claimgbmvote",
+            "type": "claimgbmvote",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "claimrefunds",
+            "type": "claimrefunds",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "claimrewards",
+            "type": "claimrewards",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "claimswax",
+            "type": "claimswax",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "clearexpired",
+            "type": "clearexpired",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "createfarms",
+            "type": "createfarms",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "distribute",
+            "type": "distribute",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "initconfig",
+            "type": "initconfig",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "initconfig3",
+            "type": "initconfig3",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "initstate2",
+            "type": "initstate2",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "initstate3",
+            "type": "initstate3",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "inittop21",
+            "type": "inittop21",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "instaredeem",
+            "type": "instaredeem",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "liquify",
+            "type": "liquify",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "liquifyexact",
+            "type": "liquifyexact",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "reallocate",
+            "type": "reallocate",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "redeem",
+            "type": "redeem",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removeadmin",
+            "type": "removeadmin",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "reqredeem",
+            "type": "reqredeem",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "rmvcpucntrct",
+            "type": "rmvcpucntrct",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "rmvincentive",
+            "type": "rmvincentive",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setfallback",
+            "type": "setfallback",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setincentive",
+            "type": "setincentive",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setpolshare",
+            "type": "setpolshare",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setrentprice",
+            "type": "setrentprice",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "stake",
+            "type": "stake",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "stakeallcpu",
+            "type": "stakeallcpu",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "sync",
+            "type": "sync",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "synctvl",
+            "type": "synctvl",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "unstakecpu",
+            "type": "unstakecpu",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "updatetop21",
+            "type": "updatetop21",
+            "ricardian_contract": ""
+        }
+    ],
+    "tables": [
+        {
+            "name": "config3",
+            "type": "config3",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "debug",
+            "type": "debug",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "epochs",
+            "type": "epochs",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "lpfarms",
+            "type": "lpfarms",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "rdmrequests",
+            "type": "redeem_requests",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "renters",
+            "type": "renters",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "snapshots",
+            "type": "snapshots",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "stakers",
+            "type": "stakers",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "state",
+            "type": "state",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "state2",
+            "type": "state2",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "state3",
+            "type": "state3",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "statesnaps",
+            "type": "statesnaps",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "top21",
+            "type": "top21",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "wtf",
+            "type": "wtf",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "ricardian_clauses": [],
+    "variants": [],
+    "action_results": []
+}
