@@ -206,7 +206,7 @@ liquidity_struct polcontract::get_liquidity_info(config2 c, dapp_tables::state d
    *  which is equivalent to checking if our price is < ( alcors_price * 1.05 ) 
    */
 
-  if( real_lswax_price > calculate_share_from_e18( alcors_lswax_price, 95238095 ) //real price is <= higher
+  if( real_lswax_price > calculate_share_from_e18( alcors_lswax_price, 95238095 ) //real price is <= 5% higher
       &&
       alcors_lswax_price > calculate_share_from_e18( real_lswax_price, 95238095 ) //real price <= 5% lower
     ){
