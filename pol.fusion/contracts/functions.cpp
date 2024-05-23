@@ -16,7 +16,8 @@ void polcontract::add_liquidity( state3& s, liquidity_struct& lp_details ){
   // Determine the limiting factor
   uint128_t wax_to_add, lswax_to_add;
   if (max_wax_possible <= max_lswax_possible) {
-      // WAX is the limiting factor so we just add the full bucket to LP
+      //WAX is the limiting factor, or the weights are equal
+      //so we will add the full wax bucket to LP
       wax_to_add = uint128_t(s.wax_bucket.amount);
 
       //scale wax_to_add before division
@@ -33,7 +34,7 @@ void polcontract::add_liquidity( state3& s, liquidity_struct& lp_details ){
       lswax_to_add = uint128_t(s.lswax_bucket.amount);
 
       /** if alcor price < the max_scale_factor for lswax_to_add,
-       *  multiplying it the 2 is acceptable
+       *  multiplying these 2 numbers together is acceptable
        *  otherwise there will be overflow, so we can run a loop
        *  to scale down until the size is acceptable
        * 
