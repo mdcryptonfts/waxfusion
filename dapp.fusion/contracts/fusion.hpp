@@ -127,7 +127,7 @@ CONTRACT fusion : public contract {
 			const int64_t& eco_alloc_i64, const int64_t& swax_autocompounding_alloc_i64,
       		const int64_t& swax_earning_alloc_i64, const int64_t& amount_to_distribute_i64);
 		void validate_token(const eosio::symbol& symbol, const eosio::name& contract);
-		void zero_distribution();
+		void zero_distribution(const config3& c, const state& s);
 
 		//Safemath
 		int64_t safeAddInt64(const int64_t& a, const int64_t& b);

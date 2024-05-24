@@ -2,7 +2,7 @@ const { Blockchain, nameToBigInt, TimePoint, expectToThrow } = require("@eosnetw
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
 const blockchain = new Blockchain()
-const { lswax, swax, wax } = require("./helpers.ts")
+const { calculate_wax_and_lswax_outputs, lswax, rent_cpu_memo, swax, wax } = require("./helpers.ts")
 
 const contracts = {
 	alcor_contract: blockchain.createContract('swap.alcor', '../swap.alcor/build/alcor'),
@@ -18,11 +18,15 @@ const contracts = {
  	wax_contract: blockchain.createContract('eosio.token', '../eosio.token/build/token')
 }
 
+
+
 const initial_state = {
-	alcor_lswax_pool: `95300.00000000 LSWAX`,
-    alcor_wax_pool: `100000.00000000 WAX`,
+	alcor_lswax_pool: lswax(95300),
+    alcor_wax_pool: wax(100000),
     chain_time: 1710460800,
     circulating_wax: `10000000.00000000 WAX`,
+    dapp_rental_pool: Number(calculate_wax_and_lswax_outputs(100000, 100000 / 95300, 1)[1]), //48796.72299027
+    swax_backing_lswax: Number(calculate_wax_and_lswax_outputs(100000, 100000 / 95300, 1)[1]), //48796.72299027  
     swax_supply: `46116860184.27387903 SWAX`,
     lswax_supply: `46116860184.27387903 LSWAX`,
     wax_supply: `46116860184.27387903 WAX`
@@ -56,7 +60,13 @@ const init = async () => {
     await contracts.wax_contract.actions.issue(['eosio', initial_state.wax_supply, 'issuing wax']).send('eosio@active');
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.swax_supply]).send();
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.lswax_supply]).send();
-    await contracts.wax_contract.actions.transfer(['eosio', 'mike', '1000000.00000000 WAX', '1M wax for mike']).send('eosio@active');
+    await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(1000000), '1M wax for mike']).send('eosio@active');
+    await contracts.wax_contract.actions.transfer(['eosio', 'bob', wax(1000000), '1M wax for bob']).send('eosio@active');
+    await contracts.wax_contract.actions.transfer(['eosio', 'ricky', wax(1000000), '1M wax for ricky']).send('eosio@active');
+
+    //deposit initial 100k liquidity to POL, and 100k initial staking pool funds
+    await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for liquidity only']).send('eosio@active');
+    await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for staking pool only']).send('eosio@active');
 }
 
 const stake = async (user, amount, liquify = false, liquify_amount = amount) => {
@@ -67,11 +77,48 @@ const stake = async (user, amount, liquify = false, liquify_amount = amount) => 
     }
 }
 
+const unliquify = async (user, amount) => {
+    await contracts.token_contract.actions.transfer([user, 'dapp.fusion', lswax(amount), 'unliquify']).send(`${user}@active`);
+}
+
+const simulate_days = async (days = 1) => {
+    //this should be a whole cycle of logic here...
+    let current_time = initial_state.chain_time
+
+    let count = 0;
+    while(count < days){
+        //mike stakes 10000 swax, bob stake 10k and liquifies 5k, ricky stakes 10k and liquifies it all
+        await stake('mike', 10000)
+        await stake('bob', 10000, true, 5000)
+        await stake('ricky', 10000, true)
+
+        //have multiple users rent cpu from different epochs, but not all of the wax
+        const memo = rent_cpu_memo('mike', 100, initial_state.chain_time)
+        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active')
+
+        //fast forward a day
+        current_time += 86400
+        await setTime(current_time)
+
+        //claim rewards
+
+        //distibute
+        await contracts.dapp_contract.actions.distribute([]).send('mike@active')
+
+        //if necessary days have passed, unstake cpu, claim refund etc
+
+        count ++
+
+    }
+}
+
 module.exports = {
 	blockchain,
 	contracts,
 	init,
     initial_state,
     setTime,
-    stake
+    stake,
+    simulate_days,
+    unliquify
 }

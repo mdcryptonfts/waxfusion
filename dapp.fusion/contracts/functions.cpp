@@ -514,10 +514,7 @@ void fusion::validate_token(const eosio::symbol& symbol, const eosio::name& cont
 }
 
 
-void fusion::zero_distribution(){
-  config3 c = config_s_3.get();
-  state s = states.get();
-
+void fusion::zero_distribution(const config3& c, const state& s){
   snaps_t.emplace(get_self(), [&](auto &_snap){
     _snap.timestamp = s.next_distribution;
     _snap.swax_earning_bucket = ZERO_WAX;
@@ -526,8 +523,5 @@ void fusion::zero_distribution(){
     _snap.ecosystem_bucket = ZERO_WAX;
     _snap.total_distributed = ZERO_WAX; 
     _snap.total_swax_earning = ZERO_SWAX; 
-  });  
-
-  s.next_distribution += c.seconds_between_distributions;
-  states.set(s, _self);    
+  });   
 }

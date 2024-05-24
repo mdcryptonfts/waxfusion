@@ -259,50 +259,45 @@ ACTION fusion::distribute(){
 		check( false, ("next distribution is not until " + std::to_string(s.next_distribution) ).c_str() );
 	}
 
+	//if there is nothing to distribute, create a snapshot with 0 quantities
 	if( s.revenue_awaiting_distribution.amount == 0 ){
-		zero_distribution();
+		zero_distribution( c, s );
+		s.next_distribution += c.seconds_between_distributions;
+		states.set(s, _self);   		
 		return;
 	}
 
+	//total waiting to be distributed
 	int64_t amount_to_distribute = s.revenue_awaiting_distribution.amount;
-	int64_t user_alloc_i64 = calculate_asset_share( amount_to_distribute, c.user_share_1e6 );
-	int64_t pol_alloc_i64 = calculate_asset_share( amount_to_distribute, c.pol_share_1e6 );
-	int64_t eco_alloc_i64 = calculate_asset_share( amount_to_distribute, c.pol_share_1e6 );
 
+	//amount to allocate to both compounding LSWAX, and rewarding SWAX stakers
+	int64_t user_alloc_i64 = calculate_asset_share( amount_to_distribute, c.user_share_1e6 );
+
+	//amount to distribute to the POL contract
+	int64_t pol_alloc_i64 = calculate_asset_share( amount_to_distribute, c.pol_share_1e6 );
+
+	//amount that goes to LP incentives for ecosystem tokens
+	int64_t eco_alloc_i64 = calculate_asset_share( amount_to_distribute, c.ecosystem_share_1e6 );
+
+	//total swax in existence, the user allocation all goes to this
 	int64_t sum_of_sWAX_and_lsWAX = safeAddInt64( s.swax_currently_earning.amount, s.swax_currently_backing_lswax.amount );
 
+	//the amount of rewards that goes to users who are staking SWAX (goes into the user funds bucket)
 	int64_t swax_earning_alloc_i64 = internal_get_swax_allocations( user_alloc_i64, s.swax_currently_earning.amount, sum_of_sWAX_and_lsWAX );
+	
+	//the amount of wax that should buy new swax, and use it to increase the backing of LSWAX
+	//this is the amount of swax that should be minted, plus the amount used for LP incentives
+	//the issued swax should be added to the swax_currently_backing_lswax bucket
 	int64_t swax_autocompounding_alloc_i64 = internal_get_swax_allocations( user_alloc_i64, s.swax_currently_backing_lswax.amount, sum_of_sWAX_and_lsWAX );
 
-	//issue sWAX
-	int64_t swax_amount_to_issue = safeAddInt64( swax_autocompounding_alloc_i64, swax_earning_alloc_i64 );
-	issue_swax( swax_amount_to_issue );
+	//calculate swax to issue for autocompounding, and for LP incentives
+	int64_t swax_amount_to_issue = safeAddInt64( swax_autocompounding_alloc_i64, eco_alloc_i64 );
 
-	//increase the backing of lsWAX with the newly issued sWAX
-	s.swax_currently_backing_lswax.amount = safeAddInt64( s.swax_currently_backing_lswax.amount, swax_autocompounding_alloc_i64 );
+	//calculate lswax to issue for the lp incentives bucket, using the ecosystem allocation amount
+	int64_t lswax_amount_to_issue = internal_liquify( eco_alloc_i64, s );
 	
 	validate_distribution_amounts(user_alloc_i64, pol_alloc_i64, eco_alloc_i64, swax_autocompounding_alloc_i64,
       swax_earning_alloc_i64, amount_to_distribute);
-
-	//set revenue_awaiting_distribution to 0
-	s.revenue_awaiting_distribution.amount = 0;
-
-	//user share goes to s.user_funds_bucket
-	s.user_funds_bucket.amount = safeAddInt64(s.user_funds_bucket.amount, swax_earning_alloc_i64);
-
-	//pol share goes to POL_CONTRACT
-	transfer_tokens( POL_CONTRACT, asset(pol_alloc_i64, WAX_SYMBOL), WAX_CONTRACT, std::string("pol allocation from waxfusion distribution") );
-
-	//incentives lsWAX should be issued at the new rate instead of autocompounding it immediately after minting it
-	int64_t converted_lsWAX_i64 = internal_liquify( eco_alloc_i64, s );
-
-	issue_lswax(converted_lsWAX_i64, _self);
-
-	//make sure ecosystems lswax gets added to incentives_bucket
-	s2.incentives_bucket.amount = safeAddInt64( s2.incentives_bucket.amount, converted_lsWAX_i64 );	
-
-	s.swax_currently_backing_lswax.amount = safeAddInt64( s.swax_currently_backing_lswax.amount, eco_alloc_i64 );
-	s.liquified_swax.amount = safeAddInt64(s.liquified_swax.amount, converted_lsWAX_i64);	
 
 	//create a snapshot
 	snaps_t.emplace(get_self(), [&](auto &_snap){
@@ -315,16 +310,26 @@ ACTION fusion::distribute(){
 		_snap.total_swax_earning = s.swax_currently_earning;
 	});
 
-	//update total_revenue_distributed in state
+	//modify the state with updated info
 	s.total_revenue_distributed.amount = safeAddInt64(s.total_revenue_distributed.amount, amount_to_distribute);
-
-	//update next_dist in the state table
 	s.next_distribution += c.seconds_between_distributions;
-
     s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, swax_amount_to_issue);
+	s.revenue_awaiting_distribution.amount = 0;
+	s.user_funds_bucket.amount = safeAddInt64( s.user_funds_bucket.amount, swax_earning_alloc_i64);
+	s2.incentives_bucket.amount = safeAddInt64( s2.incentives_bucket.amount, lswax_amount_to_issue );	
+	s.swax_currently_backing_lswax.amount = safeAddInt64( s.swax_currently_backing_lswax.amount, eco_alloc_i64 );
+	s.liquified_swax.amount = safeAddInt64( s.liquified_swax.amount, lswax_amount_to_issue );  
+	s.swax_currently_backing_lswax.amount = safeAddInt64( s.swax_currently_backing_lswax.amount, swax_autocompounding_alloc_i64 );  
 
     states.set(s, _self);
     state_s_2.set(s2, _self);
+
+    //issue the swax and lswax
+	issue_lswax( lswax_amount_to_issue, _self );
+	issue_swax( swax_amount_to_issue );    
+
+	//pol share goes to POL_CONTRACT
+	transfer_tokens( POL_CONTRACT, asset(pol_alloc_i64, WAX_SYMBOL), WAX_CONTRACT, std::string("pol allocation from waxfusion distribution") );    
 
 	return;	
 

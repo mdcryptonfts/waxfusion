@@ -1,10 +1,10 @@
-const { blockchain, contracts, init, initial_state, setTime, stake } = require("./setup.spec.ts")
-const { lswax, swax, wax } = require("./helpers.ts")
+const { blockchain, contracts, init, initial_state, setTime, stake, simulate_days, unliquify } = require("./setup.spec.ts")
+const { calculate_wax_and_lswax_outputs, lswax, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
 const { nameToBigInt, TimePoint, expectToThrow } = require("@eosnetwork/vert");
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
 
-const [mike, bob] = blockchain.createAccounts('mike', 'bob')
+const [mike, bob, ricky] = blockchain.createAccounts('mike', 'bob', 'ricky')
 
 
 /* Runs before each test */
@@ -123,6 +123,17 @@ const getRenters = async (log = false) => {
     return renters; 
 }
 
+const getSnapshots = async (log = false) => {
+    const snaps = await contracts.dapp_contract.tables
+        .snapshots(scopes.dapp)
+        .getTableRows()
+    if(log){
+        console.log('snapshots')
+        console.log(snaps)
+    }
+    return snaps 
+}
+
 const getSupply = async (account, token, log = false) => {
     const scope = Asset.SymbolCode.from(token).value.value
     const row = await account.tables
@@ -163,11 +174,12 @@ describe('\n\nstake memo', () => {
         await stake('mike', 10)
     	const dapp_state = await getDappState();
     	assert(dapp_state.swax_currently_earning == swax(10), "swax_currently_earning should be 10");
-    	assert(dapp_state.wax_available_for_rentals == wax(10), "wax_available_for_rentals should be 10");
+        assert(dapp_state.wax_available_for_rentals == wax(initial_state.dapp_rental_pool + 10), `wax_available_for_rentals should be ${initial_state.dapp_rental_pool + 10}`);
     	const swax_supply = await getSupply(contracts.token_contract, "SWAX");
-    	assert(swax_supply.supply == swax(10), "swax supply should be 10");
+    	assert(swax_supply.supply == swax(initial_state.dapp_rental_pool + 10), `swax supply should be ${initial_state.dapp_rental_pool + 10}`);
     });     
 });
+
 
 describe('\n\nunliquify memo', () => {
 
@@ -243,9 +255,53 @@ describe('\n\nunliquify_exact memo', () => {
  
 });
 
+describe('\n\nsimulate_days', () => {
 
-module.exports = {
-    lswax,
-    swax,
-    wax
-}
+    it('success', async () => {
+        await simulate_days(5)
+
+        //check the dapp state
+        await getDappState(true)
+
+        //check the pol state
+        await getPolState(true)
+
+        //swax backing lswax should now be initial + (5*simulation)
+
+        //check the staked balance of each user
+
+        //check the lswax balance of each user
+
+        //check the lswax supply
+        await getSupply(contracts.token_contract, "LSWAX", true)
+
+        //check the swax supply
+        await getSupply(contracts.token_contract, "SWAX", true)
+
+        await unliquify('bob', 10000);
+        const bobs_bal = await getBalances('bob', contracts.token_contract, true)
+
+        //try using pol contract to mess things up (instant redeem, rebalance)
+        //await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10000), '']).send('mike@active')
+        await contracts.token_contract.actions.transfer(['bob', 'pol.fusion', lswax(10000), '']).send('bob@active')
+        await contracts.pol_contract.actions.rebalance([]).send('mike@active')
+
+        //check the dapp state
+        const dapp_state = await getDappState(true)
+
+        //check the pol state
+        await getPolState(true)
+
+        //check the lswax supply
+        const lswax_supply = await getSupply(contracts.token_contract, "LSWAX", true)
+
+        //check the swax supply
+        const swax_supply = await getSupply(contracts.token_contract, "SWAX", true)
+
+        const snaps = await getSnapshots(true)
+        validate_supply_and_payouts(snaps, dapp_state.swax_currently_earning, dapp_state.swax_currently_backing_lswax,
+                lswax_supply.supply, swax_supply.supply, dapp_state.liquified_swax )
+    });  
+ 
+});
+
