@@ -46,6 +46,18 @@ const rent_cpu_memo = (receiver, days, wax) => {
     return `|rent_cpu|${receiver}|${days}|${wax}|`
 }
 
+const lswax = (amount) => {
+    return `${parseFloat(amount).toFixed(8)} LSWAX`
+}
+
+const swax = (amount) => {
+    return `${parseFloat(amount).toFixed(8)} SWAX`
+}
+
+const wax = (amount) => {
+    return `${parseFloat(amount).toFixed(8)} WAX`
+}
+
 
 module.exports = {
     almost_equal,
@@ -54,5 +66,8 @@ module.exports = {
     calculate_wax_to_match_lswax,
     extend_rental_memo,
     increase_rental_memo,
-    rent_cpu_memo
+    rent_cpu_memo,
+    lswax,
+    swax,
+    wax
 }

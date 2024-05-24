@@ -1,15 +1,11 @@
-const { blockchain, contracts, init, initial_alcor_price, setTime, incrementTime, initial_state } = require("./setup.spec.ts");
+const { blockchain, contracts, init, initial_alcor_price, setTime, incrementTime, initial_state, stake } = require("./setup.spec.ts");
 const { nameToBigInt, TimePoint, expectToThrow } = require("@eosnetwork/vert");
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
 const { almost_equal, calculate_lswax_to_match_wax, calculate_wax_and_lswax_outputs, calculate_wax_to_match_lswax,
-        extend_rental_memo, increase_rental_memo, rent_cpu_memo } = require('./helpers.ts');
+        extend_rental_memo, increase_rental_memo, rent_cpu_memo, lswax, swax, wax } = require('./helpers.ts');
 
 const [mike, bob] = blockchain.createAccounts('mike', 'bob')
-
-//Assets
-const ZERO_WAX = '0.00000000 WAX'
-const ZERO_LSWAX = '0.00000000 LSWAX'
 
 //Error messages
 const ERR_ALREADY_FUNDED_RENTAL = "eosio_assert: memo for increasing/extending should start with extend_rental or increase_rental"
@@ -148,63 +144,55 @@ describe('\n\nverify initial POL state and config', () => {
 describe('\n\ntransfer wax and lswax', () => {
 
     it('wax with no memo', async () => {
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '100000.00000000 WAX', '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), '']).send('eosio@active');
         const pol_state = await getPolState()
-        assert.strictEqual(pol_state.wax_bucket, '100000.00000000 WAX', 'POL should have 100k WAX in bucket');
+        assert.strictEqual(pol_state.wax_bucket, wax(100000), 'POL should have 100k WAX in bucket');
     });  
 
     it('lswax with no memo', async () => {
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '6333.00000000 LSWAX', '']).send('mike@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(12000), 'for staking']).send('eosio@active');
+        await stake('mike', 12000, true, 6333)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(6333), '']).send('mike@active');
         const pol_state = await getPolState()
-        assert.strictEqual(pol_state.lswax_bucket, '6333.00000000 LSWAX', 'POL should have 6333 LSWAX in bucket');        
+        assert.strictEqual(pol_state.lswax_bucket, lswax(6333), 'POL should have 6333 LSWAX in bucket');        
     }); 
 
     it('wax with negative quantity', async () => {
-        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '-100000.00000000 WAX', '']).send('eosio@active');
+        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(-100000), '']).send('eosio@active');
         await expectToThrow(action, "eosio_assert: must transfer positive quantity");
     });     
 
     it('lswax with negative quantity', async () => {
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
-        const action = contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '-6333.00000000 LSWAX', '']).send('mike@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(12000), 'for staking']).send('eosio@active');
+        await stake('mike', 12000, true, 6333)
+        const action = contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(-6333), '']).send('mike@active');
         await expectToThrow(action, "eosio_assert: must transfer positive quantity");
     });          
 
     it('wax with 0 quantity', async () => {
-        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', ZERO_WAX, '']).send('eosio@active');
+        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(0), '']).send('eosio@active');
         await expectToThrow(action, "eosio_assert: must transfer positive quantity");
     });     
 
     it('lswax with 0 quantity', async () => {
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
-        const action = contracts.token_contract.actions.transfer(['mike', 'pol.fusion', ZERO_LSWAX, '']).send('mike@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(12000), 'for staking']).send('eosio@active');
+        await stake('mike', 12000, true, 6333)
+        const action = contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(0), '']).send('mike@active');
         await expectToThrow(action, "eosio_assert: must transfer positive quantity");
     });  
 
     it('wax with memo that isnt caught by notification handler', async () => {
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '100000.00000000 WAX', 'some random memo']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'some random memo']).send('eosio@active');
         const pol_state = await getPolState()
-        assert.strictEqual(pol_state.wax_bucket, '100000.00000000 WAX', 'POL should have 100k WAX in bucket');
+        assert.strictEqual(pol_state.wax_bucket, wax(100000), 'POL should have 100k WAX in bucket');
     });     
 
     it('lswax with memo that isnt caught by notification handler', async () => {
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '420.00000000 LSWAX', 'hello']).send('mike@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(12000), 'for staking']).send('eosio@active');
+        await stake('mike', 12000, true, 6333)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(420), 'hello']).send('mike@active');
         const pol_state = await getPolState()
-        assert.strictEqual(pol_state.lswax_bucket, '420.00000000 LSWAX', 'POL should have 420 LSWAX in bucket');        
+        assert.strictEqual(pol_state.lswax_bucket, lswax(420), 'POL should have 420 LSWAX in bucket');        
     });      
 });
 
@@ -218,8 +206,8 @@ describe('\n\ndeposit for liquidity only', () => {
         
         //verify that the state is accurate
         const pol_state = await getPolState()
-        assert.strictEqual(pol_state.wax_bucket, ZERO_WAX, 'POL should have 0 WAX in bucket');
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'POL should have 0 LSWAX in bucket');
+        assert.strictEqual(pol_state.wax_bucket, wax(0), 'POL should have 0 WAX in bucket');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'POL should have 0 LSWAX in bucket');
 
         //make sure alcor pools are within 99.99% of the expected amount
         const outputs = calculate_wax_and_lswax_outputs(100000.0, 100000.0 / 95300.0, 1.0);
@@ -231,26 +219,25 @@ describe('\n\ndeposit for liquidity only', () => {
     it('when there is 0 lswax and 10,000 swax circulating', async () => {
 
         //send wax to mike
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '10000.00000000 WAX', 'for staking']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(10000), 'for staking']).send('eosio@active');
 
         //have mike stake the wax, and make sure his staked balance is 10k
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '10000.00000000 WAX', 'stake']).send('mike@active');
+        await stake('mike', 10000)
         const mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '10000.00000000 SWAX', 'mike should have 10,000 SWAX staked');
+        assert.strictEqual(mikes_stake.swax_balance, swax(10000), 'mike should have 10,000 SWAX staked');
 
         //check the dapp state to make sure there is 10k swax_currently_earning
         const dapp_state = await getDappState()
-        assert.strictEqual(dapp_state.swax_currently_earning, '10000.00000000 SWAX', 'dapp should have 10,000 swax_currently_earning');
+        assert.strictEqual(dapp_state.swax_currently_earning, swax(10000), 'dapp should have 10,000 swax_currently_earning');
 
         //transfer 147,315.89 WAX from eosio to POL
-        const amount_to_transfer = '147315.89000000 WAX'
+        const amount_to_transfer = wax(147315.89)
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', amount_to_transfer, 'for liquidity only']).send('eosio@active');
         
         //validate the POL state
         const pol_state = await getPolState()
-        assert.strictEqual(pol_state.wax_bucket, ZERO_WAX, 'pol should have 0 WAX');
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'pol should have 0 LSWAX');
+        assert.strictEqual(pol_state.wax_bucket, wax(0), 'pol should have 0 WAX');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
 
         //validate that alcors pools are within 99.99% of the expected amounts
         const outputs = calculate_wax_and_lswax_outputs(parseFloat(amount_to_transfer.split(' ')[0]), 100000.0 / 95300.0, 1.0);
@@ -266,32 +253,31 @@ describe('\n\ndeposit for liquidity only', () => {
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
 
         //have mike stake the wax, and make sure his staked balance is 10k
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
+        await stake('mike', 12000)
         let mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '12000.00000000 SWAX', 'mike should have 12,000 SWAX staked');
+        assert.strictEqual(mikes_stake.swax_balance, swax(12000), 'mike should have 12,000 SWAX staked');
 
         //liquify 6,333 swax
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
+        await contracts.dapp_contract.actions.liquify(['mike', swax(6333)]).send('mike@active');
 
         //check lswax supply, mikes stake, and mikes lswax balance
         const lswax_supply = await getSupply(contracts.token_contract, 'LSWAX');
-        assert.strictEqual(lswax_supply.supply, '6333.00000000 LSWAX', 'LSWAX supply should be 6333');
+        assert.strictEqual(lswax_supply.supply, lswax(6333), 'LSWAX supply should be 6333');
 
         mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '5667.00000000 SWAX', 'mike should have 5667.00000000 SWAX staked');        
+        assert.strictEqual(mikes_stake.swax_balance, swax(5667), 'mike should have 5667.00000000 SWAX staked');        
 
         const mikes_lswax_balance = await getBalances('mike', contracts.token_contract);
-        assert.strictEqual(mikes_lswax_balance[0].balance, '6333.00000000 LSWAX', 'mike should have 6333.00000000 LSWAX');   
+        assert.strictEqual(mikes_lswax_balance[0].balance, lswax(6333), 'mike should have 6333.00000000 LSWAX');   
 
         //transfer wax to pol for liquidity
-        const amount_to_transfer = '147315.89000000 WAX'
+        const amount_to_transfer = wax(147315.89)
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', amount_to_transfer, 'for liquidity only']).send('eosio@active');             
     
         //validate the POL state
         const pol_state = await getPolState()
-        assert.strictEqual(pol_state.wax_bucket, ZERO_WAX, 'pol should have 0 WAX');
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'pol should have 0 LSWAX');
+        assert.strictEqual(pol_state.wax_bucket, wax(0), 'pol should have 0 WAX');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
 
         //validate that alcors pools are within 99.99% of the expected amounts
         let outputs = calculate_wax_and_lswax_outputs(parseFloat(amount_to_transfer.split(' ')[0]), 100000.0 / 95300.0, 1.0 );
@@ -307,44 +293,43 @@ describe('\n\ndeposit for liquidity only', () => {
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
 
         //have mike stake the wax, and make sure his staked balance is 10k
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
+        await stake('mike', 12000)
         let mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '12000.00000000 SWAX', 'mike should have 12,000 SWAX staked');
+        assert.strictEqual(mikes_stake.swax_balance, swax(12000), 'mike should have 12,000 SWAX staked');
 
         //liquify 6,333 swax
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
+        await contracts.dapp_contract.actions.liquify(['mike', swax(6333)]).send('mike@active');
 
         //check lswax supply, mikes stake, and mikes lswax balance
         const lswax_supply = await getSupply(contracts.token_contract, 'LSWAX');
-        assert.strictEqual(lswax_supply.supply, '6333.00000000 LSWAX', 'LSWAX supply should be 6333');
+        assert.strictEqual(lswax_supply.supply, lswax(6333), 'LSWAX supply should be 6333');
 
         mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '5667.00000000 SWAX', 'mike should have 5667.00000000 SWAX staked');        
+        assert.strictEqual(mikes_stake.swax_balance, swax(5667), 'mike should have 5667.00000000 SWAX staked');        
 
         const mikes_lswax_balance = await getBalances('mike', contracts.token_contract);
-        assert.strictEqual(mikes_lswax_balance[0].balance, '6333.00000000 LSWAX', 'mike should have 6333.00000000 LSWAX');   
+        assert.strictEqual(mikes_lswax_balance[0].balance, lswax(6333), 'mike should have 6333.00000000 LSWAX');   
 
         //re-initialize alcor pools with 0 assets, then validate the alcor state
-        await contracts.alcor_contract.actions.initunittest([ZERO_WAX, ZERO_LSWAX]).send();    
+        await contracts.alcor_contract.actions.initunittest([wax(0), lswax(0)]).send();    
         let alcor_pool = await getAlcorPool()
-        assert.strictEqual(alcor_pool.tokenA.quantity, ZERO_WAX, 'alcor should have 0 WAX');
-        assert.strictEqual(alcor_pool.tokenB.quantity, ZERO_LSWAX, 'alcor should have 0 LSWAX');
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(0), 'alcor should have 0 WAX');
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(0), 'alcor should have 0 LSWAX');
 
         //transfer wax to pol for liquidity
-        const amount_to_transfer = '147315.89000000 WAX'
+        const amount_to_transfer = wax(147315.89)
         const expected_quantity = parseFloat(147315.89 / 2).toFixed(8)
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', amount_to_transfer, 'for liquidity only']).send('eosio@active');             
     
         //validate the POL state
         const pol_state = await getPolState()
-        assert.strictEqual(pol_state.wax_bucket, ZERO_WAX, 'pol should have 0 WAX');
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'pol should have 0 LSWAX');
+        assert.strictEqual(pol_state.wax_bucket, wax(0), 'pol should have 0 WAX');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
 
         //validate that alcors pools have exactly half of the wax in each side of the pool
         alcor_pool = await getAlcorPool()
-        assert.strictEqual(alcor_pool.tokenA.quantity, `${expected_quantity} WAX`, `alcor should have ${expected_quantity} WAX`);
-        assert.strictEqual(alcor_pool.tokenB.quantity, `${expected_quantity} LSWAX`, `alcor should have ${expected_quantity} LSWAX`);
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(expected_quantity), `alcor should have ${wax(expected_quantity)}`);
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(expected_quantity), `alcor should have ${lswax(expected_quantity)}`);
         
     });  
 
@@ -354,43 +339,42 @@ describe('\n\ndeposit for liquidity only', () => {
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
 
         //have mike stake the wax, and make sure his staked balance is 10k
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
+        await stake('mike', 12000)
         let mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '12000.00000000 SWAX', 'mike should have 12,000 SWAX staked');
+        assert.strictEqual(mikes_stake.swax_balance, swax(12000), 'mike should have 12,000 SWAX staked');
 
         //liquify 6,333 swax
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
+        await contracts.dapp_contract.actions.liquify(['mike', swax(6333)]).send('mike@active');
 
         //check lswax supply, mikes stake, and mikes lswax balance
         const lswax_supply = await getSupply(contracts.token_contract, 'LSWAX');
-        assert.strictEqual(lswax_supply.supply, '6333.00000000 LSWAX', 'LSWAX supply should be 6333');
+        assert.strictEqual(lswax_supply.supply, lswax(6333), 'LSWAX supply should be 6333');
 
         mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '5667.00000000 SWAX', 'mike should have 5667.00000000 SWAX staked');        
+        assert.strictEqual(mikes_stake.swax_balance, swax(5667), 'mike should have 5667.00000000 SWAX staked');        
 
         const mikes_lswax_balance = await getBalances('mike', contracts.token_contract);
-        assert.strictEqual(mikes_lswax_balance[0].balance, '6333.00000000 LSWAX', 'mike should have 6333.00000000 LSWAX');   
+        assert.strictEqual(mikes_lswax_balance[0].balance, lswax(6333), 'mike should have 6333.00000000 LSWAX');   
 
         //re-initialize alcor pools with 0 assets, then validate the alcor state
-        await contracts.alcor_contract.actions.initunittest([ZERO_WAX, '50.00000000 LSWAX']).send();    
+        await contracts.alcor_contract.actions.initunittest([wax(0), lswax(50)]).send();    
         let alcor_pool = await getAlcorPool()
-        assert.strictEqual(alcor_pool.tokenA.quantity, ZERO_WAX, 'alcor should have 0 WAX');
-        assert.strictEqual(alcor_pool.tokenB.quantity, '50.00000000 LSWAX', 'alcor should have 50 LSWAX');
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(0), 'alcor should have 0 WAX');
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(50), 'alcor should have 50 LSWAX');
 
         //transfer wax to pol for liquidity
-        const amount_to_transfer = '147315.89000000 WAX'
+        const amount_to_transfer = wax(147315.89)
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', amount_to_transfer, 'for liquidity only']).send('eosio@active');             
     
         //pol should have not bought any LSWAX, and added all WAX into the wax_bucket
         const pol_state = await getPolState()
         assert.strictEqual(pol_state.wax_bucket, amount_to_transfer, `pol should have ${amount_to_transfer}`);
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'pol should have 0 LSWAX');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
 
         //validate that alcors pools did not receive a new deposit
         alcor_pool = await getAlcorPool()
-        assert.strictEqual(alcor_pool.tokenA.quantity, ZERO_WAX, 'alcor should have 0 WAX');
-        assert.strictEqual(alcor_pool.tokenB.quantity, '50.00000000 LSWAX', 'alcor should have 50 LSWAX');
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(0), 'alcor should have 0 WAX');
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(50), 'alcor should have 50 LSWAX');
 
     });    
 
@@ -400,89 +384,87 @@ describe('\n\ndeposit for liquidity only', () => {
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
 
         //have mike stake the wax, and make sure his staked balance is 10k
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
+        await stake('mike', 12000)
         let mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '12000.00000000 SWAX', 'mike should have 12,000 SWAX staked');
+        assert.strictEqual(mikes_stake.swax_balance, swax(12000), 'mike should have 12,000 SWAX staked');
 
         //liquify 6,333 swax
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
+        await contracts.dapp_contract.actions.liquify(['mike', swax(6333)]).send('mike@active');
 
         //check lswax supply, mikes stake, and mikes lswax balance
         const lswax_supply = await getSupply(contracts.token_contract, 'LSWAX');
-        assert.strictEqual(lswax_supply.supply, '6333.00000000 LSWAX', 'LSWAX supply should be 6333');
+        assert.strictEqual(lswax_supply.supply, lswax(6333), 'LSWAX supply should be 6333');
 
         mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '5667.00000000 SWAX', 'mike should have 5667.00000000 SWAX staked');        
+        assert.strictEqual(mikes_stake.swax_balance, swax(5667), 'mike should have 5667.00000000 SWAX staked');        
 
         const mikes_lswax_balance = await getBalances('mike', contracts.token_contract);
-        assert.strictEqual(mikes_lswax_balance[0].balance, '6333.00000000 LSWAX', 'mike should have 6333.00000000 LSWAX');   
+        assert.strictEqual(mikes_lswax_balance[0].balance, lswax(6333), 'mike should have 6333.00000000 LSWAX');   
 
         //re-initialize alcor pools with 0 assets, then validate the alcor state
-        await contracts.alcor_contract.actions.initunittest(['10000.00000000 WAX', '9000.00000000 LSWAX']).send();    
+        await contracts.alcor_contract.actions.initunittest([wax(10000), lswax(9000)]).send();    
         let alcor_pool = await getAlcorPool()
-        assert.strictEqual(alcor_pool.tokenA.quantity, '10000.00000000 WAX', 'alcor should have 10,000 WAX');
-        assert.strictEqual(alcor_pool.tokenB.quantity, '9000.00000000 LSWAX', 'alcor should have 9,000 LSWAX');
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(10000), 'alcor should have 10,000 WAX');
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(9000), 'alcor should have 9,000 LSWAX');
 
         //transfer wax to pol for liquidity
-        const amount_to_transfer = '147315.89000000 WAX'
+        const amount_to_transfer = wax(147315.89)
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', amount_to_transfer, 'for liquidity only']).send('eosio@active');             
     
         //pol should have not bought any LSWAX, and added all WAX into the wax_bucket
         const pol_state = await getPolState()
         assert.strictEqual(pol_state.wax_bucket, amount_to_transfer, `pol should have ${amount_to_transfer}`);
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'pol should have 0 LSWAX');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
 
         //validate that alcors pools did not receive a new deposit
         alcor_pool = await getAlcorPool()
-        assert.strictEqual(alcor_pool.tokenA.quantity, '10000.00000000 WAX', 'alcor should have 10,000 WAX');
-        assert.strictEqual(alcor_pool.tokenB.quantity, '9000.00000000 LSWAX', 'alcor should have 9,000 LSWAX');
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(10000), 'alcor should have 10,000 WAX');
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(9000), 'alcor should have 9,000 LSWAX');
 
     });    
 
     it('when alcor price is more than 5% below the real price (peg was lost)', async () => {
 
         //send wax to mike
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(12000), 'for staking']).send('eosio@active');
 
         //have mike stake the wax, and make sure his staked balance is 10k
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
+        await stake('mike', 12000)
         let mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '12000.00000000 SWAX', 'mike should have 12,000 SWAX staked');
+        assert.strictEqual(mikes_stake.swax_balance, swax(12000), 'mike should have 12,000 SWAX staked');
 
         //liquify 6,333 swax
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
+        await contracts.dapp_contract.actions.liquify(['mike', swax(6333)]).send('mike@active');
 
         //check lswax supply, mikes stake, and mikes lswax balance
         const lswax_supply = await getSupply(contracts.token_contract, 'LSWAX');
-        assert.strictEqual(lswax_supply.supply, '6333.00000000 LSWAX', 'LSWAX supply should be 6333');
+        assert.strictEqual(lswax_supply.supply, lswax(6333), 'LSWAX supply should be 6333');
 
         mikes_stake = await getSWaxStaker('mike');
-        assert.strictEqual(mikes_stake.swax_balance, '5667.00000000 SWAX', 'mike should have 5667.00000000 SWAX staked');        
+        assert.strictEqual(mikes_stake.swax_balance, swax(5667), 'mike should have 5667.00000000 SWAX staked');        
 
         const mikes_lswax_balance = await getBalances('mike', contracts.token_contract);
-        assert.strictEqual(mikes_lswax_balance[0].balance, '6333.00000000 LSWAX', 'mike should have 6333.00000000 LSWAX');   
+        assert.strictEqual(mikes_lswax_balance[0].balance, lswax(6333), 'mike should have 6333.00000000 LSWAX');   
 
         //re-initialize alcor pools with 0 assets, then validate the alcor state
-        await contracts.alcor_contract.actions.initunittest(['50000.00000000 WAX', '90000.00000000 LSWAX']).send();    
+        await contracts.alcor_contract.actions.initunittest([wax(50000), lswax(90000)]).send();    
         let alcor_pool = await getAlcorPool()
-        assert.strictEqual(alcor_pool.tokenA.quantity, '50000.00000000 WAX', 'alcor should have 50,000 WAX');
-        assert.strictEqual(alcor_pool.tokenB.quantity, '90000.00000000 LSWAX', 'alcor should have 90,000 LSWAX');
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(50000), 'alcor should have 50,000 WAX');
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(90000), 'alcor should have 90,000 LSWAX');
 
         //transfer wax to pol for liquidity
-        const amount_to_transfer = '147315.89000000 WAX'
+        const amount_to_transfer = wax(147315.89)
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', amount_to_transfer, 'for liquidity only']).send('eosio@active');             
     
         //pol should not have done anything since the price is too low on alcor
         const pol_state = await getPolState()
         assert.strictEqual(pol_state.wax_bucket, amount_to_transfer, `pol should have ${amount_to_transfer}`);
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'pol should have 0 LSWAX');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
 
         //validate that alcors pools are within 99.99% of the expected amounts
         alcor_pool = await getAlcorPool()
-        assert.strictEqual(alcor_pool.tokenA.quantity, '50000.00000000 WAX', 'alcor should have 50,000 WAX');
-        assert.strictEqual(alcor_pool.tokenB.quantity, '90000.00000000 LSWAX', 'alcor should have 90,000 LSWAX');
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(50000), 'alcor should have 50,000 WAX');
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(90000), 'alcor should have 90,000 LSWAX');
 
     });                 
 });
@@ -492,13 +474,13 @@ describe('\n\ndeposit for CPU rental pool only', () => {
     it('send 100k wax', async () => {
 
         //send wax to POL from eosio
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '100000.00000000 WAX', 'for staking pool only']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for staking pool only']).send('eosio@active');
         
         //state should have empty buckets, and 100k wax in wax_available_for_rentals
         const pol_state = await getPolState()
-        assert.strictEqual(pol_state.wax_bucket, ZERO_WAX, 'POL should have 0 WAX in bucket');
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'POL should have 0 LSWAX in bucket');
-        assert.strictEqual(pol_state.wax_available_for_rentals, '100000.00000000 WAX', 'POL should have 100k WAX for rentals');
+        assert.strictEqual(pol_state.wax_bucket, wax(0), 'POL should have 0 WAX in bucket');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'POL should have 0 LSWAX in bucket');
+        assert.strictEqual(pol_state.wax_available_for_rentals, wax(100000), 'POL should have 100k WAX for rentals');
 
     }); 
 
@@ -513,48 +495,46 @@ describe('\n\nrebalance memo, sending 100k wax', () => {
     it('when both buckets start off empty', async () => {
 
         //send wax to dapp.fusion first since rebalance memo should only come from dapp.fusion
-        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', '100000.00000000 WAX', '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(100000), '']).send('eosio@active');
 
         //validate dapp.fusion wax balance
         const dapp_wax_balance = await getBalances('dapp.fusion', contracts.wax_contract);
-        assert.strictEqual(dapp_wax_balance[0].balance, '100000.00000000 WAX', 'dapp should have 100000.00000000 WAX');
+        assert.strictEqual(dapp_wax_balance[0].balance, wax(100000), 'dapp should have 100000.00000000 WAX');
 
         //transfer from dapp to POL with rebalance memo
-        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', '100000.00000000 WAX', 'rebalance']).send('dapp.fusion@active');
+        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', wax(100000), 'rebalance']).send('dapp.fusion@active');
         
         //validate POL balance
         const pol_wax_balance = await getBalances('pol.fusion', contracts.wax_contract);
-        assert.strictEqual(pol_wax_balance[0].balance, '100000.00000000 WAX', 'POL should have 100000.00000000 WAX');        
+        assert.strictEqual(pol_wax_balance[0].balance, wax(100000), 'POL should have 100000.00000000 WAX');        
 
         //since we have no LSWAX, this wax all should've gone into the wax bucket
         const pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, '100000.00000000 WAX', 'POL should have 100k WAX in bucket');
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'POL should have 0 LSWAX in bucket');       
+        assert.strictEqual(pol_state.wax_bucket, wax(100000), 'POL should have 100k WAX in bucket');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'POL should have 0 LSWAX in bucket');       
 
     }); 
 
     it('when the lswax bucket has 20,000 LSWAX and wax bucket is empty', async () => {
 
         //stake 20,000 WAX and liquify it, then send it to pol with liquidity memo
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '20000.00000000 WAX', '']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '20000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '20000.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '20000.00000000 LSWAX', 'liquidity']).send('mike@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(20000), '']).send('eosio@active');
+        await stake('mike', 20000, true)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(20000), 'liquidity']).send('mike@active');
 
         //validate that the LSWAX bucket has 20k LSWAX in it
         let pol_state = await getPolState();
-        assert.strictEqual(pol_state.lswax_bucket, '20000.00000000 LSWAX', 'POL should have 20k LSWAX in bucket');      
+        assert.strictEqual(pol_state.lswax_bucket, lswax(20000), 'POL should have 20k LSWAX in bucket');      
 
         //send wax to dapp.fusion first since rebalance memo should only come from dapp.fusion
-        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', '100000.00000000 WAX', '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(100000), '']).send('eosio@active');
 
         //validate dapp.fusion wax balance
         const dapp_wax_balance = await getBalances('dapp.fusion', contracts.wax_contract);
-        assert.strictEqual(dapp_wax_balance[0].balance, '120000.00000000 WAX', 'dapp should have 120000.00000000 WAX');
+        assert.strictEqual(dapp_wax_balance[0].balance, wax(120000), 'dapp should have 120000.00000000 WAX');
 
         //transfer from dapp to POL with rebalance memo
-        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', '100000.00000000 WAX', 'rebalance']).send('dapp.fusion@active'); 
+        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', wax(100000), 'rebalance']).send('dapp.fusion@active'); 
 
         //since we had 20k LSWAX, a matching weight of wax should've gotten paired with it
         //lswax bucket should now be empty and alcor should have 115300 LSWAX
@@ -563,65 +543,58 @@ describe('\n\nrebalance memo, sending 100k wax', () => {
         const expected_wax_bucket = 100000.0 - wax_spent;
         pol_state = await getPolState();
         almost_equal(parseFloat(pol_state.wax_bucket.split(' ')[0]), expected_wax_bucket);
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'pol should have 0 LSWAX');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
     
         //check alcor's balances
         alcor_pool = await getAlcorPool()
         const expected_alcor_wax_bucket = 100000.0 + parseFloat(wax_spent);
         almost_equal(parseFloat(alcor_pool.tokenA.quantity.split(' ')[0]), expected_alcor_wax_bucket);
-        assert.strictEqual(alcor_pool.tokenB.quantity, '115300.00000000 LSWAX', 'alcor should have 115300 LSWAX');        
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(115300), 'alcor should have 115300 LSWAX');        
 
     });   
 
     it('when the wax bucket has 20,000 WAX and LSWAX bucket is empty', async () => {
 
         //transfer 20k wax to pol contract
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '20000.00000000 WAX', '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(20000), '']).send('eosio@active');
 
         //validate that the WAX bucket has 20k WAX in it
         let pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, '20000.00000000 WAX', 'POL should have 20k WAX in bucket');      
+        assert.strictEqual(pol_state.wax_bucket, wax(20000), 'POL should have 20k WAX in bucket');      
 
         //send wax to dapp.fusion first since rebalance memo should only come from dapp.fusion
-        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', '100000.00000000 WAX', '']).send('eosio@active');
-
-        //transfer from dapp to POL with rebalance memo
-        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', '100000.00000000 WAX', 'rebalance']).send('dapp.fusion@active'); 
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(100000), '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', wax(100000), 'rebalance']).send('dapp.fusion@active'); 
 
         //nothing should have happened, so the POL wax bucket should now have 120k wax
         pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, '120000.00000000 WAX', 'pol should have 120k WAX');
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'pol should have 0 LSWAX');
+        assert.strictEqual(pol_state.wax_bucket, wax(120000), 'pol should have 120k WAX');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
     
         //check alcor's balances, they should still be at initial state
         alcor_pool = await getAlcorPool()
-        assert.strictEqual(alcor_pool.tokenA.quantity, '100000.00000000 WAX', 'alcor should have 100k WAX');
-        assert.strictEqual(alcor_pool.tokenB.quantity, '95300.00000000 LSWAX', 'alcor should have 95300 LSWAX');
-
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(100000), 'alcor should have 100k WAX');
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(95300), 'alcor should have 95300 LSWAX');
     });    
 
     it('when lswax is the limiting factor but both buckets are positive', async () => {
 
         //send 1k lswax to pol
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '20000.00000000 WAX', '']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '1000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '1000.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '1000.00000000 LSWAX', '']).send('mike@active');        
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(20000), '']).send('eosio@active');
+        await stake('mike', 1000, true)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(1000), '']).send('mike@active');        
 
         //transfer 20k wax to pol contract
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '20000.00000000 WAX', '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(20000), '']).send('eosio@active');
 
         //validate that the WAX bucket has 20k WAX in it
         let pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, '20000.00000000 WAX', 'POL should have 20k WAX in bucket');    
-        assert.strictEqual(pol_state.lswax_bucket, '1000.00000000 LSWAX', 'POL should have 1k LSWAX in bucket');      
+        assert.strictEqual(pol_state.wax_bucket, wax(20000), 'POL should have 20k WAX in bucket');    
+        assert.strictEqual(pol_state.lswax_bucket, lswax(1000), 'POL should have 1k LSWAX in bucket');      
 
         //send wax to dapp.fusion first since rebalance memo should only come from dapp.fusion
-        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', '100000.00000000 WAX', '']).send('eosio@active');
-
-        //transfer from dapp to POL with rebalance memo
-        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', '100000.00000000 WAX', 'rebalance']).send('dapp.fusion@active'); 
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(100000), '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', wax(100000), 'rebalance']).send('dapp.fusion@active'); 
 
         //pol should have spent all lswax and the max wax possible
         pol_state = await getPolState();
@@ -629,38 +602,33 @@ describe('\n\nrebalance memo, sending 100k wax', () => {
         const wax_bucket_after = parseFloat(120000 - wax_spent).toFixed(8);
         const alcor_wax_after = parseFloat(100000 + wax_spent).toFixed(8);
         almost_equal(parseFloat(pol_state.wax_bucket), wax_bucket_after);
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'pol should have 0 LSWAX');
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
     
         //check alcor's balances
         alcor_pool = await getAlcorPool()
         almost_equal(parseFloat(alcor_pool.tokenA.quantity), alcor_wax_after);
-        assert.strictEqual(alcor_pool.tokenB.quantity, '96300.00000000 LSWAX', 'alcor should have 96300 LSWAX');
-
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(96300), 'alcor should have 96300 LSWAX');
     });  
 
 
     it('when wax is the limiting factor but both buckets are positive', async () => {
 
-        //send 1k lswax to pol
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '20000.00000000 WAX', '']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '20000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '20000.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '20000.00000000 LSWAX', '']).send('mike@active');        
+        //send 20k lswax to pol
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(20000), '']).send('eosio@active');
+        await stake('mike', 20000, true)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(20000), '']).send('mike@active');        
 
         //transfer 1k wax to pol contract
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), '']).send('eosio@active');
 
         //validate that the WAX bucket has 1k WAX in it
         let pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, '1000.00000000 WAX', 'POL should have 1k WAX in bucket');    
-        assert.strictEqual(pol_state.lswax_bucket, '20000.00000000 LSWAX', 'POL should have 20k LSWAX in bucket');      
+        assert.strictEqual(pol_state.wax_bucket, wax(1000), 'POL should have 1k WAX in bucket');    
+        assert.strictEqual(pol_state.lswax_bucket, lswax(20000), 'POL should have 20k LSWAX in bucket');      
 
         //send wax to dapp.fusion first since rebalance memo should only come from dapp.fusion
-        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', '1000.00000000 WAX', '']).send('eosio@active');
-
-        //transfer from dapp to POL with rebalance memo
-        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', '1000.00000000 WAX', 'rebalance']).send('dapp.fusion@active'); 
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(1000), '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', wax(1000), 'rebalance']).send('dapp.fusion@active'); 
 
         //pol should have spent all lswax and the max wax possible
         pol_state = await getPolState();
@@ -671,48 +639,44 @@ describe('\n\nrebalance memo, sending 100k wax', () => {
         const lswax_bucket_after = parseFloat(20000 - lswax_spent).toFixed(8);
         const alcor_lswax_after = parseFloat(95300 + lswax_spent).toFixed(8);
         almost_equal(parseFloat(pol_state.lswax_bucket), lswax_bucket_after);
-        assert.strictEqual(pol_state.wax_bucket, ZERO_WAX, 'pol should have 0 WAX');
+        assert.strictEqual(pol_state.wax_bucket, wax(0), 'pol should have 0 WAX');
     
         //check alcor's balances
         alcor_pool = await getAlcorPool()
         almost_equal(parseFloat(alcor_pool.tokenB.quantity), alcor_lswax_after);
-        assert.strictEqual(alcor_pool.tokenA.quantity, '102000.00000000 WAX', 'alcor should have 102k WAX');
-        
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(102000), 'alcor should have 102k WAX');
     });            
 
     it('alcor is out of range', async () => {
         //send lswax to pol
-        await contracts.alcor_contract.actions.initunittest(['10000.00000000 WAX', '5000.00000000 LSWAX']).send();   
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '20000.00000000 WAX', '']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '20000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '20000.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '20000.00000000 LSWAX', '']).send('mike@active');        
+        await contracts.alcor_contract.actions.initunittest([wax(10000), lswax(5000)]).send();   
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(20000), '']).send('eosio@active');
+        await stake('mike', 20000, true)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(20000), '']).send('mike@active');        
 
         //transfer 1k wax to pol contract
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), '']).send('eosio@active');
 
         //validate that the WAX bucket has 1k WAX in it
         let pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, '1000.00000000 WAX', 'POL should have 1k WAX in bucket');    
-        assert.strictEqual(pol_state.lswax_bucket, '20000.00000000 LSWAX', 'POL should have 20k LSWAX in bucket');      
+        assert.strictEqual(pol_state.wax_bucket, wax(1000), 'POL should have 1k WAX in bucket');    
+        assert.strictEqual(pol_state.lswax_bucket, lswax(20000), 'POL should have 20k LSWAX in bucket');      
 
         //send wax to dapp.fusion first since rebalance memo should only come from dapp.fusion
-        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', '10000.00000000 WAX', '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10000), '']).send('eosio@active');
 
         //transfer from dapp to POL with rebalance memo
-        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', '10000.00000000 WAX', 'rebalance']).send('dapp.fusion@active'); 
+        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', wax(10000), 'rebalance']).send('dapp.fusion@active'); 
 
         //pol should have spent all lswax and the max wax possible
         pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, '11000.00000000 WAX', 'POL should have 11k WAX in bucket');    
-        assert.strictEqual(pol_state.lswax_bucket, '20000.00000000 LSWAX', 'POL should have 20k LSWAX in bucket'); 
+        assert.strictEqual(pol_state.wax_bucket, wax(11000), 'POL should have 11k WAX in bucket');    
+        assert.strictEqual(pol_state.lswax_bucket, lswax(20000), 'POL should have 20k LSWAX in bucket'); 
 
         //check alcor's balances
         alcor_pool = await getAlcorPool()
-        assert.strictEqual(alcor_pool.tokenA.quantity, "10000.00000000 WAX", 'alcor should have 10k WAX');
-        assert.strictEqual(alcor_pool.tokenB.quantity, "5000.00000000 LSWAX", 'alcor should have 5k LSWAX');
-        
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(10000), 'alcor should have 10k WAX');
+        assert.strictEqual(alcor_pool.tokenB.quantity, lswax(5000), 'alcor should have 5k LSWAX');
     }); 
 
 });
@@ -722,17 +686,15 @@ describe('\n\nPOL allocation from waxfusion distribution', () => {
     it('when alcor price is in range', async () => {
 
         //send wax to dapp.fusion first since pol allocation memo should only come from dapp.fusion
-        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', '1000.00000000 WAX', '']).send('eosio@active');
-
-        //transfer from dapp to POL with pol allocation from waxfusion distribution memo
-        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', '1000.00000000 WAX', 'pol allocation from waxfusion distribution']).send('dapp.fusion@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(1000), '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', wax(1000), 'pol allocation from waxfusion distribution']).send('dapp.fusion@active');
         
         //pol cpu bucket should have 1/7 of 1000 wax
         //wax and lswax buckets should be empty
         const expected_wax = `${parseFloat(1000.0 - (1000.0 / 7.0 * 6.0)).toFixed(8)}`
         const pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, ZERO_WAX, `POL should have 0 WAX in bucket`);
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'POL should have 0 LSWAX in bucket');   
+        assert.strictEqual(pol_state.wax_bucket, wax(0), `POL should have 0 WAX in bucket`);
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'POL should have 0 LSWAX in bucket');   
         almost_equal(parseFloat(pol_state.wax_available_for_rentals.split(' ')[0]), expected_wax); 
 
         //check alcor pool, should have initial amounts + allocations from 6/7 of 1000 wax
@@ -748,24 +710,21 @@ describe('\n\nPOL allocation from waxfusion distribution', () => {
         await contracts.pol_contract.actions.setallocs([100000000]).send('pol.fusion@active');
 
         //send wax to dapp.fusion first since pol allocation memo should only come from dapp.fusion
-        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', '1000.00000000 WAX', '']).send('eosio@active');
-
-        //transfer from dapp to POL with pol allocation from waxfusion distribution memo
-        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', '1000.00000000 WAX', 'pol allocation from waxfusion distribution']).send('dapp.fusion@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(1000), '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', wax(1000), 'pol allocation from waxfusion distribution']).send('dapp.fusion@active');
         
         //pol cpu bucket should have nothing
         //wax and lswax buckets should be empty
         const pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, ZERO_WAX, `POL should have 0 WAX in bucket`);
-        assert.strictEqual(pol_state.lswax_bucket, ZERO_LSWAX, 'POL should have 0 LSWAX in bucket');   
-        assert.strictEqual(pol_state.wax_available_for_rentals, ZERO_WAX, 'POL should have 0 WAX for rentals');   
+        assert.strictEqual(pol_state.wax_bucket, wax(0), `POL should have 0 WAX in bucket`);
+        assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'POL should have 0 LSWAX in bucket');   
+        assert.strictEqual(pol_state.wax_available_for_rentals, wax(0), 'POL should have 0 WAX for rentals');   
 
         //check alcor pool, should have initial amounts + allocations from 6/7 of 1000 wax
         alcor_pool = await getAlcorPool()
         let outputs = calculate_wax_and_lswax_outputs(1000, 100000.0 / 95300.0, 1.0 );
         almost_equal(parseFloat(alcor_pool.tokenA.quantity), 100000.0 + outputs[0])
         almost_equal(parseFloat(alcor_pool.tokenB.quantity), 95300.0 + outputs[1]);
-
     });   
 
 });
@@ -774,46 +733,37 @@ describe('\n\nPOL allocation from waxfusion distribution', () => {
 describe('\n\ndeposit LSWAX for liquidity', () => {
 
     it('when there is 0 WAX in the bucket', async () => {
-
-        //have eosio stake and liquify to get LSWAX
-        await contracts.dapp_contract.actions.stake(['eosio']).send('eosio@active');
-        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', '1000.00000000 WAX', 'stake']).send('eosio@active');
-        await contracts.dapp_contract.actions.liquify(['eosio', '1000.00000000 SWAX']).send('eosio@active');
-
         //send LSWAX to pol.fusion (in DEBUG mode it will accept from any account)
-        await contracts.token_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 LSWAX', 'liquidity']).send('eosio@active');
+        await stake('eosio', 1000, true)
+        await contracts.token_contract.actions.transfer(['eosio', 'pol.fusion', lswax(1000), 'liquidity']).send('eosio@active');
 
         //wax bucket should be empty, lswax bucket should have 1000 LSWAX
         const pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, ZERO_WAX, `POL should have 0 WAX in bucket`);
-        assert.strictEqual(pol_state.lswax_bucket, '1000.00000000 LSWAX', 'POL should have 1000 LSWAX in bucket');   
+        assert.strictEqual(pol_state.wax_bucket, wax(0), `POL should have 0 WAX in bucket`);
+        assert.strictEqual(pol_state.lswax_bucket, lswax(1000), 'POL should have 1000 LSWAX in bucket');   
     }); 
 
     it('when there is positive WAX quantity, but less weight than LSWAX', async () => {
 
         //transfer 1000 WAX from eosio to pol with no memo
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', '']).send('eosio@active');
-
-        //eosio will stake and liquify 3000 wax to get LSWAX
-        await contracts.dapp_contract.actions.stake(['eosio']).send('eosio@active');
-        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', '3000.00000000 WAX', 'stake']).send('eosio@active');
-        await contracts.dapp_contract.actions.liquify(['eosio', '3000.00000000 SWAX']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), '']).send('eosio@active');
+        await stake('eosio', 3000, true)
 
         //send LSWAX to pol.fusion (in DEBUG mode it will accept from any account)
-        await contracts.token_contract.actions.transfer(['eosio', 'pol.fusion', '3000.00000000 LSWAX', 'liquidity']).send('eosio@active');
+        await contracts.token_contract.actions.transfer(['eosio', 'pol.fusion', lswax(3000), 'liquidity']).send('eosio@active');
 
         //calculate the amount of lswax spent to pair with 1000 wax
         const lswax_spent = calculate_lswax_to_match_wax(1000.0, 100000.0 / 95300.0, 1.0 );
 
         //wax bucket should be empty, lswax bucket should have 3000 - lswax_spent LSWAX
         const pol_state = await getPolState();
-        assert.strictEqual(pol_state.wax_bucket, ZERO_WAX, `POL should have 0 WAX in bucket`);
+        assert.strictEqual(pol_state.wax_bucket, wax(0), `POL should have 0 WAX in bucket`);
         almost_equal(3000.0 - parseFloat(pol_state.lswax_bucket), lswax_spent);
 
         //alcor should have 1000 wax more, and lswax_spent more than initial
         alcor_pool = await getAlcorPool()
         const alcor_amount_expected = 95300.0 + parseFloat(lswax_spent)
-        assert.strictEqual(alcor_pool.tokenA.quantity, '101000.00000000 WAX', `alcor should have 101k WAX`);
+        assert.strictEqual(alcor_pool.tokenA.quantity, wax(101000), `alcor should have 101k WAX`);
         almost_equal(parseFloat(alcor_pool.tokenB.quantity), alcor_amount_expected);
     });   
 
@@ -824,83 +774,83 @@ describe('\n\nsend rent_cpu memo', () => {
 
     it('error: use rentcpu action first', async () => {
         const memo = rent_cpu_memo( 'mike', 10, 1000 ); //receiver, days, wax
-        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '10.00000000 WAX', memo]).send('eosio@active'); 
+        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(10), memo]).send('eosio@active'); 
         await expectToThrow(action, ERR_RENTCPU_FIRST);
     }); 
 
     it('error: incomplete memo', async () => {
         const memo = '|rent_cpu|mike|3|'
         await contracts.pol_contract.actions.rentcpu(['eosio', 'mike']).send('eosio@active');  
-        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '10.00000000 WAX', memo]).send('eosio@active');  
+        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(10), memo]).send('eosio@active');  
         await expectToThrow(action, 'eosio_assert: memo for rent_cpu operation is incomplete');
     });     
 
     it('error: rental pool has no wax', async () => {
         const memo = rent_cpu_memo( 'mike', 10, 1000 ); //receiver, days, wax
         await contracts.pol_contract.actions.rentcpu(['eosio', 'mike']).send('eosio@active');  
-        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '10.00000000 WAX', memo]).send('eosio@active');  
+        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(10), memo]).send('eosio@active');  
         await expectToThrow(action, ERR_NOT_ENOUGH_RENTAL_FUNDS);
     }); 
 
     it('user sent more wax than necessary', async () => {
         //send to mike first and have mike rent to track the wax balance
         const memo = rent_cpu_memo( 'eosio', 10, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '20.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(20), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '20.00000000 WAX', memo]).send('mike@active');  
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
         const mikes_wax_balance = await getBalances('mike', contracts.wax_contract)
-        assert.strictEqual(mikes_wax_balance[0].balance, '8.00000000 WAX', `mike should have 8 wax`);
+        assert.strictEqual(mikes_wax_balance[0].balance, wax(8), `mike should have 8 wax`);
     });     
 
     it('error: didnt send enough wax', async () => {
         //send to mike first and have mike rent to track the wax balance
         const memo = rent_cpu_memo( 'eosio', 10, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '10.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(10), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '10.00000000 WAX', memo]).send('mike@active');  
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10), memo]).send('mike@active');  
         await expectToThrow(action, 'eosio_assert: expected to receive 12.00000000 WAX');
     });  
 
     it('error: already funded rental', async () => {
         //send to mike first and have mike rent to track the wax balance
         const memo = rent_cpu_memo( 'eosio', 10, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '20.00000000 WAX', memo]).send('mike@active');  
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '20.00000000 WAX', memo]).send('mike@active');  
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
         await expectToThrow(action, ERR_ALREADY_FUNDED_RENTAL);
     });  
 
     it('error: minimum days to rent', async () => {
         //send to mike first and have mike rent to track the wax balance
         const memo = rent_cpu_memo( 'eosio', 0, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '20.00000000 WAX', memo]).send('mike@active');  
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
         await expectToThrow(action, ERR_MIN_DAYS_TO_RENT);
     });   
 
     it('error: maximum days to rent', async () => {
         //send to mike first and have mike rent to track the wax balance
         const memo = rent_cpu_memo( 'eosio', 1000000000, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '20.00000000 WAX', memo]).send('mike@active');  
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
         await expectToThrow(action, ERR_MAX_DAYS_TO_RENT);
     });   
 
     it('error: negative number passed for days to rent', async () => {
         //send to mike first and have mike rent to track the wax balance
         const memo = rent_cpu_memo( 'eosio', -100, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '20.00000000 WAX', memo]).send('mike@active');  
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
         //negative number will wrap unsigned int
         await expectToThrow(action, ERR_MAX_DAYS_TO_RENT);
     });  
@@ -908,10 +858,10 @@ describe('\n\nsend rent_cpu memo', () => {
     it('error: negative number passed for wax amount to rent', async () => {
         //send to mike first and have mike rent to track the wax balance
         const memo = rent_cpu_memo( 'eosio', 10, -1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '20.00000000 WAX', memo]).send('mike@active');  
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
         //negative number will wrap unsigned int
         await expectToThrow(action, ERR_MAX_AMOUNT_TO_RENT);
     });   
@@ -919,22 +869,22 @@ describe('\n\nsend rent_cpu memo', () => {
     it('error: minimum amount to rent', async () => {
         //send to mike first and have mike rent to track the wax balance
         const memo = rent_cpu_memo( 'eosio', 10, 5 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '20.00000000 WAX', memo]).send('mike@active');  
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
         await expectToThrow(action, ERR_MIN_AMOUNT_TO_RENT);
     });  
 
     it('exact amount was sent', async () => {
         //send to mike first and have mike rent to track the wax balance
         const memo = rent_cpu_memo( 'eosio', 10, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '12.00000000 WAX', memo]).send('mike@active');  
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active');  
         const mikes_wax_balance = await getBalances('mike', contracts.wax_contract)
-        assert.strictEqual(mikes_wax_balance[0].balance, '188.00000000 WAX', `mike should have 188 wax`);        
+        assert.strictEqual(mikes_wax_balance[0].balance, wax(188), `mike should have 188 wax`);        
     });                     
 });
 
@@ -943,120 +893,120 @@ describe('\n\nsend extend_rental memo', () => {
 
     it('error: rental doesnt exist', async () => {
         const memo = extend_rental_memo( 'mike', 10 ); //receiver, days
-        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '10.00000000 WAX', memo]).send('eosio@active'); 
+        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(10), memo]).send('eosio@active'); 
         await expectToThrow(action, ERR_RENTAL_DOESNT_EXIST);
     }); 
             
     it('error: rental is expired', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', memo]).send('mike@active');        
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');        
         
         //fast forward time 40 days
         await setTime(initial_state.chain_time + (60 * 60 * 24 * 40));
 
         //extend
         memo = extend_rental_memo( 'eosio', 10 ); //receiver, days
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '10.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10), memo]).send('mike@active'); 
         await expectToThrow(action, ERR_RENTAL_IS_EXPIRED);
     });  
 
     it('error: rental was not funded yet', async () => {
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');                 
 
         //extend
         const memo = extend_rental_memo( 'eosio', 10 ); //receiver, days
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '10.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10), memo]).send('mike@active'); 
         await expectToThrow(action, ERR_RENTAL_ISNT_FUNDED);
     });   
 
     it('error: minimum days to extend', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', memo]).send('mike@active');               
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');               
 
         //extend
         memo = extend_rental_memo( 'eosio', 0 ); //receiver, days
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '10.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10), memo]).send('mike@active'); 
         await expectToThrow(action, ERR_MIN_DAYS_TO_EXTEND);
     }); 
 
     it('error: maximum days to extend', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', memo]).send('mike@active');               
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');               
 
         //extend
         memo = extend_rental_memo( 'eosio', 3651 ); //receiver, days
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '10.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10), memo]).send('mike@active'); 
         await expectToThrow(action, ERR_MAX_DAYS_TO_RENT);
     });  
 
     it('error: didnt send enough funds', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', memo]).send('mike@active');               
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');               
 
         //extend
         memo = extend_rental_memo( 'eosio', 1000 ); //receiver, days
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '10.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10), memo]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: expected to receive 1200.00000000 WAX");
     });     
 
     it('user sent more funds than needed', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', memo]).send('mike@active');               
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');               
 
         //extend
         memo = extend_rental_memo( 'eosio', 30 ); //receiver, days
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '63.00000000 WAX', memo]).send('mike@active'); 
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(63), memo]).send('mike@active'); 
         const mikes_wax_balance = await getBalances('mike', contracts.wax_contract)
-        assert.strictEqual(mikes_wax_balance[0].balance, '128.00000000 WAX', `mike should have 128 wax`); 
+        assert.strictEqual(mikes_wax_balance[0].balance, wax(128), `mike should have 128 wax`); 
     });   
 
     it('exact amount was sent', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', memo]).send('mike@active');               
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');               
 
         //extend
         memo = extend_rental_memo( 'eosio', 30 ); //receiver, days
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', memo]).send('mike@active'); 
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active'); 
         const mikes_wax_balance = await getBalances('mike', contracts.wax_contract)
-        assert.strictEqual(mikes_wax_balance[0].balance, '128.00000000 WAX', `mike should have 128 wax`); 
+        assert.strictEqual(mikes_wax_balance[0].balance, wax(128), `mike should have 128 wax`); 
     });    
 
     it('incomplete memo', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', memo]).send('mike@active');               
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');               
 
         //extend
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', "|extend_rental||"]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), "|extend_rental||"]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: memo for extend_rental operation is incomplete");
     });        
 
@@ -1066,68 +1016,68 @@ describe('\n\nsend increase_rental memo', () => {
 
     it('error: rental doesnt exist', async () => {
         const memo = increase_rental_memo( 'mike', 10 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '10.00000000 WAX', memo]).send('eosio@active'); 
+        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(10), memo]).send('eosio@active'); 
         await expectToThrow(action, ERR_RENTAL_DOESNT_EXIST);
     }); 
       
     it('error: rental expires in less than 1 day', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', memo]).send('mike@active');        
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');        
         
         //fast forward time 29.5 days
         await setTime(initial_state.chain_time + (60 * 60 * 24 * 30) + 1 );
 
         //extend
         memo = increase_rental_memo( 'eosio', 10 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '12.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: cant increase rental with < 1 day remaining");
     });   
 
     it('error: rental was never funded', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');           
 
         //extend
         memo = increase_rental_memo( 'eosio', 10 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '12.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: you can't increase a rental if it hasnt been funded yet");
     });   
 
     it('error: rental already expired', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '36.00000000 WAX', memo]).send('mike@active');        
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');        
         
         //fast forward time 29.5 days
         await setTime(initial_state.chain_time + (60 * 60 * 24 * 31) + 1 );
 
         //extend
         memo = increase_rental_memo( 'eosio', 10 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '12.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: this rental has already expired");
     });    
 
     it('error: didnt send enough funds', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');        
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');        
 
         //extend
         memo = increase_rental_memo( 'eosio', 500 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '12.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
         
         //rentals give up to 1 full extra day to the user when they first rent
         //depending on the time of day they rent
@@ -1139,56 +1089,56 @@ describe('\n\nsend increase_rental memo', () => {
     it('error: minimum amount to increase', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');        
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');        
 
         //extend
         memo = increase_rental_memo( 'eosio', 1 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '12.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: minimum wax amount to increase is 5.00000000 WAX");
     });     
 
     it('error: maximum amount to increase', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');        
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');        
 
         //extend
         memo = increase_rental_memo( 'eosio', 100000001 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '12.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
         await expectToThrow(action, ERR_MAX_AMOUNT_TO_RENT);
     });    
 
     it('error: incomplete memo', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');        
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');        
 
         //extend
         memo = '|increase_rental|hi|'; //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '12.00000000 WAX', memo]).send('mike@active'); 
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: memo for increase_rental operation is incomplete");
     });    
 
     it('successful increase_rental operation', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');        
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');        
 
         //extend
         memo = increase_rental_memo( 'eosio', 100 );
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '3.72000000 WAX', memo]).send('mike@active'); 
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(3.72), memo]).send('mike@active'); 
     });                              
 });
 
@@ -1198,16 +1148,15 @@ describe('\n\nclaimgbmvote action', () => {
     it('error: no rewards to claim', async () => {
         const action = contracts.pol_contract.actions.claimgbmvote([]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: you arent staking anything");
-
     }); 
 
     it('error: hasnt been 24 hours', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //fast forward 24h
         await setTime(initial_state.chain_time + (60 * 60 * 24) - 1 );
@@ -1219,10 +1168,10 @@ describe('\n\nclaimgbmvote action', () => {
     it('successful claim', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //fast forward 24h
         await setTime(initial_state.chain_time + (60 * 60 * 24) );
@@ -1238,16 +1187,15 @@ describe('\n\nclaimrefund action', () => {
     it('error: no refund to claim', async () => {
         const action = contracts.pol_contract.actions.claimrefund([]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: refund request not found");
-
     }); 
 
     it('error: the request is < 3 days old', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //fast forward 31d and 1s
         await setTime(initial_state.chain_time + (60 * 60 * 24 * 31) + 1 );
@@ -1261,10 +1209,10 @@ describe('\n\nclaimrefund action', () => {
     it('successful claim', async () => {
         //rent cpu for 30 days
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //fast forward 31d and 1s
         await setTime(initial_state.chain_time + (60 * 60 * 24 * 31) + 1 );
@@ -1293,10 +1241,10 @@ describe('\n\nclearexpired action', () => {
 
         //rent cpu for 30 days to account 1
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //fast forward 1d
         current_time += (60 * 60 * 24 * 1);
@@ -1304,10 +1252,10 @@ describe('\n\nclearexpired action', () => {
 
         //rent cpu for 30 days to account 2
         memo = rent_cpu_memo( 'bob', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'bob']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //fast forward 31d and 1s
         current_time += (60 * 60 * 24 * 31) + 1;
@@ -1331,10 +1279,10 @@ describe('\n\nclearexpired action', () => {
 
         //rent cpu for 30 days to account 1
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //fast forward 1d
         current_time += (60 * 60 * 24 * 1);
@@ -1342,10 +1290,10 @@ describe('\n\nclearexpired action', () => {
 
         //rent cpu for 30 days to account 2
         memo = rent_cpu_memo( 'bob', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'bob']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //fast forward 32d and 1s so both rentals expire
         current_time += (60 * 60 * 24 * 32) + 1;
@@ -1367,10 +1315,10 @@ describe('\n\nclearexpired action', () => {
 
         //rent cpu for 30 days to account 1
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //fast forward 1d
         current_time += (60 * 60 * 24 * 1);
@@ -1378,10 +1326,10 @@ describe('\n\nclearexpired action', () => {
 
         //rent cpu for 30 days to account 2
         memo = rent_cpu_memo( 'bob', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'bob']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         const rentersBefore = await getRenters();
         assert(rentersBefore.length == 2, "there should be 2 rows in the renters table");
@@ -1410,17 +1358,17 @@ describe('\n\nclearexpired action', () => {
 
         //rent cpu for 30 days to account 1
         let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //rent cpu for 30 days to account 2
         memo = rent_cpu_memo( 'bob', 30, 500 ); //receiver, days, wax
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '1000.00000000 WAX', 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '200.00000000 WAX', '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'bob']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', '50.00000000 WAX', memo]).send('mike@active');         
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');         
 
         //renters table should have 2 rows
         const rentersBefore = await getRenters();
@@ -1448,10 +1396,10 @@ describe('\n\ndeleterental action', () => {
 
     it('error: cant delete funded rental', async () => {
         await contracts.pol_contract.actions.rentcpu(['eosio', 'mike']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '12000.00000000 WAX', 'for staking pool only']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(12000), 'for staking pool only']).send('eosio@active');
 
         const memo = rent_cpu_memo('mike', 10, 1000);
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '100.00000000 WAX', memo]).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100), memo]).send('eosio@active');
         const action = contracts.pol_contract.actions.deleterental([0]).send('eosio@active');  
         await expectToThrow(action, "eosio_assert: can not delete a rental after funding it, use the clearexpired action");
         
@@ -1477,69 +1425,63 @@ describe('\n\nrebalance action', () => {
     }); 
 
     it('error: full buckets but alcor out of range and its been < 7 days', async () => {
-        await contracts.alcor_contract.actions.initunittest(['10000.00000000 WAX', '5000.00000000 LSWAX']).send();   
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '100000.00000000 WAX', '']).send('eosio@active');
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '6333.00000000 LSWAX', '']).send('mike@active');
+        await contracts.alcor_contract.actions.initunittest([wax(10000), lswax(5000)]).send();   
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(12000), 'for staking']).send('eosio@active');
+        await stake('mike', 12000, true, 6333)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(6333), '']).send('mike@active');
         const action = contracts.pol_contract.actions.rebalance([]).send('mike@active');  
         await expectToThrow(action, "eosio_assert: no need to rebalance");       
     }); 
 
     it('success: both buckets filled && alcor in range', async () => {
         //set alcor range to the same as real_price since rebalance buys at real price
-        await contracts.alcor_contract.actions.initunittest(['100.00000000 WAX', '100.00000000 LSWAX']).send();   
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '100000.00000000 WAX', '']).send('eosio@active');
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'for staking']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '12000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '6333.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '6333.00000000 LSWAX', '']).send('mike@active');
+        await contracts.alcor_contract.actions.initunittest([wax(100), lswax(100)]).send();   
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(12000), 'for staking']).send('eosio@active');
+        await stake('mike', 12000, true, 6333)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(6333), '']).send('mike@active');
 
         const pol_state = await getPolState();
-        assert(pol_state.wax_bucket == '100000.00000000 WAX', "pol wax should be 100k");
-        assert(pol_state.lswax_bucket == '6333.00000000 LSWAX', "pol lswax should be 6333")        
+        assert(pol_state.wax_bucket == wax(100000), "pol wax should be 100k");
+        assert(pol_state.lswax_bucket == lswax(6333), "pol lswax should be 6333")        
 
 
         await contracts.pol_contract.actions.rebalance([]).send('mike@active');  
         const pol_state_after = await getPolState();
-        assert(pol_state_after.wax_bucket == ZERO_WAX, "pol should have 0 wax");
-        assert(pol_state_after.lswax_bucket == ZERO_LSWAX, "pol should have 0 lswax");
+        assert(pol_state_after.wax_bucket == wax(0), "pol should have 0 wax");
+        assert(pol_state_after.lswax_bucket == lswax(0), "pol should have 0 lswax");
                      
     });     
     
     it('7 days passed. positive wax bucket, 0 lswax. alcor out of range', async () => {
         let current_time = initial_state.chain_time;
-        await contracts.alcor_contract.actions.initunittest(['1100.00000000 WAX', '100.00000000 LSWAX']).send();   
-        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '100000.00000000 WAX', '']).send('eosio@active');
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '12000.00000000 WAX', 'fugdfj']).send('eosio@active');
+        await contracts.alcor_contract.actions.initunittest([wax(1100), lswax(100)]).send();   
+        await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), '']).send('eosio@active');
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(12000), 'fugdfj']).send('eosio@active');
 
         const pol_state = await getPolState();
-        assert(pol_state.wax_bucket == '100000.00000000 WAX', "pol wax should be 100k");
-        assert(pol_state.lswax_bucket == ZERO_LSWAX, "pol lswax should be 6333")        
+        assert(pol_state.wax_bucket == wax(100000), "pol wax should be 100k");
+        assert(pol_state.lswax_bucket == lswax(0), "pol lswax should be 0")        
 
         //fast forward 7 days
         current_time += (60 * 60 * 24 * 7) + 1
         await setTime(current_time)
         await contracts.pol_contract.actions.rebalance([]).send('mike@active');  
         const pol_state_after = await getPolState();
-        assert(pol_state_after.wax_available_for_rentals == '100000.00000000 WAX', "rental bucket should be 100k");           
+        assert(pol_state_after.wax_available_for_rentals == wax(100000), "rental bucket should be 100k");           
     });     
 
     it('7 days passed. positive lswax bucket, 0 wax. alcor out of range', async () => {
         let current_time = initial_state.chain_time;
-        await contracts.alcor_contract.actions.initunittest(['1100.00000000 WAX', '100.00000000 LSWAX']).send();   
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '120000.00000000 WAX', 'fugdfj']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '120000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '50000.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '50000.00000000 LSWAX', '']).send('mike@active');
+        await contracts.alcor_contract.actions.initunittest([wax(1100), lswax(100)]).send();   
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(120000), 'fugdfj']).send('eosio@active');
+        await stake('mike', 120000, true, 50000)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(50000), '']).send('mike@active');
 
         const pol_state = await getPolState();
-        assert(pol_state.wax_bucket == ZERO_WAX, "pol wax should be 0");
-        assert(pol_state.lswax_bucket == '50000.00000000 LSWAX', "pol lswax should be 50k")        
+        assert(pol_state.wax_bucket == wax(0), "pol wax should be 0");
+        assert(pol_state.lswax_bucket == lswax(50000), "pol lswax should be 50k")        
 
         //fast forward 7 days, account for the 0.05% instant redeem fee
         current_time += (60 * 60 * 24 * 7) + 1
@@ -1547,30 +1489,28 @@ describe('\n\nrebalance action', () => {
         await contracts.pol_contract.actions.rebalance([]).send('mike@active');  
         await getDappState()
         const pol_state_after = await getPolState();
-        const expected_outcome = parseFloat(50000 * 0.9995).toFixed(8);
-        assert(pol_state_after.wax_available_for_rentals == `${expected_outcome} WAX`, "rental bucket should be 50k");
+        const expected_outcome = wax(50000 * 0.9995)
+        assert(pol_state_after.wax_available_for_rentals == `${expected_outcome}`, `rental bucket should be ${expected_outcome}`);
                      
     });      
 
     it('error: 7 days passed. positive lswax bucket, 0 wax. alcor in range, but dapp has no instant redeem bucket', async () => {
         let current_time = initial_state.chain_time;
-        await contracts.alcor_contract.actions.initunittest(['1000.00000000 WAX', '1000.00000000 LSWAX']).send();   
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '120000.00000000 WAX', 'fugdfj']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '120000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '50000.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '50000.00000000 LSWAX', '']).send('mike@active');
+        await contracts.alcor_contract.actions.initunittest([wax(1000), lswax(1000)]).send();   
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(120000), 'fugdfj']).send('eosio@active');
+        await stake('mike', 120000, true, 50000)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(50000), '']).send('mike@active');
 
         const pol_state = await getPolState();
-        assert(pol_state.wax_bucket == ZERO_WAX, "pol wax should be 0");
-        assert(pol_state.lswax_bucket == '50000.00000000 LSWAX', "pol lswax should be 50k")  
+        assert(pol_state.wax_bucket == wax(0), "pol wax should be 0");
+        assert(pol_state.lswax_bucket == lswax(50000), "pol lswax should be 50k")  
 
         //fast forward 1 day, stakeallcpu on dapp to use up the instant redeem funds
         current_time += (60 * 60 * 24 * 1) + 1
         await setTime(current_time);
         await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');
         const dapp_state = await getDappState()
-        await assert(dapp_state.wax_available_for_rentals == ZERO_WAX, "dapp should have 0 wax for rentals");
+        await assert(dapp_state.wax_available_for_rentals == wax(0), "dapp should have 0 wax for rentals");
 
         //fast forward 7 days, account for the 0.05% instant redeem fee
         current_time += (60 * 60 * 24 * 7) + 1
@@ -1581,16 +1521,14 @@ describe('\n\nrebalance action', () => {
 
     it('success: 7 days passed. positive lswax bucket, 0 wax. alcor in range, dapp has wax', async () => {
         let current_time = initial_state.chain_time;
-        await contracts.alcor_contract.actions.initunittest(['1000.00000000 WAX', '1000.00000000 LSWAX']).send();   
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', '120000.00000000 WAX', 'fugdfj']).send('eosio@active');
-        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', '120000.00000000 WAX', 'stake']).send('mike@active');
-        await contracts.dapp_contract.actions.liquify(['mike', '50000.00000000 SWAX']).send('mike@active');
-        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', '50000.00000000 LSWAX', '']).send('mike@active');
+        await contracts.alcor_contract.actions.initunittest([wax(1000), lswax(1000)]).send();   
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(120000), 'fugdfj']).send('eosio@active');
+        await stake('mike', 120000, true, 50000)
+        await contracts.token_contract.actions.transfer(['mike', 'pol.fusion', lswax(50000), '']).send('mike@active');
 
         const pol_state = await getPolState();
-        assert(pol_state.wax_bucket == ZERO_WAX, "pol wax should be 0");
-        assert(pol_state.lswax_bucket == '50000.00000000 LSWAX', "pol lswax should be 50k")  
+        assert(pol_state.wax_bucket == wax(0), "pol wax should be 0");
+        assert(pol_state.lswax_bucket == lswax(50000), "pol lswax should be 50k")  
 
         //fast forward 7 days, account for the 0.05% instant redeem fee
         current_time += (60 * 60 * 24 * 7) + 1

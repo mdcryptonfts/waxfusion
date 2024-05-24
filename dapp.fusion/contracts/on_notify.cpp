@@ -3,23 +3,25 @@
 void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, std::string memo){
 	const name tkcontract = get_first_receiver();
 
-    check( quantity.amount > 0, "Must send a positive quantity" );
-    check( quantity.amount < MAX_ASSET_AMOUNT, "quantity too large" );
+    if( quantity.amount == 0 ) return;
 
     if( from == get_self() || to != get_self() ){
     	return;
     }
 
+    check( quantity.amount > 0, "must send a positive quantity" );
+    check( quantity.amount < MAX_ASSET_AMOUNT, "quantity too large" );
+
     //accept random tokens but dont execute any logic
     if( !memo_is_expected( memo ) && tkcontract != WAX_CONTRACT && tkcontract != TOKEN_CONTRACT ) return;
+
+    //only accept wax and lsWAX (sWAX is only issued, not transferred)
+  	validate_token(quantity.symbol, tkcontract);
 
     //if we reached here, the token is either wax or lswax, but the memo is not expected
     if( !memo_is_expected( memo ) ){
     	//TODO either throw error or add to the bucket
     }
-
-    //only accept wax and lsWAX (sWAX is only issued, not transferred)
-  	validate_token(quantity.symbol, tkcontract);
 
   	/** instant redeem and rebalance memos
   	 *  there are 2 cases where the POL contract will need to send LSWAX with these memos
@@ -98,12 +100,13 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 		s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, quantity.amount);    
 
 	    states.set(s, _self);
+
   		return;	    	
   	} 
 
   	/** stake memo
   	 *  used for creating new sWAX tokens at 1:1 ratio
-  	 * 	these sWAX will be staked initially, (added to the awaiting_new_epoch balance)
+  	 * 	these sWAX will be staked initially, (added to the wax_available_for_rentals balance)
   	 * 	they can be converted to liquid sWAX (lsWAX) afterwards
   	 */
 
@@ -114,7 +117,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		check( quantity >= c.minimum_stake_amount, "minimum stake amount not met" );
 
   		//issue new sWAX to dapp contract
-  		issue_swax(quantity.amount);   		
+  		issue_swax(quantity.amount);   	
 
 	    //sync user (need a function to "catch them up" if necessary)
 	    sync_user(from);
@@ -143,6 +146,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   		return;
   	}
+
 
   	/** unliquify memo
   	 *  used for converting lsWAX back to sWAX
@@ -217,14 +221,16 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		state s = states.get();
   		state2 s2 = state_s_2.get();
 
-  		issue_swax(quantity.amount);
-  		s.wax_available_for_rentals.amount = safeAddInt64( s.wax_available_for_rentals.amount, quantity.amount );
-
+  		//calculate how much LSWAX to issue
 		int64_t converted_lsWAX_i64 = internal_liquify( quantity.amount, s );		
+
+		//issue swax and lswax
+		issue_swax(quantity.amount);
 		issue_lswax(converted_lsWAX_i64, _self);
 
+		//update the state
   		s2.incentives_bucket.amount = safeAddInt64( s2.incentives_bucket.amount, converted_lsWAX_i64 );
-
+  		s.wax_available_for_rentals.amount = safeAddInt64( s.wax_available_for_rentals.amount, quantity.amount );
   		s.swax_currently_backing_lswax.amount = safeAddInt64( s.swax_currently_backing_lswax.amount, quantity.amount );
   		s.liquified_swax.amount = safeAddInt64(s.liquified_swax.amount, converted_lsWAX_i64);
 
@@ -304,6 +310,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		});
 
   		states.set(s, _self);
+
   		return;
   	}
 
@@ -404,6 +411,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   		//update the state
   		states.set(s, _self);
+
   		return;
   	}
 

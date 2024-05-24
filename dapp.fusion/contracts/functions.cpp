@@ -241,12 +241,12 @@ bool fusion::is_cpu_contract(const eosio::name& contract){
 }
 
 void fusion::issue_lswax(const int64_t& amount, const eosio::name& receiver){
-  action(permission_level{get_self(), "active"_n}, TOKEN_CONTRACT,"issue"_n,std::tuple{ get_self(), receiver, eosio::asset(amount, LSWAX_SYMBOL), std::string("issuing lsWAX to liquify")}).send();
+  action(permission_level{ _self, "active"_n }, TOKEN_CONTRACT, "issue"_n, std::tuple{ _self, receiver, asset(amount, LSWAX_SYMBOL), std::string("issuing lsWAX to liquify") }).send();
   return;
 }
 
 void fusion::issue_swax(const int64_t& amount){
-  action(permission_level{get_self(), "active"_n}, TOKEN_CONTRACT,"issue"_n,std::tuple{ get_self(), get_self(), eosio::asset(amount, SWAX_SYMBOL), std::string("issuing sWAX for staking")}).send();
+  action(permission_level{ _self, "active"_n }, TOKEN_CONTRACT, "issue"_n, std::tuple{ _self, _self, asset(amount, SWAX_SYMBOL), std::string("issuing sWAX for staking") }).send();
   return;
 }
 
@@ -512,6 +512,7 @@ void fusion::validate_token(const eosio::symbol& symbol, const eosio::name& cont
 
   check(false, "invalid token received");
 }
+
 
 void fusion::zero_distribution(){
   config3 c = config_s_3.get();

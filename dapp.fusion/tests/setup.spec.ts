@@ -2,6 +2,7 @@ const { Blockchain, nameToBigInt, TimePoint, expectToThrow } = require("@eosnetw
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
 const blockchain = new Blockchain()
+const { lswax, swax, wax } = require("./helpers.ts")
 
 const contracts = {
 	alcor_contract: blockchain.createContract('swap.alcor', '../swap.alcor/build/alcor'),
@@ -55,10 +56,22 @@ const init = async () => {
     await contracts.wax_contract.actions.issue(['eosio', initial_state.wax_supply, 'issuing wax']).send('eosio@active');
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.swax_supply]).send();
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.lswax_supply]).send();
+    await contracts.wax_contract.actions.transfer(['eosio', 'mike', '1000000.00000000 WAX', '1M wax for mike']).send('eosio@active');
+}
+
+const stake = async (user, amount, liquify = false, liquify_amount = amount) => {
+    await contracts.dapp_contract.actions.stake([user]).send(`${user}@active`);
+    await contracts.wax_contract.actions.transfer([user, 'dapp.fusion', wax(amount), 'stake']).send(`${user}@active`);
+    if(liquify){
+        await contracts.dapp_contract.actions.liquify([user, swax(liquify_amount)]).send(`${user}@active`);
+    }
 }
 
 module.exports = {
 	blockchain,
 	contracts,
-	init
+	init,
+    initial_state,
+    setTime,
+    stake
 }

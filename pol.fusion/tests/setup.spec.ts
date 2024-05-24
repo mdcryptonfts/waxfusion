@@ -1,6 +1,7 @@
 const { Blockchain, nameToBigInt, TimePoint, expectToThrow } = require("@eosnetwork/vert");
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
+const { lswax, swax, wax } = require('./helpers.ts')
 const blockchain = new Blockchain()
 
 const contracts = {
@@ -62,6 +63,14 @@ const init = async () => {
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.lswax_supply]).send();
 }
 
+const stake = async (user, amount, liquify = false, liquify_amount = amount) => {
+    await contracts.dapp_contract.actions.stake([user]).send(`${user}@active`);
+    await contracts.wax_contract.actions.transfer([user, 'dapp.fusion', wax(amount), 'stake']).send(`${user}@active`);
+    if(liquify){
+        await contracts.dapp_contract.actions.liquify([user, swax(liquify_amount)]).send(`${user}@active`);
+    }
+}
+
 module.exports = {
 	blockchain,
 	contracts,
@@ -69,5 +78,6 @@ module.exports = {
     initial_alcor_price,
     initial_state,
     setTime,
-    incrementTime
+    incrementTime,
+    stake
 }

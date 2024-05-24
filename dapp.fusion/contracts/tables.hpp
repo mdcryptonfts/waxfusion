@@ -84,6 +84,15 @@ struct [[eosio::table]] account {
 };
 typedef eosio::multi_index< "accounts"_n, account > accounts;
 
+struct [[eosio::table]] stat {
+  eosio::asset      supply;
+  eosio::asset      max_supply;
+  eosio::name       issuer;
+
+  uint64_t primary_key()const { return supply.symbol.code().raw(); }
+};
+typedef eosio::multi_index< "stat"_n, stat > stat_table;
+
 
 struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] config3 {
   eosio::asset                      minimum_stake_amount;
@@ -282,16 +291,6 @@ struct [[eosio::table]] refund_request {
 };
 typedef eosio::multi_index< "refunds"_n, refund_request >      refunds_table;
 
-
-struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] wtf {
-  eosio::name             owner;
-  double                  votes;
-  bool                    active;
-
-  uint64_t  primary_key()const { return owner.value; }
-
-};
-typedef eosio::multi_index< "wtf"_n, wtf >      wtf_table;
 
 /**
 * total bytes for a row is 560, except for the initial row which was 896

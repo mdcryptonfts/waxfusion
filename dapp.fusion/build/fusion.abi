@@ -721,24 +721,6 @@
             "name": "updatetop21",
             "base": "",
             "fields": []
-        },
-        {
-            "name": "wtf",
-            "base": "",
-            "fields": [
-                {
-                    "name": "owner",
-                    "type": "name"
-                },
-                {
-                    "name": "votes",
-                    "type": "float64"
-                },
-                {
-                    "name": "active",
-                    "type": "bool"
-                }
-            ]
         }
     ],
     "actions": [
@@ -1001,13 +983,6 @@
         {
             "name": "top21",
             "type": "top21",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "wtf",
-            "type": "wtf",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
