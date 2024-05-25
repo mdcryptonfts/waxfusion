@@ -87,7 +87,9 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
     first_epoch_to_check + ( c.seconds_between_epochs * 2 ),
     first_epoch_to_check + c.seconds_between_epochs,
     first_epoch_to_check
-  };    
+  };   
+
+  std::vector<uint64_t> pending_requests {}; 
 
   //check if they have any pending requests, and if so, tally up the amounts
   for(uint64_t ep : epochs_to_check){
@@ -100,6 +102,7 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
 
       if(req_itr != requests_t.end()){
         //there is a pending request
+        pending_requests.push_back({ep});
 
         //add the requested amount to total_amount_awaiting_redemption
         total_amount_awaiting_redemption.amount = safeAddInt64( total_amount_awaiting_redemption.amount, req_itr->wax_amount_requested.amount );
@@ -113,62 +116,53 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
     //calculate how much we need to remove from their redemptions
     int64_t amount_overdrawn_i64 = safeSubInt64( total_amount_awaiting_redemption.amount, swax_balance.amount );
 
-    //loop through the 3 epochs and update request amounts until they are no longer overdrawn
-    for(uint64_t ep : epochs_to_check){
-      auto epoch_itr = epochs_t.find(ep);
+    for(uint64_t& pending : pending_requests){
+      auto epoch_itr = epochs_t.require_find(pending, "error locating epoch");
+      auto req_itr = requests_t.require_find(pending, "error locating redemption request");
 
-      //if the epoch doesn't exist, skip it
-      if(epoch_itr != epochs_t.end()){
+      //if the amount requested is > amount_overdrawn_i64, only subtract the difference, and break
+      if( req_itr->wax_amount_requested.amount > amount_overdrawn_i64 ){
+        requests_t.modify(req_itr, same_payer, [&](auto &_r){
+          _r.wax_amount_requested.amount = safeSubInt64( _r.wax_amount_requested.amount, amount_overdrawn_i64 );
+        });
 
-        auto req_itr = requests_t.find(ep); 
+        //update the epoch so it properly tracks how much pending requests are tied to it
+        epochs_t.modify(epoch_itr, _self, [&](auto &_e){
+          _e.wax_to_refund.amount = safeSubInt64( _e.wax_to_refund.amount, amount_overdrawn_i64 );
+        });
 
-        if(req_itr != requests_t.end()){
-          //there is a pending request
+        break;
+      }
 
-          //if the amount requested is > amount_overdrawn_i64, only subtract the difference, and break
-          if( req_itr->wax_amount_requested.amount > amount_overdrawn_i64 ){
-            requests_t.modify(req_itr, same_payer, [&](auto &_r){
-              _r.wax_amount_requested.amount = safeSubInt64( _r.wax_amount_requested.amount, amount_overdrawn_i64 );
-            });
+      //if the amount requested is exactly the same as their overdrawn amount, erase the request and break
+      else if( req_itr->wax_amount_requested.amount == amount_overdrawn_i64 ){
 
-            //update the epoch so it properly tracks how much pending requests are tied to it
-            epochs_t.modify(epoch_itr, get_self(), [&](auto &_e){
-              _e.wax_to_refund.amount = safeSubInt64( _e.wax_to_refund.amount, amount_overdrawn_i64 );
-            });
+        //update the epoch so it properly tracks how much pending requests are tied to it
+        epochs_t.modify(epoch_itr, _self, [&](auto &_e){
+          _e.wax_to_refund.amount = safeSubInt64( _e.wax_to_refund.amount, amount_overdrawn_i64 );
+        });
 
-            break;
-          }
+        req_itr = requests_t.erase( req_itr );
 
-          //if the amount requested is exactly the same as their overdrawn amount, erase the request and break
-          else if( req_itr->wax_amount_requested.amount == amount_overdrawn_i64 ){
+        break;
+      }  
+      
+      //if the amount requested is < the overdrawn amount, we need to check other epochs as well and 
+      //continue debiting until they are not overdrawn. erase this request and continue the loop
+      else{
+        //calculate how much we still need to debit after this request is erased
+        amount_overdrawn_i64 = safeSubInt64( amount_overdrawn_i64, req_itr->wax_amount_requested.amount );
 
-            //update the epoch so it properly tracks how much pending requests are tied to it
-            epochs_t.modify(epoch_itr, get_self(), [&](auto &_e){
-              _e.wax_to_refund.amount = safeSubInt64( _e.wax_to_refund.amount, amount_overdrawn_i64 );
-            });
+        //update the epoch so it properly tracks how much pending requests are tied to it
+        epochs_t.modify(epoch_itr, _self, [&](auto &_e){
+          _e.wax_to_refund.amount = safeSubInt64( _e.wax_to_refund.amount, req_itr->wax_amount_requested.amount );
+        });       
 
-            req_itr = requests_t.erase( req_itr );
+        req_itr = requests_t.erase( req_itr );     
+      }          
 
-            break;
-          }
+    } //end loop of pending requests
 
-          //if the amount requested is < the overdrawn amount, we need to check other epochs as well and 
-          //continue debiting until they are not overdrawn. erase this request and continue the loop
-          else{
-            //calculate how much we still need to debit after this request is erased
-            amount_overdrawn_i64 = safeSubInt64( amount_overdrawn_i64, req_itr->wax_amount_requested.amount );
-
-            //update the epoch so it properly tracks how much pending requests are tied to it
-            epochs_t.modify(epoch_itr, get_self(), [&](auto &_e){
-              _e.wax_to_refund.amount = safeSubInt64( _e.wax_to_refund.amount, req_itr->wax_amount_requested.amount );
-            });       
-
-            req_itr = requests_t.erase( req_itr );     
-          }
-
-        } //end if their is a request
-      } //end if the epoch exists 
-    } //end for loop that checks epochs  
   } //end if the user is overdrawn
 
   return;

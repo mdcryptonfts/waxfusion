@@ -731,7 +731,8 @@ ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantit
 
 /**
 * reallocate
-* used for taking any funds that were requested to be redeemed, but werent redeemed in time
+* used for taking any funds that were requested to be redeemed, but werent redeemed in time.
+* moves the funds back into the rental pool where they can be used for CPU rentals again
 */ 
 
 ACTION fusion::reallocate(){
