@@ -176,6 +176,21 @@ uint64_t fusion::days_to_seconds(const uint64_t& days){
   return (uint64_t) SECONDS_PER_DAY * days;
 }
 
+eosio::name fusion::get_next_cpu_contract(config3& c, state& s){
+  
+  //find the current cpu contract in the config
+  auto itr = std::find( c.cpu_contracts.begin(), c.cpu_contracts.end(), s.current_cpu_contract );
+  check( itr != c.cpu_contracts.end(), "error locating cpu contract" );
+
+  //calculate the index of the next contract
+  auto next_cpu_index = ( std::distance(c.cpu_contracts.begin(), itr) + 1 ) % c.cpu_contracts.size();
+  eosio::name next_cpu_contract = c.cpu_contracts[next_cpu_index];
+
+  check(next_cpu_contract != s.current_cpu_contract, "next cpu contract cant be the same as the current contract");
+
+  return next_cpu_contract;  
+}
+
 uint64_t fusion::get_seconds_to_rent_cpu( state s, config3 c, const uint64_t& epoch_id_to_rent_from ){
       uint64_t eleven_days = 60 * 60 * 24 * 11;
       uint64_t seconds_into_current_epoch = now() - s.last_epoch_start_time;
@@ -193,26 +208,7 @@ uint64_t fusion::get_seconds_to_rent_cpu( state s, config3 c, const uint64_t& ep
 
           uint64_t next_epoch_start_time = s.last_epoch_start_time + c.seconds_between_epochs;
 
-          int next_cpu_index = 1;
-          bool contract_was_found = false;
-
-          for(eosio::name cpu : c.cpu_contracts){
-
-            if( cpu == s.current_cpu_contract ){
-              contract_was_found = true;
-
-              if(next_cpu_index == c.cpu_contracts.size()){
-                next_cpu_index = 0;
-              }
-            }
-
-            if(contract_was_found) break;
-            next_cpu_index ++;
-          }
-
-          check( contract_was_found, "error locating cpu contract" );
-          eosio::name next_cpu_contract = c.cpu_contracts[next_cpu_index];
-          check( next_cpu_contract != s.current_cpu_contract, "next cpu contract can not be the same as the current contract" );
+          eosio::name next_cpu_contract = get_next_cpu_contract( c, s );
 
           //create the next epoch
           create_epoch( c, next_epoch_start_time, next_cpu_contract, ZERO_WAX );
@@ -321,26 +317,7 @@ void fusion::sync_epoch(state& s){
   //find out when the last epoch started
   config3 c = config_s_3.get();
 
-  int next_cpu_index = 1;
-  bool contract_was_found = false;
-
-  for(eosio::name cpu : c.cpu_contracts){
-
-    if( cpu == s.current_cpu_contract ){
-      contract_was_found = true;
-
-      if(next_cpu_index == c.cpu_contracts.size()){
-        next_cpu_index = 0;
-      }
-    }
-
-    if(contract_was_found) break;
-    next_cpu_index ++;
-  }
-
-  check( contract_was_found, "error locating cpu contract" );
-  eosio::name next_cpu_contract = c.cpu_contracts[next_cpu_index];
-  check( next_cpu_contract != s.current_cpu_contract, "next cpu contract cant be the same as the current contract" );
+  eosio::name next_cpu_contract = get_next_cpu_contract( c, s );
 
   //calculate when the next is supposed to start
   uint64_t next_epoch_start_time = s.last_epoch_start_time + c.seconds_between_epochs;

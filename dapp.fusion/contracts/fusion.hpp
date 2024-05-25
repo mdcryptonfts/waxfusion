@@ -109,6 +109,7 @@ CONTRACT fusion : public contract {
 		void debit_total_claimable_wax(state3& s3, const eosio::asset& amount_to_debit);
 		void debit_user_redemptions_if_necessary(const name& user, const asset& swax_balance);
 		std::string cpu_stake_memo(const eosio::name& cpu_receiver, const uint64_t& epoch_timestamp);
+		eosio::name get_next_cpu_contract(config3& c, state& s);
 		uint64_t get_seconds_to_rent_cpu(state s, config3 c, const uint64_t& epoch_id_to_rent_from);
 		std::vector<std::string> get_words(std::string memo);
 		int64_t internal_get_swax_allocations( const int64_t& amount, const int64_t& swax_divisor, const int64_t& swax_supply );

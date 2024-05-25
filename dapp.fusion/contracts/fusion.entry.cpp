@@ -1223,26 +1223,7 @@ ACTION fusion::stakeallcpu(){
 	if(s.wax_available_for_rentals.amount > 0){
 
 		//then we can just get the next contract in line and next epoch in line
-		int next_cpu_index = 1;
-		bool contract_was_found = false;
-
-		for(eosio::name cpu : c.cpu_contracts){
-
-			if( cpu == s.current_cpu_contract ){
-			  contract_was_found = true;
-
-			  if(next_cpu_index == c.cpu_contracts.size()){
-			    next_cpu_index = 0;
-			  }
-			}
-
-			if(contract_was_found) break;
-			next_cpu_index ++;
-		}
-
-		check( contract_was_found, "error locating cpu contract" );
-		eosio::name next_cpu_contract = c.cpu_contracts[next_cpu_index];
-		check( next_cpu_contract != s.current_cpu_contract, "next cpu contract can not be the same as the current contract" );
+		eosio::name next_cpu_contract = get_next_cpu_contract( c, s );
 
 		uint64_t next_epoch_start_time = s.last_epoch_start_time + c.seconds_between_epochs;
 
