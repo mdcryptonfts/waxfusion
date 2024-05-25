@@ -70,7 +70,7 @@ const init = async () => {
 }
 
 const stake = async (user, amount, liquify = false, liquify_amount = amount) => {
-    await contracts.dapp_contract.actions.stake([user]).send(`${user}@active`);
+    const action = await contracts.dapp_contract.actions.stake([user]).send(`${user}@active`);
     await contracts.wax_contract.actions.transfer([user, 'dapp.fusion', wax(amount), 'stake']).send(`${user}@active`);
     if(liquify){
         await contracts.dapp_contract.actions.liquify([user, swax(liquify_amount)]).send(`${user}@active`);
@@ -81,32 +81,45 @@ const unliquify = async (user, amount) => {
     await contracts.token_contract.actions.transfer([user, 'dapp.fusion', lswax(amount), 'unliquify']).send(`${user}@active`);
 }
 
-const simulate_days = async (days = 1) => {
-    //this should be a whole cycle of logic here...
+const simulate_days = async (days = 1, stake_users = false) => {
+
     let current_time = initial_state.chain_time
 
     let count = 0;
     while(count < days){
-        //mike stakes 10000 swax, bob stake 10k and liquifies 5k, ricky stakes 10k and liquifies it all
-        await stake('mike', 10000)
-        await stake('bob', 10000, true, 5000)
-        await stake('ricky', 10000, true)
+        //mike stakes 10000 swax, bob stake 10k and liquifies 5k, ricky stakes 10k and liquifies it all    
+        if(stake_users){
+            await stake('mike', 10000)
+            await stake('bob', 10000, true, 5000)
+            await stake('ricky', 10000, true)
+        }
 
-        //have multiple users rent cpu from different epochs, but not all of the wax
-        const memo = rent_cpu_memo('mike', 100, initial_state.chain_time)
-        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active')
+        if(count < 10){
+            const memo = rent_cpu_memo('ricky', 100, initial_state.chain_time)
+            await contracts.wax_contract.actions.transfer(['ricky', 'dapp.fusion', wax(10), memo]).send('ricky@active')
+        } else {
+            const memo = rent_cpu_memo('ricky', 100, initial_state.chain_time + (86400 * 7) )
+            await contracts.wax_contract.actions.transfer(['ricky', 'dapp.fusion', wax(10), memo]).send('ricky@active')
+        }
 
         //fast forward a day
         current_time += 86400
         await setTime(current_time)
 
         //claim rewards
+        if(count < 10){
+            await contracts.dapp_contract.actions.claimgbmvote(['cpu1.fusion']).send('mike@active')
+        } else {
+            await contracts.dapp_contract.actions.claimgbmvote(['cpu2.fusion']).send('mike@active')
+        }
+        
 
-        //distibute
+        //distribute
         await contracts.dapp_contract.actions.distribute([]).send('mike@active')
 
         //if necessary days have passed, unstake cpu, claim refund etc
-
+        //current_time += 1
+        //await setTime(current_time)    
         count ++
 
     }
@@ -115,6 +128,7 @@ const simulate_days = async (days = 1) => {
 module.exports = {
 	blockchain,
 	contracts,
+    incrementTime,
 	init,
     initial_state,
     setTime,

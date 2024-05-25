@@ -92,9 +92,6 @@ uint128_t fusion::safeMulUInt128(const uint128_t& a, const uint128_t& b){
 
 }
 
-
-//TODO safe128mul only for assets, to specify max inputs lower than regular mul128
-
 uint64_t fusion::safeMulUInt64(const uint64_t& a, const uint64_t& b){
     uint64_t result;  
 

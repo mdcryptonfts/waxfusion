@@ -35,6 +35,60 @@ ACTION fusion::addcpucntrct(const eosio::name& contract_to_add){
 	}
 }
 
+ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& expected_output, const uint64_t& max_slippage_1e6){
+
+	require_auth(user);
+
+	//fetch the global state
+	state s = states.get();	
+	state3 s3 = state_s_3.get();
+
+	sync_epoch( s );
+
+	auto staker_itr = staker_t.require_find(user.value, "you don't have anything staked here");
+	staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+	sync_user( s, staker );
+
+	//validate the action inputs
+    check(expected_output.amount > 0, "Invalid output quantity.");
+    check(expected_output.amount < MAX_ASSET_AMOUNT, "output quantity too large");
+    check(expected_output.symbol == LSWAX_SYMBOL, "output symbol should be LSWAX");	 	
+    check( max_slippage_1e6 >= 0 && max_slippage_1e6 < ONE_HUNDRED_PERCENT_1E6, "max slippage is out of range" );
+
+    //find the user's row and make sure they have something to claim
+	check( staker.claimable_wax.amount > 0, "you have no wax to claim" );
+
+	//calculate how much lswax they will get, and make sure it's enough to meet what they expect
+	int64_t claimable_wax_amount = staker.claimable_wax.amount;
+	int64_t converted_lsWAX_i64 = internal_liquify( claimable_wax_amount, s );	
+	uint64_t minimum_output_percentage = ONE_HUNDRED_PERCENT_1E6 - max_slippage_1e6;
+	int64_t minimum_output = calculate_asset_share( expected_output.amount, minimum_output_percentage );
+    check( converted_lsWAX_i64 >= (int64_t) minimum_output, "output would be " + asset(converted_lsWAX_i64, LSWAX_SYMBOL).to_string() + " but expected " + asset(minimum_output, LSWAX_SYMBOL).to_string() );		
+
+    //update the user's row
+	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+		_s.claimable_wax.amount = 0;
+		_s.last_update = staker.last_update;
+	});
+
+	//update the state
+	s.liquified_swax.amount = safeAddInt64(s.liquified_swax.amount, converted_lsWAX_i64);
+	s.swax_currently_backing_lswax.amount = safeAddInt64(s.swax_currently_backing_lswax.amount, claimable_wax_amount);
+    s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, claimable_wax_amount);
+    states.set(s, _self);	
+
+	//update the global state with the new total claimable wax amount
+	debit_total_claimable_wax( s3, staker.claimable_wax );
+	state_s_3.set(s3, _self);    	
+
+    //issue the wax and lswax
+    issue_swax(claimable_wax_amount);
+    issue_lswax(converted_lsWAX_i64, user);
+
+	return;
+	
+}
+
 ACTION fusion::claimgbmvote(const eosio::name& cpu_contract)
 {
 	check( is_cpu_contract(cpu_contract), ( cpu_contract.to_string() + " is not a cpu rental contract").c_str() );
@@ -64,71 +118,36 @@ ACTION fusion::claimrefunds()
 	check( refundsToClaim, "there are no refunds to claim" );
 }
 
-ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& expected_output, const uint64_t& max_slippage_1e6){
-
-	require_auth(user);
-	sync_epoch();
-	sync_user(user);
-
-    check(expected_output.amount > 0, "Invalid output quantity.");
-    check(expected_output.amount < MAX_ASSET_AMOUNT, "output quantity too large");
-    check(expected_output.symbol == LSWAX_SYMBOL, "output symbol should be LSWAX");	 	
-
-	auto staker = staker_t.require_find(user.value, "you don't have anything staked here");
-	if(staker->claimable_wax.amount > 0){
-
-		debit_total_claimable_wax( staker->claimable_wax );
-
-		int64_t claimable_wax_amount = staker->claimable_wax.amount;
-		issue_swax(claimable_wax_amount);
-
-		state s = states.get();
-
-		int64_t converted_lsWAX_i64 = internal_liquify( claimable_wax_amount, s );	
-
-	    check( max_slippage_1e6 >= 0 && max_slippage_1e6 < ONE_HUNDRED_PERCENT_1E6, "max slippage is out of range" );
-
-		uint64_t minimum_output_percentage = ONE_HUNDRED_PERCENT_1E6 - max_slippage_1e6;
-		int64_t minimum_output = calculate_asset_share( expected_output.amount, minimum_output_percentage );
-
-	    check( converted_lsWAX_i64 >= (int64_t) minimum_output, "output would be " + asset(converted_lsWAX_i64, LSWAX_SYMBOL).to_string() + " but expected " + asset(minimum_output, LSWAX_SYMBOL).to_string() );		
-
-		issue_lswax(converted_lsWAX_i64, user);
-
-		staker_t.modify(staker, same_payer, [&](auto &_s){
-			_s.claimable_wax.amount = 0;
-		});
-
-		s.liquified_swax.amount = safeAddInt64(s.liquified_swax.amount, converted_lsWAX_i64);
-		s.swax_currently_backing_lswax.amount = safeAddInt64(s.swax_currently_backing_lswax.amount, claimable_wax_amount);
-	    s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, claimable_wax_amount);
-
-	    states.set(s, _self);		
-
-		return;
-	}
-
-	check(false, "you have nothing to claim");
-}
-
 ACTION fusion::claimrewards(const eosio::name& user){
 	require_auth(user);
-	sync_epoch();
-	sync_user(user);
 
-	auto staker = staker_t.require_find(user.value, "you don't have anything staked here");
-	if(staker->claimable_wax.amount > 0){
-		transfer_tokens( user, staker->claimable_wax, WAX_CONTRACT, std::string("your sWAX reward claim from waxfusion.io - liquid staking protocol") );
-		debit_total_claimable_wax( staker->claimable_wax );
+	state s = states.get();
+	state3 s3 = state_s_3.get();
 
-		staker_t.modify(staker, same_payer, [&](auto &_s){
-			_s.claimable_wax.amount = 0;
-		});
+	sync_epoch( s );
 
-		return;
-	}
+	auto staker_itr = staker_t.require_find(user.value, "you don't have anything staked here");
+	staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+	sync_user( s, staker );
 
-	check(false, "you have nothing to claim");
+	check( staker.claimable_wax.amount > 0, "you have no wax to claim" );
+	const asset claimable_wax = staker.claimable_wax;
+
+	//modify the user's row
+	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+		_s.claimable_wax.amount = 0;
+		_s.last_update = staker.last_update;
+	});
+
+	//update the global state with the new total claimable wax amount
+	debit_total_claimable_wax( s3, claimable_wax );
+	states.set(s, _self);
+	state_s_3.set(s3, _self);
+
+	//send the wax rewards to the user
+	transfer_tokens( user, claimable_wax, WAX_CONTRACT, std::string("your sWAX reward claim from waxfusion.io - liquid staking protocol") );
+
+	return;
 }
 
 /** 
@@ -138,33 +157,42 @@ ACTION fusion::claimrewards(const eosio::name& user){
 
 ACTION fusion::claimswax(const eosio::name& user){
 	require_auth(user);
-	sync_epoch();
-	sync_user(user);
 
-	auto staker = staker_t.require_find(user.value, "you don't have anything staked here");
-	if(staker->claimable_wax.amount > 0){
+	state s = states.get();
+	state3 s3 = state_s_3.get();
 
-		debit_total_claimable_wax( staker->claimable_wax );
+	sync_epoch( s );
 
-		int64_t swax_amount_to_claim = staker->claimable_wax.amount;
-		issue_swax(swax_amount_to_claim); 
+	auto staker_itr = staker_t.require_find(user.value, "you don't have anything staked here");
+	staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+	sync_user( s, staker );
 
-		staker_t.modify(staker, same_payer, [&](auto &_s){
-			_s.claimable_wax.amount = 0;
-			_s.swax_balance.amount = safeAddInt64(_s.swax_balance.amount, swax_amount_to_claim);
-		});
+	check( staker.claimable_wax.amount > 0, "you have no wax to claim" );
 
-		//update the state
-	    state s = states.get();
-	    s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, swax_amount_to_claim);
-	    s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, swax_amount_to_claim);
+	int64_t swax_amount_to_claim = staker.claimable_wax.amount;
 
-	    states.set(s, _self);		
+	//modify the user's row
+	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+		_s.claimable_wax.amount = 0;
+		_s.swax_balance.amount = safeAddInt64(_s.swax_balance.amount, swax_amount_to_claim);
+		_s.last_update = staker.last_update;
+	});
 
-		return;
-	}
+	//update the state
+    s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, swax_amount_to_claim);
+    s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, swax_amount_to_claim);
 
-	check(false, "you have nothing to claim");
+	//update the global state with the new total claimable wax amount
+	debit_total_claimable_wax( s3, staker.claimable_wax );
+
+	states.set(s, _self);	
+	state_s_3.set(s3, _self);
+
+    //issue the swax
+	issue_swax(swax_amount_to_claim);     	
+
+	return;
+
 }
 
 /**
@@ -174,11 +202,12 @@ ACTION fusion::claimswax(const eosio::name& user){
 
 ACTION fusion::clearexpired(const eosio::name& user){
 	require_auth(user);
-	sync_epoch();
-	sync_user(user);
-
 	config3 c = config_s_3.get();
 	state s = states.get();	
+
+	sync_epoch( s );
+	states.set(s, _self);
+
 	requests_tbl requests_t = requests_tbl(get_self(), user.value);
 
 	if( requests_t.begin() == requests_t.end() ) return;
@@ -201,8 +230,11 @@ ACTION fusion::clearexpired(const eosio::name& user){
 */
 
 ACTION fusion::createfarms(){
-	sync_epoch();
+	state s = states.get();
 	state2 s2 = state_s_2.get();
+
+	sync_epoch( s );
+	states.set(s, _self);
 
 	check( s2.last_incentive_distribution + LP_FARM_DURATION_SECONDS < now(), "hasn't been 1 week since last farms were created");
 	check( s2.incentives_bucket.amount > 0, "no lswax in the incentives_bucket" );
@@ -248,11 +280,11 @@ ACTION fusion::createfarms(){
 */ 
 
 ACTION fusion::distribute(){
-	sync_epoch();
-
 	config3 c = config_s_3.get();
 	state s = states.get();
-	state2 s2 = state_s_2.get();
+	state2 s2 = state_s_2.get();	
+
+	sync_epoch( s );
 
 	//make sure its been long enough since the last distribution
 	if( s.next_distribution > now() ){
@@ -261,7 +293,7 @@ ACTION fusion::distribute(){
 
 	//if there is nothing to distribute, create a snapshot with 0 quantities
 	if( s.revenue_awaiting_distribution.amount == 0 ){
-		zero_distribution( c, s );
+		zero_distribution( s );
 		s.next_distribution += c.seconds_between_distributions;
 		states.set(s, _self);   		
 		return;
@@ -300,15 +332,7 @@ ACTION fusion::distribute(){
       swax_earning_alloc_i64, amount_to_distribute);
 
 	//create a snapshot
-	snaps_t.emplace(get_self(), [&](auto &_snap){
-		_snap.timestamp = s.next_distribution;
-		_snap.swax_earning_bucket = asset(swax_earning_alloc_i64, WAX_SYMBOL);
-		_snap.lswax_autocompounding_bucket = asset(swax_autocompounding_alloc_i64, WAX_SYMBOL);
-		_snap.pol_bucket = asset(pol_alloc_i64, WAX_SYMBOL);
-		_snap.ecosystem_bucket = asset(eco_alloc_i64, WAX_SYMBOL);
-		_snap.total_distributed = asset(amount_to_distribute, WAX_SYMBOL);	
-		_snap.total_swax_earning = s.swax_currently_earning;
-	});
+	create_snapshot(s, swax_earning_alloc_i64, swax_autocompounding_alloc_i64, pol_alloc_i64, eco_alloc_i64, amount_to_distribute);	
 
 	//modify the state with updated info
 	s.total_revenue_distributed.amount = safeAddInt64(s.total_revenue_distributed.amount, amount_to_distribute);
@@ -348,7 +372,7 @@ ACTION fusion::initconfig(){
 	s.revenue_awaiting_distribution = ZERO_WAX;
 	s.user_funds_bucket = ZERO_WAX;
 	s.total_revenue_distributed = ZERO_WAX;
-	s.next_distribution = now();
+	s.next_distribution = INITIAL_EPOCH_START_TIMESTAMP + 60 * 60 * 24; /* 1 day from launch */
 	s.wax_for_redemption = ZERO_WAX;
 	s.redemption_period_start = 0;
 	s.redemption_period_end = 0;
@@ -539,31 +563,30 @@ ACTION fusion::inittop21(){
  */
 ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_redeem){
 	require_auth(user);
-	sync_user(user);
-	sync_epoch();
 
-	//make sure the amount to redeem is not more than their balance
-	auto staker = staker_t.require_find(user.value, "you are not staking any sWAX");
-	check(staker->swax_balance >= swax_to_redeem, "you are trying to redeem more than you have");
+	state s = states.get();
+	
+	sync_epoch( s );
+
+	auto staker_itr = staker_t.require_find(user.value, "you don't have anything staked here");
+	staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+	sync_user( s, staker );
+
+	check( staker.swax_balance >= swax_to_redeem, "you are trying to redeem more than you have" );
 
     check( swax_to_redeem.amount > 0, "Must redeem a positive quantity" );
     check( swax_to_redeem.amount < MAX_ASSET_AMOUNT, "quantity too large" );
 
-    eosio::asset new_sWAX_balance = staker->swax_balance;
+    eosio::asset new_sWAX_balance = staker.swax_balance;
     new_sWAX_balance.amount = safeSubInt64( new_sWAX_balance.amount, swax_to_redeem.amount );
 
 	//debit requested amount from their staked balance
-	staker_t.modify(staker, same_payer, [&](auto &_s){
+	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
 		_s.swax_balance -= swax_to_redeem;
-		_s.last_update = now();
+		_s.last_update = staker.last_update;
 	});
 
-	state s = states.get();
-
 	check( s.wax_available_for_rentals.amount >= swax_to_redeem.amount, "not enough instaredeem funds available" );
-
-	//debit the amount from s.wax_available_for_rentals
-	s.wax_available_for_rentals.amount = safeSubInt64(s.wax_available_for_rentals.amount, swax_to_redeem.amount);
 
 	//calculate the 0.05% share
 	//calculate the remainder for the user
@@ -573,19 +596,21 @@ ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_
 
 	check( safeAddInt64( protocol_share, user_share ) <= swax_to_redeem.amount, "error calculating protocol fee" );
 
-	//transfer the funds to the user
-	transfer_tokens( user, asset( user_share, WAX_SYMBOL ), WAX_CONTRACT, std::string("your sWAX redemption from waxfusion.io - liquid staking protocol") );
-
 	//add the 0.05% to the revenue_awaiting_distribution
+	//debit the amount from s.wax_available_for_rentals
+	//debit the amount from swax_currently_earning
+	s.wax_available_for_rentals.amount = safeSubInt64(s.wax_available_for_rentals.amount, swax_to_redeem.amount);	
 	s.revenue_awaiting_distribution.amount = safeAddInt64( s.revenue_awaiting_distribution.amount, protocol_share );
 	s.swax_currently_earning.amount = safeSubInt64( s.swax_currently_earning.amount, swax_to_redeem.amount );
-
-	retire_swax(swax_to_redeem.amount);
 
 	//set the state
 	states.set(s, _self);
 
     debit_user_redemptions_if_necessary(user, new_sWAX_balance);
+
+    //transfer the funds to the user and retire the swax
+    retire_swax(swax_to_redeem.amount);
+	transfer_tokens( user, asset( user_share, WAX_SYMBOL ), WAX_CONTRACT, std::string("your sWAX redemption from waxfusion.io - liquid staking protocol") );    
 
 }
 
@@ -594,27 +619,25 @@ ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity){
 	require_auth(user);
     check(quantity.amount > 0, "Invalid quantity.");
     check(quantity.amount < MAX_ASSET_AMOUNT, "quantity too large");
-    check(quantity.symbol == SWAX_SYMBOL, "only SWAX can be liquified");	
+    check(quantity.symbol == SWAX_SYMBOL, "only SWAX can be liquified");
 
-    //process any payouts for this user since their last interaction
-    sync_user(user);
+    state s = states.get();	
 
-    //make sure they have a row here
-	auto staker = staker_t.require_find(user.value, "you have nothing to liquify");
+	auto staker_itr = staker_t.require_find(user.value, "you don't have anything staked here");
+	staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+	sync_user( s, staker );
 
-	if(staker->swax_balance < quantity){
+	if(staker.swax_balance < quantity){
 		check(false, "you are trying to liquify more than you have");
 	}
 
-	eosio::asset new_sWAX_balance = staker->swax_balance - quantity;
+	eosio::asset new_sWAX_balance = staker.swax_balance - quantity;
 
 	//debit requested amount from their staked balance
-	staker_t.modify(staker, same_payer, [&](auto &_s){
+	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
 		_s.swax_balance -= quantity;
-		_s.last_update = now();
+		_s.last_update = staker.last_update;
 	});
-
-	state s = states.get();
 
 	//calculate equivalent amount of lsWAX (BEFORE adjusting sWAX amounts)
 	int64_t converted_lsWAX_i64 = internal_liquify(quantity.amount, s);
@@ -652,26 +675,24 @@ ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantit
     check(expected_output.amount < MAX_ASSET_AMOUNT, "output quantity too large");
     check(expected_output.symbol == LSWAX_SYMBOL, "output symbol should be LSWAX");	    
 
-    //process any payouts for this user since their last interaction
-    sync_user(user);
+    state s = states.get();
 
-    //make sure they have a row here
-	auto staker = staker_t.require_find(user.value, "you have nothing to liquify");
+	auto staker_itr = staker_t.require_find(user.value, "you don't have anything staked here");
+	staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+	sync_user( s, staker );
 
-	if(staker->swax_balance < quantity){
+	if(staker.swax_balance < quantity){
 		check(false, "you are trying to liquify more than you have");
 	}
 
-	int64_t new_sWAX_balance_i64 = safeSubInt64( staker->swax_balance.amount, quantity.amount );
+	int64_t new_sWAX_balance_i64 = safeSubInt64( staker.swax_balance.amount, quantity.amount );
 	eosio::asset new_sWAX_balance = asset( new_sWAX_balance_i64, SWAX_SYMBOL );
 
 	//debit requested amount from their staked balance
-	staker_t.modify(staker, same_payer, [&](auto &_s){
+	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
 		_s.swax_balance -= quantity;
-		_s.last_update = now();
+		_s.last_update = staker.last_update;
 	});
-
-	state s = states.get();
 
 	int64_t converted_lsWAX_i64 = internal_liquify(quantity.amount, s);
 
@@ -708,10 +729,10 @@ ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantit
 */ 
 
 ACTION fusion::reallocate(){
-	sync_epoch();
-
 	state s = states.get();
-	config3 c = config_s_3.get();
+	config3 c = config_s_3.get();	
+
+	sync_epoch( s );
 
 	//if now > epoch start time + 48h, it means redemption is over
 	check( now() > s.last_epoch_start_time + c.redemption_period_length_seconds, "redemption period has not ended yet" );
@@ -727,12 +748,15 @@ ACTION fusion::reallocate(){
 
 ACTION fusion::redeem(const eosio::name& user){
 	require_auth(user);
-	sync_user(user);
-	sync_epoch();
 
-	//find out if there is a current redemption period, and when
 	state s = states.get();
-	config3 c = config_s_3.get();
+	config3 c = config_s_3.get();	
+
+	sync_epoch( s );
+
+	auto staker_itr = staker_t.require_find(user.value, "you don't have anything staked here");
+	staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+	sync_user( s, staker );	
 
 	uint64_t redemption_start_time = s.last_epoch_start_time;
 	uint64_t redemption_end_time = s.last_epoch_start_time + c.redemption_period_length_seconds;
@@ -748,10 +772,7 @@ ACTION fusion::redeem(const eosio::name& user){
 
 	auto req_itr = requests_t.require_find(epoch_to_claim_from, "you don't have a redemption request for the current redemption period");
 
-	//if they do, make sure the amount is <= their swax amount
-	auto staker = staker_t.require_find(user.value, "you are not staking any sWAX");
-
-	check( req_itr->wax_amount_requested.amount <= staker->swax_balance.amount, "you are trying to redeem more than you have" );
+	check( req_itr->wax_amount_requested.amount <= staker.swax_balance.amount, "you are trying to redeem more than you have" );
 
 	//make sure s.wax_for_redemption has enough for them (it always should!)
 	check( s.wax_for_redemption >= req_itr->wax_amount_requested, "not enough wax in the redemption pool" );
@@ -760,18 +781,20 @@ ACTION fusion::redeem(const eosio::name& user){
 	s.wax_for_redemption.amount = safeSubInt64(s.wax_for_redemption.amount, req_itr->wax_amount_requested.amount);
 
 	//subtract the requested amount from their swax balance
-	asset updated_swax_balance = staker->swax_balance;
+	asset updated_swax_balance = staker.swax_balance;
 	updated_swax_balance.amount = safeSubInt64(updated_swax_balance.amount, req_itr->wax_amount_requested.amount);
 
-	staker_t.modify(staker, same_payer, [&](auto &_s){
+	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
 		_s.swax_balance = updated_swax_balance;
+		_s.last_update = staker.last_update;
 	});
-
-	//retire the sWAX
-	retire_swax(req_itr->wax_amount_requested.amount);
 
 	//update the swax_currently_earning amount
 	s.swax_currently_earning.amount = safeSubInt64(s.swax_currently_earning.amount, req_itr->wax_amount_requested.amount);
+	states.set(s, _self);
+
+	//retire the sWAX
+	retire_swax(req_itr->wax_amount_requested.amount);
 
 	//transfer wax to the user
 	transfer_tokens( user, req_itr->wax_amount_requested, WAX_CONTRACT, std::string("your sWAX redemption from waxfusion.io - liquid staking protocol") );
@@ -806,11 +829,13 @@ ACTION fusion::removeadmin(const eosio::name& admin_to_remove){
 
 ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_redeem, const bool& accept_replacing_prev_requests){
 	require_auth(user);
-	sync_user(user);
-	sync_epoch();
 
-	//make sure the amount to redeem is not more than their balance
-	auto staker = staker_t.require_find(user.value, "you are not staking any sWAX");
+	state s = states.get();
+	sync_epoch( s );
+
+	auto staker_itr = staker_t.require_find(user.value, "you don't have anything staked here");
+	staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+	sync_user( s, staker );
 
     check( swax_to_redeem.amount > 0, "Must redeem a positive quantity" );
     check( swax_to_redeem.amount < MAX_ASSET_AMOUNT, "quantity too large" );
@@ -825,7 +850,6 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
 	* can do this one more time if there is a 3rd epoch available
 	*/
 
-	state s = states.get();
 	config3 c = config_s_3.get();
 	requests_tbl requests_t = requests_tbl(get_self(), user.value);
 
@@ -858,7 +882,7 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
 
 				//make sure the request amount <= their swax balance
 				//this should never actually happen
-				check( req_itr->wax_amount_requested.amount <= staker->swax_balance.amount, "you have a pending request > your swax balance" );
+				check( req_itr->wax_amount_requested.amount <= staker.swax_balance.amount, "you have a pending request > your swax balance" );
 
 				//make sure the redemption pool >= the request amount
 				//the only time this should ever happen is if the CPU contract has not returned the funds yet, which should never really
@@ -879,9 +903,7 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
 
 				transfer_tokens( user, req_itr->wax_amount_requested, WAX_CONTRACT, std::string("your redemption from waxfusion.io - liquid staking protocol") );
 
-				staker_t.modify(staker, same_payer, [&](auto &_s){
-					_s.swax_balance.amount = safeSubInt64( _s.swax_balance.amount, req_itr->wax_amount_requested.amount );
-				});
+				staker.swax_balance.amount = safeSubInt64( staker.swax_balance.amount, req_itr->wax_amount_requested.amount );
 
 				req_itr = requests_t.erase( req_itr );
 
@@ -891,12 +913,16 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
 	}
 
 	if( request_can_be_filled ){
+		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+			_s.swax_balance = staker.swax_balance;
+			_s.last_update = staker.last_update;
+		});		
+
 		states.set(s, _self);
 		return;
 	}
 
-	auto staker_refreshed = staker_t.require_find(user.value, "you are not staking any sWAX");
-	check(staker_refreshed->swax_balance >= remaining_amount_to_fill, "you are trying to redeem more than you have");	
+	check(staker.swax_balance >= remaining_amount_to_fill, "you are trying to redeem more than you have");	
 
 	uint64_t epoch_to_request_from = s.last_epoch_start_time - c.seconds_between_epochs;
 
@@ -1022,14 +1048,16 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
 		s.wax_available_for_rentals.amount = safeSubInt64( s.wax_available_for_rentals.amount, remaining_amount_to_fill.amount );
 
 		//debit the swax amount from the user's balance
-		staker_t.modify(staker_refreshed, same_payer, [&](auto &_s){
-			_s.swax_balance.amount = safeSubInt64( _s.swax_balance.amount, remaining_amount_to_fill.amount );
+		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+			_s.swax_balance.amount = safeSubInt64( staker.swax_balance.amount, remaining_amount_to_fill.amount );
+			_s.last_update = staker.last_update;
 		});
 
 		transfer_tokens( user, asset( remaining_amount_to_fill.amount, WAX_SYMBOL ), WAX_CONTRACT, std::string("your redemption from waxfusion.io - liquid staking protocol") );
 	}
 
 	states.set(s, _self);
+	return;
 
 }
 
@@ -1085,9 +1113,7 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
 
 	auto lp_itr = lpfarms_t.find( poolId );
 
-	//TODO either loop through table and make sure total percentages <= ONE_HUNDRED_PERCENT_1E6
-	//or better option would be to track the total percentages in a state table and check it
-	//and update it here
+	//TODO make sure percentages dont add up to > 100%
 
 	if(lp_itr == lpfarms_t.end()){
 
@@ -1147,11 +1173,20 @@ ACTION fusion::setrentprice(const eosio::name& caller, const eosio::asset& cost_
   
 ACTION fusion::stake(const eosio::name& user){
 	require_auth(user);
+	state s = states.get();
 
-	auto staker = staker_t.find(user.value);
+	auto staker_itr = staker_t.find(user.value);
 
-	if(staker != staker_t.end()){
-		sync_user(user);
+	if(staker_itr != staker_t.end()){
+		staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+		sync_user( s, staker );
+
+		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+			_s.claimable_wax = staker.claimable_wax;
+			_s.last_update = staker.last_update;
+		});
+
+		states.set(s, _self);
 		return;
 	}
 
@@ -1169,10 +1204,10 @@ ACTION fusion::stake(const eosio::name& user){
 */ 
 
 ACTION fusion::stakeallcpu(){
-	sync_epoch();
+	state s = states.get();
+	sync_epoch( s );
 
 	//get the last epoch start time
-	state s = states.get();
 	config3 c = config_s_3.get();
 
 	//if now > epoch start time + 48h, it means redemption is over
@@ -1253,7 +1288,10 @@ ACTION fusion::stakeallcpu(){
 ACTION fusion::sync(const eosio::name& caller){
 	require_auth( caller );
 	check( is_an_admin( caller ), ( caller.to_string() + " is not an admin" ).c_str() );
-	sync_epoch();
+	
+	state s = states.get();
+	sync_epoch( s );
+	states.set(s, _self);
 }
 
 /**
@@ -1270,12 +1308,12 @@ ACTION fusion::synctvl(const eosio::name& caller){
 
 ACTION fusion::unstakecpu(const uint64_t& epoch_id, const int& limit){
 	//anyone can call this
-
-	sync_epoch();
-
-	//get the most recently started epoch
 	state s = states.get();
 	config3 c = config_s_3.get();
+
+	sync_epoch( s );
+
+	states.set(s, _self);
 
 	//the only epoch that should ever need unstaking is the one that started prior to current epoch
 	//calculate the epoch prior to the most recently started one

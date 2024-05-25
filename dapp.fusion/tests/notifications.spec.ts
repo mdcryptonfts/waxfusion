@@ -1,5 +1,5 @@
-const { blockchain, contracts, init, initial_state, setTime, stake, simulate_days, unliquify } = require("./setup.spec.ts")
-const { calculate_wax_and_lswax_outputs, lswax, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
+const { blockchain, contracts, incrementTime, init, initial_state, setTime, stake, simulate_days, unliquify } = require("./setup.spec.ts")
+const { calculate_wax_and_lswax_outputs, lswax, rent_cpu_memo, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
 const { nameToBigInt, TimePoint, expectToThrow } = require("@eosnetwork/vert");
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
@@ -21,6 +21,15 @@ const scopes = {
     cpu3: contracts.cpu3.value,
     pol: contracts.pol_contract.value,
     system: contracts.system_contract.value
+}
+
+const getPayouts = async () => {
+    const payouts = await contracts.dapp_contract.tables
+        .payouts(scopes.dapp)
+        .getTableRows()
+        console.log("payouts:")
+        console.log(payouts) 
+
 }
 
 const getAlcorPool = async (log = false) => {
@@ -146,10 +155,14 @@ const getSupply = async (account, token, log = false) => {
     return row;
 }
 
-const getSWaxStaker = async (user) => {
+const getSWaxStaker = async (user, log = false) => {
     const staker = await contracts.dapp_contract.tables
         .stakers(scopes.dapp)
         .getTableRows(Name.from(user).value.value)[0]
+    if(log){
+        console.log(`${user}'s SWAX:`)
+        console.log(staker)
+    }
     return staker; 
 }
 
@@ -241,7 +254,10 @@ describe('\n\ncpu rental return memo', () => {
 describe('\n\nrent_cpu memo', () => {
 
     it('error: only wax accepted', async () => {
-
+        await stake('ricky', 1000, true)
+        const memo = rent_cpu_memo('ricky', 100, initial_state.chain_time)
+        const action = contracts.token_contract.actions.transfer(['ricky', 'dapp.fusion', lswax(10), memo]).send('ricky@active') 
+        await expectToThrow(action, "eosio_assert: only WAX can be sent with this memo")
     });  
  
 });
@@ -258,13 +274,15 @@ describe('\n\nunliquify_exact memo', () => {
 describe('\n\nsimulate_days', () => {
 
     it('success', async () => {
-        await simulate_days(5)
+        //await stake('bob', 10000, true, 5000)
+        //await stake('mike', 10000)
+        await simulate_days(14, true)
 
         //check the dapp state
-        await getDappState(true)
+        //await getDappState(true)
 
         //check the pol state
-        await getPolState(true)
+        //await getPolState(true)
 
         //swax backing lswax should now be initial + (5*simulation)
 
@@ -273,35 +291,52 @@ describe('\n\nsimulate_days', () => {
         //check the lswax balance of each user
 
         //check the lswax supply
-        await getSupply(contracts.token_contract, "LSWAX", true)
+        await getSupply(contracts.token_contract, "LSWAX")
 
         //check the swax supply
-        await getSupply(contracts.token_contract, "SWAX", true)
+        await getSupply(contracts.token_contract, "SWAX")
 
-        await unliquify('bob', 10000);
-        const bobs_bal = await getBalances('bob', contracts.token_contract, true)
+        //await unliquify('bob', 10000);
+        //const bobs_bal = await getBalances('bob', contracts.token_contract, true)
 
         //try using pol contract to mess things up (instant redeem, rebalance)
         //await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10000), '']).send('mike@active')
-        await contracts.token_contract.actions.transfer(['bob', 'pol.fusion', lswax(10000), '']).send('bob@active')
-        await contracts.pol_contract.actions.rebalance([]).send('mike@active')
+        //await contracts.token_contract.actions.transfer(['bob', 'pol.fusion', lswax(10000), '']).send('bob@active')
+        //await contracts.pol_contract.actions.rebalance([]).send('mike@active')
 
         //check the dapp state
-        const dapp_state = await getDappState(true)
+        const dapp_state = await getDappState()
 
         //check the pol state
-        await getPolState(true)
+        //await getPolState(true)
 
         //check the lswax supply
-        const lswax_supply = await getSupply(contracts.token_contract, "LSWAX", true)
+        const lswax_supply = await getSupply(contracts.token_contract, "LSWAX")
 
         //check the swax supply
-        const swax_supply = await getSupply(contracts.token_contract, "SWAX", true)
+        const swax_supply = await getSupply(contracts.token_contract, "SWAX")
 
-        const snaps = await getSnapshots(true)
+        const snaps = await getSnapshots()
         validate_supply_and_payouts(snaps, dapp_state.swax_currently_earning, dapp_state.swax_currently_backing_lswax,
                 lswax_supply.supply, swax_supply.supply, dapp_state.liquified_swax )
+
+        await incrementTime(1)
+        const bobs_swax = await getSWaxStaker('bob')
+        const mikes_swax = await getSWaxStaker('mike')
+        const rickys_swax = await getSWaxStaker('ricky')
+        await contracts.dapp_contract.actions.claimrewards(['bob']).send('bob@active')
+        await contracts.dapp_contract.actions.claimrewards(['mike']).send('mike@active')
+        const bobs_swax_after = await getSWaxStaker('bob')
+        const bobs_wax_after = await getBalances('bob', contracts.wax_contract)
+        const mikes_swax_after = await getSWaxStaker('mike')
+        const mikes_wax_after = await getBalances('mike', contracts.wax_contract)        
+        validate_supply_and_payouts(snaps, dapp_state.swax_currently_earning, dapp_state.swax_currently_backing_lswax,
+                lswax_supply.supply, swax_supply.supply, dapp_state.liquified_swax )    
+        //await getPayouts()    
     });  
  
 });
 
+module.exports = {
+    getPayouts
+}

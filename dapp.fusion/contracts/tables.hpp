@@ -1,5 +1,15 @@
 #pragma once
 
+struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] payouts {
+  uint64_t id;
+  uint64_t timestamp;
+  eosio::name user;
+  eosio::asset amount;
+
+  uint64_t primary_key()const { return id; }
+};
+typedef eosio::multi_index< "payouts"_n, payouts > payouts_table;
+
 namespace alcor_contract {
   struct CurrSlotS {
     uint128_t     sqrtPriceX64;

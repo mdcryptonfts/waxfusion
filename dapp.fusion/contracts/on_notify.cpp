@@ -37,10 +37,10 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		
   		check( from == POL_CONTRACT, ( "expected " + POL_CONTRACT.to_string() + " to be the sender" ).c_str() );
 
-  		sync_epoch();  		
-
 	    state s = states.get();
   		config3 c = config_s_3.get();
+
+  		sync_epoch( s );  		
 
   		check( quantity >= c.minimum_unliquify_amount, "minimum unliquify amount not met" );	    
 
@@ -84,22 +84,21 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		check( tkcontract == WAX_CONTRACT, "only WAX should be sent with this memo" );
   		check( from == POL_CONTRACT, ( "expected " + POL_CONTRACT.to_string() + " to be the sender" ).c_str() );
 
-  		issue_swax(quantity.amount);	
+  		state s = states.get();	
 
-  		sync_epoch();  		
-
-	    state s = states.get();
+  		sync_epoch( s );  		
 	    
 		int64_t converted_lsWAX_i64 = internal_liquify(quantity.amount, s);
-
-		issue_lswax(converted_lsWAX_i64, _self);
-		transfer_tokens( POL_CONTRACT, asset( converted_lsWAX_i64, LSWAX_SYMBOL ), TOKEN_CONTRACT, "liquidity" );
 
 		s.swax_currently_backing_lswax.amount = safeAddInt64(s.swax_currently_backing_lswax.amount, quantity.amount);
 		s.liquified_swax.amount = safeAddInt64(s.liquified_swax.amount, converted_lsWAX_i64);	  
 		s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, quantity.amount);    
 
 	    states.set(s, _self);
+
+	    issue_swax(quantity.amount);
+		issue_lswax(converted_lsWAX_i64, _self);
+		transfer_tokens( POL_CONTRACT, asset( converted_lsWAX_i64, LSWAX_SYMBOL ), TOKEN_CONTRACT, "liquidity" );
 
   		return;	    	
   	} 
@@ -113,40 +112,37 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   	if( memo == "stake" ){
   		check( tkcontract == WAX_CONTRACT, "only WAX is used for staking" );
   		
+  		state s = states.get();
   		config3 c = config_s_3.get();
+
+  		sync_epoch( s );
+
   		check( quantity >= c.minimum_stake_amount, "minimum stake amount not met" );
-
-  		//issue new sWAX to dapp contract
-  		issue_swax(quantity.amount);   	
-
-	    //sync user (need a function to "catch them up" if necessary)
-	    sync_user(from);
-
-  		//fetch the refreshed iterator after syncing
-  		auto staker = staker_t.require_find(from.value, "you need to use the stake action first");
+	
+		auto staker_itr = staker_t.require_find(from.value, "you need to use the stake action first");
+		staker_struct staker = { from, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+		sync_user( s, staker );
 
   		//add the deposit amount to their staked sWAX
-  		eosio::asset staked_balance = staker->swax_balance;
+  		eosio::asset staked_balance = staker.swax_balance;
   		staked_balance.amount = safeAddInt64(staked_balance.amount, quantity.amount);
 
-  		staker_t.modify(staker, same_payer, [&](auto &_s){
+  		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
   			_s.swax_balance = staked_balance;
-  			_s.last_update = now();
+  			_s.last_update = staker.last_update;
   		});
-
-  		sync_epoch();
 
   		//add this amount to the "currently_earning" sWAX bucket
   		//state should not be fetched until after epoch is synced
-	    state s = states.get();
 	    s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, quantity.amount);
 	    s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, quantity.amount);
-
 	    states.set(s, _self);
+
+  		//issue new sWAX to dapp contract
+  		issue_swax(quantity.amount);   	    
 
   		return;
   	}
-
 
   	/** unliquify memo
   	 *  used for converting lsWAX back to sWAX
@@ -155,42 +151,39 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   	if( memo == "unliquify" ){
   		//front end has to package in a "stake" action before transferring, to make sure they have a row
-  		sync_epoch();
+  		state s = states.get();
+  		config3 c = config_s_3.get();
+
+  		sync_epoch( s );
 
   		check( tkcontract == TOKEN_CONTRACT, "only LSWAX can be unliquified" );
-
-  		config3 c = config_s_3.get();
   		check( quantity >= c.minimum_unliquify_amount, "minimum unliquify amount not met" );
 
-  		//calculate the conversion rate (amount of sWAX to stake to this user)
-  		state s = states.get();
-
   		int64_t converted_sWAX_i64 = internal_unliquify(quantity.amount, s);
-
-  		//retire the lsWAX AFTER figuring out the conversion rate
-  		retire_lswax(quantity.amount);
 
   		//debit the amount from liquified sWAX
   		s.liquified_swax.amount = safeSubInt64(s.liquified_swax.amount, quantity.amount);
   		s.swax_currently_backing_lswax.amount = safeSubInt64(s.swax_currently_backing_lswax.amount, converted_sWAX_i64);
 
   		//add this amount to the "currently_earning" sWAX bucket
-  		s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, converted_sWAX_i64);
-	    
-	    states.set(s, _self);   
+  		s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, converted_sWAX_i64); 
 
-	    //sync this user before adjusting their row
-  		sync_user(from);
+		auto staker_itr = staker_t.require_find(from.value, "you need to use the stake action first");
+		staker_struct staker = { from, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+		sync_user( s, staker );
 
-  		//proceed with adding this staked sWAX to their balance
-  		auto staker = staker_t.require_find(from.value, "you need to use the stake action first");
-  		eosio::asset staked_balance = staker->swax_balance;
+  		eosio::asset staked_balance = staker.swax_balance;
   		staked_balance.amount = safeAddInt64(staked_balance.amount, converted_sWAX_i64);
 
-  		staker_t.modify(staker, same_payer, [&](auto &_s){
+  		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
   			_s.swax_balance = staked_balance;
-  			_s.last_update = now();
+  			_s.last_update = staker.last_update;
   		});
+
+  		states.set(s, _self);
+
+  		//retire the lsWAX
+  		retire_lswax(quantity.amount);  		
 
   		return;
 
@@ -216,10 +209,11 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   	if( memo == "lp_incentives" ){
   		check( tkcontract == WAX_CONTRACT, "only WAX is accepted with lp_incentives memo" );
-  		sync_epoch();
 
   		state s = states.get();
   		state2 s2 = state_s_2.get();
+
+  		sync_epoch( s );
 
   		//calculate how much LSWAX to issue
 		int64_t converted_lsWAX_i64 = internal_liquify( quantity.amount, s );		
@@ -246,12 +240,12 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   	if( memo == "cpu rental return" ){
   		check( tkcontract == WAX_CONTRACT, "only WAX can be sent with this memo" );
-  		sync_epoch();
-
-  		config3 c = config_s_3.get();
   		check( is_cpu_contract(from), "sender is not a valid cpu rental contract" );
 
   		state s = states.get();
+  		config3 c = config_s_3.get();
+
+  		sync_epoch( s );
 
   		/** 
   		* this SHOULD always belong to last epoch - 2 epochs
@@ -329,28 +323,28 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   	if( words[1] == "rent_cpu" ){
   		check( tkcontract == WAX_CONTRACT, "only WAX can be sent with this memo" );
   		check( words.size() >= 5, "memo for rent_cpu operation is incomplete" );
-  		sync_epoch();
 
   		//memo should also include account to rent to 
   		const eosio::name cpu_receiver = eosio::name( words[2] );
-  		check( is_account( cpu_receiver ), ( cpu_receiver.to_string() + " is not an account" ).c_str() );
+  		check( is_account( cpu_receiver ), ( cpu_receiver.to_string() + " is not an account" ).c_str() );  
 
   		//memo should also include amount of wax to rent
   		//this is a "whole" number of wax. '10' == 10.00000000 WAX
   		//so it needs to be scaled by 1e8
   		const uint64_t wax_amount_to_rent = std::strtoull( words[3].c_str(), NULL, 0 );
 
-  		//that amount should be > min_rental
-  		check( wax_amount_to_rent >= MINIMUM_WAX_TO_RENT, ( "minimum wax amount to rent is " + std::to_string( MINIMUM_WAX_TO_RENT ) ).c_str() );
-  		check( wax_amount_to_rent <= MAXIMUM_WAX_TO_RENT, ( "maximum wax amount to rent is " + std::to_string( MAXIMUM_WAX_TO_RENT ) ).c_str() );
-
   		//memo should include an epoch ID
   		const uint64_t epoch_id_to_rent_from = std::strtoull( words[4].c_str(), NULL, 0 );
+  		const uint64_t amount_to_rent_with_precision = safeMulUInt64( wax_amount_to_rent, SCALE_FACTOR_1E8 );  		
+
+  		//that amount should be > min_rental
+  		check( wax_amount_to_rent >= MINIMUM_WAX_TO_RENT, ( "minimum wax amount to rent is " + std::to_string( MINIMUM_WAX_TO_RENT ) ).c_str() );
+  		check( wax_amount_to_rent <= MAXIMUM_WAX_TO_RENT, ( "maximum wax amount to rent is " + std::to_string( MAXIMUM_WAX_TO_RENT ) ).c_str() );  				
 
   		state s = states.get();
   		config3 c = config_s_3.get();
 
-  		const uint64_t amount_to_rent_with_precision = safeMulUInt64( wax_amount_to_rent, SCALE_FACTOR_1E8 );
+  		sync_epoch( s );
 
   		//make sure there is anough wax available for this rental
   		check( s.wax_available_for_rentals.amount >= amount_to_rent_with_precision, "there is not enough wax in the rental pool to cover this rental" );
@@ -360,7 +354,6 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   		uint64_t seconds_to_rent = get_seconds_to_rent_cpu(s, c, epoch_id_to_rent_from);
 
-  		//TODO use 128 safemath
   		int64_t expected_amount_received = s.cost_to_rent_1_wax.amount * wax_amount_to_rent * seconds_to_rent / days_to_seconds(1);
 
   		check( quantity.amount >= expected_amount_received, ( "expected to receive " + eosio::asset( expected_amount_received, WAX_SYMBOL ).to_string() ).c_str() );
@@ -419,16 +412,18 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   		check( words.size() >= 4, "memo for unliquify_exact operation is incomplete" );
   		check( tkcontract == TOKEN_CONTRACT, "only LSWAX can be unliquified" );
-  		sync_epoch();
 
   		config3 c = config_s_3.get();
+  		state s = states.get();
+
+  		sync_epoch( s );
+
   		check( quantity >= c.minimum_unliquify_amount, "minimum unliquify amount not met" );
 
   		const uint64_t expected_output = std::strtoull( words[2].c_str(), NULL, 0 );
   		const uint64_t max_slippage = std::strtoull( words[3].c_str(), NULL, 0 );
 
   		//calculate the conversion rate (amount of sWAX to stake to this user)
-  		state s = states.get();
   		int64_t converted_sWAX_i64 = internal_unliquify(quantity.amount, s);
 
 		check( max_slippage >= 0 && max_slippage < ONE_HUNDRED_PERCENT_1E6, "max slippage is out of range" );
@@ -439,29 +434,28 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
 		check( converted_sWAX_i64 >= minimum_output, "output would be " + asset(converted_sWAX_i64, SWAX_SYMBOL).to_string() + " but expected " + asset(minimum_output, SWAX_SYMBOL).to_string() );	  		
 
-  		retire_lswax(quantity.amount);
-
   		//debit the amount from liquified sWAX
   		s.liquified_swax.amount = safeSubInt64(s.liquified_swax.amount, quantity.amount);
   		s.swax_currently_backing_lswax.amount = safeSubInt64(s.swax_currently_backing_lswax.amount, converted_sWAX_i64);
 
   		//add this amount to the "currently_earning" sWAX bucket
-  		s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, converted_sWAX_i64);
-	    
-	    states.set(s, _self);   
+  		s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, converted_sWAX_i64);  
 
-	    //sync this user before adjusting their row
-  		sync_user(from);
+		auto staker_itr = staker_t.require_find(from.value, "you need to use the stake action first");
+		staker_struct staker = { from, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
+		sync_user( s, staker );
 
-  		//proceed with adding this staked sWAX to their balance
-  		auto staker = staker_t.require_find(from.value, "you need to use the stake action first");
-  		eosio::asset staked_balance = staker->swax_balance;
+  		eosio::asset staked_balance = staker.swax_balance;
   		staked_balance.amount = safeAddInt64(staked_balance.amount, converted_sWAX_i64);
 
-  		staker_t.modify(staker, same_payer, [&](auto &_s){
+  		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
   			_s.swax_balance = staked_balance;
-  			_s.last_update = now();
+  			_s.last_update = staker.last_update;
   		});
+
+  		states.set(s, _self); 
+
+  		retire_lswax(quantity.amount);
 
   		return;
   	}  	

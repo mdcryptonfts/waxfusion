@@ -7,6 +7,21 @@ void fusion::create_alcor_farm(const uint64_t& poolId, const eosio::symbol& toke
   return;
 }
 
+void fusion::create_snapshot(const state& s, const int64_t& swax_earning_alloc_i64, const int64_t& swax_autocompounding_alloc_i64, 
+    const int64_t& pol_alloc_i64, const int64_t& eco_alloc_i64, const int64_t& amount_to_distribute)
+{
+  snaps_t.emplace(_self, [&](auto &_snap){
+    _snap.timestamp = s.next_distribution;
+    _snap.swax_earning_bucket = asset(swax_earning_alloc_i64, WAX_SYMBOL);
+    _snap.lswax_autocompounding_bucket = asset(swax_autocompounding_alloc_i64, WAX_SYMBOL);
+    _snap.pol_bucket = asset(pol_alloc_i64, WAX_SYMBOL);
+    _snap.ecosystem_bucket = asset(eco_alloc_i64, WAX_SYMBOL);
+    _snap.total_distributed = asset(amount_to_distribute, WAX_SYMBOL);  
+    _snap.total_swax_earning = s.swax_currently_earning;
+  });  
+  return;
+}
+
 void fusion::credit_total_claimable_wax(const eosio::asset& amount_to_credit){
   if(amount_to_credit.amount > 0 && amount_to_credit.amount <= MAX_ASSET_AMOUNT_U64){
     state3 s3 = state_s_3.get();
@@ -18,16 +33,20 @@ void fusion::credit_total_claimable_wax(const eosio::asset& amount_to_credit){
   return;
 }
 
-void fusion::debit_total_claimable_wax(const eosio::asset& amount_to_debit){
+void fusion::debit_total_claimable_wax(state3& s3, const eosio::asset& amount_to_debit){
   if(amount_to_debit.amount > 0 && amount_to_debit.amount <= MAX_ASSET_AMOUNT_U64){
-    state3 s3 = state_s_3.get();
-
     s3.total_claimable_wax.amount = safeSubInt64( s3.total_claimable_wax.amount, amount_to_debit.amount );
-
-    state_s_3.set(s3, _self);
   }
   return;
 }
+
+/** debit_user_redemptions_if_necessary
+ *  if the user had a pending redemption request and they do anything that results in 
+ *  their swax balance being decreased, we need to make sure that their pending redemption
+ *  requests are updated to be == their new swax balance, otherwise they could prevent 
+ *  other users from redeeming by tying up the redemption pool with requests that they 
+ *  cant cover
+ */
 
 void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& swax_balance){
   //need to know which epochs to check
@@ -36,18 +55,28 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
 
   requests_tbl requests_t = requests_tbl(get_self(), user.value);
 
+  //initialize an empty asset before we tally up their requests
   eosio::asset total_amount_awaiting_redemption = eosio::asset( 0, WAX_SYMBOL );
-  uint64_t first_epoch_to_check = s.last_epoch_start_time - c.seconds_between_epochs;
 
-  std::vector<uint64_t> epochs_to_check = { //reversed since we want to debit the farthest epochs if needed
+  //figure out the first epoch we need to check, and then use it to determine the other 2
+  //epochs that need to be checked
+  const uint64_t first_epoch_to_check = s.last_epoch_start_time - c.seconds_between_epochs;
+
+  //we only need to check the 3 active epochs
+  //the vector will start in reverse order, so if the user has multiple requests,
+  //we will debit from the one that is farthest away first. this way they dont
+  //have to wait a long time to get their redemption
+  const std::vector<uint64_t> epochs_to_check = {
     first_epoch_to_check + ( c.seconds_between_epochs * 2 ),
     first_epoch_to_check + c.seconds_between_epochs,
     first_epoch_to_check
   };    
 
+  //check if they have any pending requests, and if so, tally up the amounts
   for(uint64_t ep : epochs_to_check){
     auto epoch_itr = epochs_t.find(ep);
 
+    //if the epoch exists, check for a redemption, otherwise do nothing
     if(epoch_itr != epochs_t.end()){
 
       auto req_itr = requests_t.find(ep); 
@@ -57,18 +86,21 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
 
         //add the requested amount to total_amount_awaiting_redemption
         total_amount_awaiting_redemption.amount = safeAddInt64( total_amount_awaiting_redemption.amount, req_itr->wax_amount_requested.amount );
-
       }
     } 
   }  
 
+  //if the user has pending requests that are > their swax balance, we have to debit their pending redemptions
   if( total_amount_awaiting_redemption.amount > swax_balance.amount ){
-    //the user is overdrawn, need to loop through the epochs again and debit the necessary amount
+    
+    //calculate how much we need to remove from their redemptions
     int64_t amount_overdrawn_i64 = safeSubInt64( total_amount_awaiting_redemption.amount, swax_balance.amount );
 
+    //loop through the 3 epochs and update request amounts until they are no longer overdrawn
     for(uint64_t ep : epochs_to_check){
       auto epoch_itr = epochs_t.find(ep);
 
+      //if the epoch doesn't exist, skip it
       if(epoch_itr != epochs_t.end()){
 
         auto req_itr = requests_t.find(ep); 
@@ -82,6 +114,7 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
               _r.wax_amount_requested.amount = safeSubInt64( _r.wax_amount_requested.amount, amount_overdrawn_i64 );
             });
 
+            //update the epoch so it properly tracks how much pending requests are tied to it
             epochs_t.modify(epoch_itr, get_self(), [&](auto &_e){
               _e.wax_to_refund.amount = safeSubInt64( _e.wax_to_refund.amount, amount_overdrawn_i64 );
             });
@@ -89,7 +122,10 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
             break;
           }
 
+          //if the amount requested is exactly the same as their overdrawn amount, erase the request and break
           else if( req_itr->wax_amount_requested.amount == amount_overdrawn_i64 ){
+
+            //update the epoch so it properly tracks how much pending requests are tied to it
             epochs_t.modify(epoch_itr, get_self(), [&](auto &_e){
               _e.wax_to_refund.amount = safeSubInt64( _e.wax_to_refund.amount, amount_overdrawn_i64 );
             });
@@ -99,9 +135,13 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
             break;
           }
 
-          else{ //amount requested is < the overdrawn amount
+          //if the amount requested is < the overdrawn amount, we need to check other epochs as well and 
+          //continue debiting until they are not overdrawn. erase this request and continue the loop
+          else{
+            //calculate how much we still need to debit after this request is erased
             amount_overdrawn_i64 = safeSubInt64( amount_overdrawn_i64, req_itr->wax_amount_requested.amount );
 
+            //update the epoch so it properly tracks how much pending requests are tied to it
             epochs_t.modify(epoch_itr, get_self(), [&](auto &_e){
               _e.wax_to_refund.amount = safeSubInt64( _e.wax_to_refund.amount, req_itr->wax_amount_requested.amount );
             });       
@@ -109,11 +149,10 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
             req_itr = requests_t.erase( req_itr );     
           }
 
-        }
-      } 
-    }  
-
-  }
+        } //end if their is a request
+      } //end if the epoch exists 
+    } //end for loop that checks epochs  
+  } //end if the user is overdrawn
 
   return;
 }
@@ -279,9 +318,8 @@ void fusion::retire_swax(const int64_t& amount){
   return;
 }
 
-void fusion::sync_epoch(){
+void fusion::sync_epoch(state& s){
   //find out when the last epoch started
-  state s = states.get();
   config3 c = config_s_3.get();
 
   int next_cpu_index = 1;
@@ -312,7 +350,6 @@ void fusion::sync_epoch(){
 
     s.last_epoch_start_time = next_epoch_start_time;
     s.current_cpu_contract = next_cpu_contract;
-    states.set(s, _self);
 
     auto epoch_itr = epochs_t.find(next_epoch_start_time);
 
@@ -426,54 +463,73 @@ void fusion::sync_tvl(){
 
 }
 
-void fusion::sync_user(const eosio::name& user){
-  auto staker = staker_t.require_find(user.value, "you need to use the stake action first");
+/** sync_user
+ *  loops through any snapshots since their last update and calculates what they are owed
+ *  in order to avoid re-entry attacks, but also prevent people from missing payouts during 
+ *  edge cases such as syncing at the exact same timestamp as a payout, the following measures
+ *  are in place:
+ *  - if their last_update is now, return
+ *  - if there are no payouts since their last update, return
+ *  - if the payout timestamp is <= their last update, skip it
+ *  - set their last update to now() if there is anything to process
+ */
 
-  const uint64_t lower_bound_timestamp = staker->last_update + 1;
+void fusion::sync_user(state& s, staker_struct& staker){
+  config3 c = config_s_3.get(); 
 
-  //is their last_update < last_payout ?
-  auto low_itr = snaps_t.lower_bound( lower_bound_timestamp );
+  //only continue if they have swax staked
+  if( staker.swax_balance.amount == 0 ){
+    staker.last_update = now();
+    return;
+  }
 
-  if(low_itr == snaps_t.end()) return;
+  if(staker.last_update == now()) return;
 
-  config3 c = config_s_3.get();
-  state s = states.get();
+  auto snaps_lower = snaps_t.lower_bound( staker.last_update );
+
+  if(snaps_lower == snaps_t.end()) return;
+
+  payouts_table payouts_t = payouts_table( _self, _self.value );
 
   int count = 0;
   int64_t wax_owed_to_user = 0; 
+  int64_t wax_allocation;
 
-  /* if they have no staked sWAX, they get 0 */
-  if(staker->swax_balance.amount > 0){
+  for(auto itr = snaps_lower; itr != snaps_t.end(); itr++){
 
-    for(auto it = low_itr; it != snaps_t.end(); it++){
+    if( itr->timestamp <= s.next_distribution && count < c.max_snapshots_to_process && itr->timestamp > staker.last_update ){
+      count ++;      
       //only calculate if there was sWAX earning
-      //redundant safety check to make sure the snapshot timestamp is eligible
-      if(it->swax_earning_bucket.amount > 0 && it->timestamp >= lower_bound_timestamp){
+      if(itr->swax_earning_bucket.amount > 0){
         //calculate the % of snapshot owned by this user and add it to their owed_to
-
-        int64_t wax_allocation = internal_get_wax_owed_to_user(staker->swax_balance.amount, it->total_swax_earning.amount, it->swax_earning_bucket.amount);
+        wax_allocation = internal_get_wax_owed_to_user(staker.swax_balance.amount, itr->total_swax_earning.amount, itr->swax_earning_bucket.amount);
         wax_owed_to_user = safeAddInt64(wax_owed_to_user, wax_allocation);
+    
       }
-
-      count ++;
-      if(count >= c.max_snapshots_to_process) break;
+        //TODO REMOVE PAYOUTS TABLE
+        payouts_t.emplace(_self, [&](auto &_row){
+          _row.id = payouts_t.available_primary_key();
+          _row.timestamp = count;
+          _row.user = staker.wallet;
+          _row.amount = asset(wax_allocation, WAX_SYMBOL);
+        });          
     }
+
+    if(count >= c.max_snapshots_to_process) break;
+
   }
 
-  asset claimable_wax = staker->claimable_wax;
+  asset claimable_wax = staker.claimable_wax;
   claimable_wax.amount = safeAddInt64(claimable_wax.amount, wax_owed_to_user);
 
   //credit their balance, update last_update to now()
-  staker_t.modify(staker, same_payer, [&](auto &_s){
-    _s.claimable_wax = claimable_wax;
-    _s.last_update = now();
-  });
+  staker.claimable_wax = claimable_wax;
+  staker.last_update = now();
 
   credit_total_claimable_wax( eosio::asset(wax_owed_to_user, WAX_SYMBOL) );
 
   //debit the user bucket in state
   s.user_funds_bucket.amount = safeSubInt64(s.user_funds_bucket.amount, wax_owed_to_user);
-  states.set(s, _self);
 
   return;
 }
@@ -514,14 +570,7 @@ void fusion::validate_token(const eosio::symbol& symbol, const eosio::name& cont
 }
 
 
-void fusion::zero_distribution(const config3& c, const state& s){
-  snaps_t.emplace(get_self(), [&](auto &_snap){
-    _snap.timestamp = s.next_distribution;
-    _snap.swax_earning_bucket = ZERO_WAX;
-    _snap.lswax_autocompounding_bucket = ZERO_WAX;
-    _snap.pol_bucket = ZERO_WAX;
-    _snap.ecosystem_bucket = ZERO_WAX;
-    _snap.total_distributed = ZERO_WAX; 
-    _snap.total_swax_earning = ZERO_SWAX; 
-  });   
+void fusion::zero_distribution(const state& s){
+  create_snapshot(s, 0, 0, 0, 0, 0);  
+  return; 
 }

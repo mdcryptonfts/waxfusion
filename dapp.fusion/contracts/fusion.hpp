@@ -16,6 +16,7 @@
 #include <eosio/binary_extension.hpp>
 #include <eosio/producer_schedule.hpp>
 #include<map>
+#include "structs.hpp"
 #include "constants.hpp"
 #include "tables.hpp"
 
@@ -100,9 +101,11 @@ CONTRACT fusion : public contract {
 		//Functions
 		int64_t calculate_asset_share(const int64_t& quantity, const uint64_t& percentage);
 		void create_alcor_farm(const uint64_t& poolId, const eosio::symbol& token_symbol, const eosio::name& token_contract);
+		void create_snapshot(const state& s, const int64_t& swax_earning_alloc_i64, const int64_t& swax_autocompounding_alloc_i64, 
+    		const int64_t& pol_alloc_i64, const int64_t& eco_alloc_i64, const int64_t& amount_to_distribute);
 		void credit_total_claimable_wax(const eosio::asset& amount_to_credit);
 		uint64_t days_to_seconds(const uint64_t& days);
-		void debit_total_claimable_wax(const eosio::asset& amount_to_debit);
+		void debit_total_claimable_wax(state3& s3, const eosio::asset& amount_to_debit);
 		void debit_user_redemptions_if_necessary(const name& user, const asset& swax_balance);
 		std::string cpu_stake_memo(const eosio::name& cpu_receiver, const uint64_t& epoch_timestamp);
 		uint64_t get_seconds_to_rent_cpu(state s, config3 c, const uint64_t& epoch_id_to_rent_from);
@@ -119,15 +122,15 @@ CONTRACT fusion : public contract {
 		uint64_t now();
 		void retire_lswax(const int64_t& amount);
 		void retire_swax(const int64_t& amount);
-		void sync_epoch();
+		void sync_epoch(state& s);
 		void sync_tvl();
-		void sync_user(const eosio::name& user);
+		void sync_user(state& s, staker_struct& staker);
 		void transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const std::string& memo);
 		void validate_distribution_amounts(const int64_t& user_alloc_i64,	const int64_t& pol_alloc_i64, 
 			const int64_t& eco_alloc_i64, const int64_t& swax_autocompounding_alloc_i64,
       		const int64_t& swax_earning_alloc_i64, const int64_t& amount_to_distribute_i64);
 		void validate_token(const eosio::symbol& symbol, const eosio::name& contract);
-		void zero_distribution(const config3& c, const state& s);
+		void zero_distribution(const state& s);
 
 		//Safemath
 		int64_t safeAddInt64(const int64_t& a, const int64_t& b);

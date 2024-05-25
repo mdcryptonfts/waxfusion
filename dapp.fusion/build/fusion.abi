@@ -316,6 +316,28 @@
             ]
         },
         {
+            "name": "payouts",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "timestamp",
+                    "type": "uint64"
+                },
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "amount",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
             "name": "reallocate",
             "base": "",
             "fields": []
@@ -920,6 +942,13 @@
         {
             "name": "lpfarms",
             "type": "lpfarms",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "payouts",
+            "type": "payouts",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

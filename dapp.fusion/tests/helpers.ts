@@ -33,7 +33,7 @@ const rent_cpu_memo = (receiver, wax, epoch) => {
     return `|rent_cpu|${receiver}|${wax}|${epoch}|`
 }
 
-const validate_supply_and_payouts = (snaps, swax_earning, swax_backing, lswax_supply, swax_supply, liquified_swax) => {
+const validate_supply_and_payouts = (snaps, swax_earning, swax_backing, lswax_supply, swax_supply, liquified_swax, log = false) => {
     let totals = { distributed: 0, swax_earning_buckets: 0, lswax_autocompounding_buckets: 0, 
         pol_buckets: 0, ecosystem_buckets: 0 }
     for(const s of snaps){
@@ -54,6 +54,10 @@ const validate_supply_and_payouts = (snaps, swax_earning, swax_backing, lswax_su
     //check swax earning + swax backing matches swax supply
     const expected_swax_supply = Number(parseFloat(swax_backing) + parseFloat(swax_earning)).toFixed(8)
     almost_equal(expected_swax_supply, parseFloat(swax_supply))
+
+    if(log){
+        console.log(totals)
+    }
 }
 
 module.exports = {

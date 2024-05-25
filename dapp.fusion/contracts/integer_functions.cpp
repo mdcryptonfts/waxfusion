@@ -41,8 +41,10 @@ int64_t fusion::internal_get_wax_owed_to_user(const int64_t& user_stake, const i
 	//user_stake, total_stake and reward_pool should have already been verified to be > 0
 	//formula is ( user_stake * reward_pool ) / total_stake
 
-	uint128_t result_128 = safeMulUInt128( (uint128_t) user_stake, (uint128_t) reward_pool ) / (uint128_t) total_stake;
-	return (int64_t) result_128;
+	uint128_t divisor = safeMulUInt128( uint128_t(user_stake), uint128_t(reward_pool) );
+	check( divisor > uint128_t(total_stake), "division is unsafe" );
+	uint128_t result = safeDivUInt128( divisor, uint128_t(total_stake) );
+	return int64_t(result);
 }
 
 /** internal_liquify
