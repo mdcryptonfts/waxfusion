@@ -101,6 +101,7 @@ CONTRACT fusion : public contract {
 		//Functions
 		int64_t calculate_asset_share(const int64_t& quantity, const uint64_t& percentage);
 		void create_alcor_farm(const uint64_t& poolId, const eosio::symbol& token_symbol, const eosio::name& token_contract);
+		void create_epoch(const config3& c, const uint64_t& start_time, const name& cpu_wallet, const asset& wax_bucket);
 		void create_snapshot(const state& s, const int64_t& swax_earning_alloc_i64, const int64_t& swax_autocompounding_alloc_i64, 
     		const int64_t& pol_alloc_i64, const int64_t& eco_alloc_i64, const int64_t& amount_to_distribute);
 		void credit_total_claimable_wax(const eosio::asset& amount_to_credit);

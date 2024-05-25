@@ -46,8 +46,8 @@ function incrementTime(seconds = 86400) {
 const init = async () => {
 	await setTime(initial_state.chain_time);
     await contracts.system_contract.actions.initproducer().send();
-    await contracts.dapp_contract.actions.initconfig().send();
     await contracts.dapp_contract.actions.initconfig3().send();
+    await contracts.dapp_contract.actions.initconfig().send();
     await contracts.dapp_contract.actions.initstate2().send();
     await contracts.dapp_contract.actions.initstate3().send();
     await contracts.dapp_contract.actions.inittop21().send();

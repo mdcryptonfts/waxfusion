@@ -95,6 +95,11 @@ ACTION fusion::claimgbmvote(const eosio::name& cpu_contract)
 	action(permission_level{get_self(), "active"_n}, cpu_contract,"claimgbmvote"_n,std::tuple{}).send();
 }
 
+/** claimrefunds
+ *  checks the system contract to see if we have any refunds to claim from unstaked CPU
+ *  allowing funds to come back into the main contract so user's can redeem in a timely fashion
+ */
+
 ACTION fusion::claimrefunds()
 {
 	//anyone can call this
@@ -117,6 +122,11 @@ ACTION fusion::claimrefunds()
 
 	check( refundsToClaim, "there are no refunds to claim" );
 }
+
+/** claimrewards
+ *  if a user has sWAX staked, and has earned wax rewards,
+ *  this will allow them to claim their wax
+ */
 
 ACTION fusion::claimrewards(const eosio::name& user){
 	require_auth(user);
@@ -239,6 +249,9 @@ ACTION fusion::createfarms(){
 	check( s2.last_incentive_distribution + LP_FARM_DURATION_SECONDS < now(), "hasn't been 1 week since last farms were created");
 	check( s2.incentives_bucket.amount > 0, "no lswax in the incentives_bucket" );
 
+	//we have to know what the ID of each incentive will be on alcor's contract before submitting
+	//the transaction. we can do this by fetching the last row from alcor's incentives table,
+	//and then incementing its ID by 1. this is what "next_key" is for
 	uint64_t next_key = 0;
 	auto it = incentives_t.end();
 
@@ -266,6 +279,7 @@ ACTION fusion::createfarms(){
 		next_key ++;	
 	}	
 
+	//make sure we are not using more funds for incentives than the amount in the incentives_bucket
 	check(total_lswax_allocated <= s2.incentives_bucket.amount, "overallocation of incentives_bucket");
 
 	s2.incentives_bucket.amount = safeSubInt64( s2.incentives_bucket.amount, total_lswax_allocated );
@@ -328,10 +342,11 @@ ACTION fusion::distribute(){
 	//calculate lswax to issue for the lp incentives bucket, using the ecosystem allocation amount
 	int64_t lswax_amount_to_issue = internal_liquify( eco_alloc_i64, s );
 	
+	//make sure that the amounts we are distributing are not greater than the current reward pool
 	validate_distribution_amounts(user_alloc_i64, pol_alloc_i64, eco_alloc_i64, swax_autocompounding_alloc_i64,
       swax_earning_alloc_i64, amount_to_distribute);
 
-	//create a snapshot
+	//create a snapshot of this distribution
 	create_snapshot(s, swax_earning_alloc_i64, swax_autocompounding_alloc_i64, pol_alloc_i64, eco_alloc_i64, amount_to_distribute);	
 
 	//modify the state with updated info
@@ -345,6 +360,7 @@ ACTION fusion::distribute(){
 	s.liquified_swax.amount = safeAddInt64( s.liquified_swax.amount, lswax_amount_to_issue );  
 	s.swax_currently_backing_lswax.amount = safeAddInt64( s.swax_currently_backing_lswax.amount, swax_autocompounding_alloc_i64 );  
 
+	//set the state
     states.set(s, _self);
     state_s_2.set(s2, _self);
 
@@ -362,6 +378,7 @@ ACTION fusion::distribute(){
 
 ACTION fusion::initconfig(){
 	require_auth(get_self());
+	config3 c = config_s_3.get();
 
 	eosio::check(!states.exists(), "State already exists");
 
@@ -384,20 +401,9 @@ ACTION fusion::initconfig(){
 	states.set(s, _self);
 
 	//create the first epoch
+	create_epoch( c, INITIAL_EPOCH_START_TIMESTAMP, "cpu1.fusion"_n, ZERO_WAX );
 
-	epochs_t.emplace(get_self(), [&](auto &_e){
-		_e.start_time = INITIAL_EPOCH_START_TIMESTAMP;
-		/* unstake 3 days before epoch ends */
-		_e.time_to_unstake = INITIAL_EPOCH_START_TIMESTAMP + (60 * 60 * 24 * 14) - (60 * 60 * 24 * 3);
-		_e.cpu_wallet = "cpu1.fusion"_n;
-		_e.wax_bucket = ZERO_WAX;
-		_e.wax_to_refund = ZERO_WAX;
-		/* redemption starts at the end of the epoch, ends 48h later */
-		_e.redemption_period_start_time = INITIAL_EPOCH_START_TIMESTAMP + (60 * 60 * 24 * 14);
-		_e.redemption_period_end_time = INITIAL_EPOCH_START_TIMESTAMP + (60 * 60 * 24 * 16);
-		_e.total_cpu_funds_returned = ZERO_WAX;
-		_e.total_added_to_redemption_bucket = ZERO_WAX;
-	});	
+	return;
 }
 
 
@@ -409,11 +415,11 @@ ACTION fusion::initconfig3(){
 	config3 c{};
 	c.minimum_stake_amount = eosio::asset(100000000, WAX_SYMBOL);
 	c.minimum_unliquify_amount = eosio::asset(100000000, LSWAX_SYMBOL);
-	c.seconds_between_distributions = 86400;
+	c.seconds_between_distributions = days_to_seconds(1);
 	c.max_snapshots_to_process = 180;
 	c.initial_epoch_start_time = INITIAL_EPOCH_START_TIMESTAMP;
-	c.cpu_rental_epoch_length_seconds = 60 * 60 * 24 * 14; /* 14 days */
-	c.seconds_between_epochs = 60 * 60 * 24 * 7; /* 7 days */
+	c.cpu_rental_epoch_length_seconds = days_to_seconds(14); /* 14 days */
+	c.seconds_between_epochs = days_to_seconds(7); /* 7 days */
 	c.user_share_1e6 = 85 * SCALE_FACTOR_1E6;
 	c.pol_share_1e6 = 7 * SCALE_FACTOR_1E6;
 	c.ecosystem_share_1e6 = 8 * SCALE_FACTOR_1E6;
@@ -428,8 +434,8 @@ ACTION fusion::initconfig3(){
 		"cpu2.fusion"_n,
 		"cpu3.fusion"_n
 	};
-	c.redemption_period_length_seconds = 60 * 60 * 24 * 2; /* 2 days */
-	c.seconds_between_stakeall = 60 * 60 * 24; /* once per day */
+	c.redemption_period_length_seconds = days_to_seconds(2); /* 2 days */
+	c.seconds_between_stakeall = days_to_seconds(1); /* once per day */
 	c.fallback_cpu_receiver = "updatethings"_n;
 	config_s_3.set(c, _self);
 	
@@ -1246,20 +1252,7 @@ ACTION fusion::stakeallcpu(){
 
 		if(next_epoch_itr == epochs_t.end()){
 			//create new epoch
-			epochs_t.emplace(get_self(), [&](auto &_e){
-				_e.start_time = next_epoch_start_time;
-				/* unstake 3 days before epoch ends */
-				_e.time_to_unstake = next_epoch_start_time + c.cpu_rental_epoch_length_seconds - (60 * 60 * 24 * 3);
-				_e.cpu_wallet = next_cpu_contract;
-				_e.wax_bucket = s.wax_available_for_rentals;
-				_e.wax_to_refund = ZERO_WAX;
-				/* redemption starts at the end of the epoch, ends 48h later */
-				_e.redemption_period_start_time = next_epoch_start_time + c.cpu_rental_epoch_length_seconds;
-				_e.redemption_period_end_time = next_epoch_start_time + c.cpu_rental_epoch_length_seconds + c.redemption_period_length_seconds;
-				_e.total_cpu_funds_returned = ZERO_WAX;
-				_e.total_added_to_redemption_bucket = ZERO_WAX;
-			});
-
+			create_epoch( c, next_epoch_start_time, next_cpu_contract, ZERO_WAX );
 		} else {
 			//update epoch
 			asset current_wax_bucket = next_epoch_itr->wax_bucket;
@@ -1269,7 +1262,7 @@ ACTION fusion::stakeallcpu(){
 			});
 		}
 
-		//reset it to 0
+		//reset rental pool to 0
 		s.wax_available_for_rentals = ZERO_WAX;
 	}
 
