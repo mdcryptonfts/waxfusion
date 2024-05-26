@@ -40,7 +40,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 	    state s = states.get();
   		config3 c = config_s_3.get();
 
-  		sync_epoch( s );  		
+  		sync_epoch( c, s );  		
 
   		check( quantity >= c.minimum_unliquify_amount, "minimum unliquify amount not met" );	    
 
@@ -84,9 +84,10 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		check( tkcontract == WAX_CONTRACT, "only WAX should be sent with this memo" );
   		check( from == POL_CONTRACT, ( "expected " + POL_CONTRACT.to_string() + " to be the sender" ).c_str() );
 
+  		config3 c = config_s_3.get();
   		state s = states.get();	
 
-  		sync_epoch( s );  		
+  		sync_epoch( c, s );  		
 	    
 		int64_t converted_lsWAX_i64 = internal_liquify(quantity.amount, s);
 
@@ -115,7 +116,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		state s = states.get();
   		config3 c = config_s_3.get();
 
-  		sync_epoch( s );
+  		sync_epoch( c, s );
 
   		check( quantity >= c.minimum_stake_amount, "minimum stake amount not met" );
 	
@@ -154,7 +155,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		state s = states.get();
   		config3 c = config_s_3.get();
 
-  		sync_epoch( s );
+  		sync_epoch( c, s );
 
   		check( tkcontract == TOKEN_CONTRACT, "only LSWAX can be unliquified" );
   		check( quantity >= c.minimum_unliquify_amount, "minimum unliquify amount not met" );
@@ -210,10 +211,11 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   	if( memo == "lp_incentives" ){
   		check( tkcontract == WAX_CONTRACT, "only WAX is accepted with lp_incentives memo" );
 
+  		config3 c = config_s_3.get();
   		state s = states.get();
   		state2 s2 = state_s_2.get();
 
-  		sync_epoch( s );
+  		sync_epoch( c, s );
 
   		//calculate how much LSWAX to issue
 		int64_t converted_lsWAX_i64 = internal_liquify( quantity.amount, s );		
@@ -245,7 +247,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		state s = states.get();
   		config3 c = config_s_3.get();
 
-  		sync_epoch( s );
+  		sync_epoch( c, s );
 
   		/** 
   		* this SHOULD always belong to last epoch - 2 epochs
@@ -344,7 +346,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		state s = states.get();
   		config3 c = config_s_3.get();
 
-  		sync_epoch( s );
+  		sync_epoch( c, s );
 
   		//make sure there is anough wax available for this rental
   		check( s.wax_available_for_rentals.amount >= amount_to_rent_with_precision, "there is not enough wax in the rental pool to cover this rental" );
@@ -416,7 +418,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		config3 c = config_s_3.get();
   		state s = states.get();
 
-  		sync_epoch( s );
+  		sync_epoch( c, s );
 
   		check( quantity >= c.minimum_unliquify_amount, "minimum unliquify amount not met" );
 

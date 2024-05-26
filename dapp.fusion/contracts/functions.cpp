@@ -192,7 +192,6 @@ eosio::name fusion::get_next_cpu_contract(config3& c, state& s){
 }
 
 uint64_t fusion::get_seconds_to_rent_cpu( state s, config3 c, const uint64_t& epoch_id_to_rent_from ){
-      uint64_t eleven_days = 60 * 60 * 24 * 11;
       uint64_t seconds_into_current_epoch = now() - s.last_epoch_start_time;
 
       uint64_t seconds_to_rent;
@@ -299,7 +298,7 @@ bool fusion::memo_is_expected(const std::string& memo){
   return false;
 }
 
-uint64_t fusion::now(){
+inline uint64_t fusion::now(){
   return current_time_point().sec_since_epoch();
 }
 
@@ -313,15 +312,14 @@ void fusion::retire_swax(const int64_t& amount){
   return;
 }
 
-void fusion::sync_epoch(state& s){
-  //find out when the last epoch started
-  config3 c = config_s_3.get();
+inline void fusion::sync_epoch(config3& c, state& s){
 
   eosio::name next_cpu_contract = get_next_cpu_contract( c, s );
 
-  //calculate when the next is supposed to start
+  //calculate when the next epoch is supposed to start
   uint64_t next_epoch_start_time = s.last_epoch_start_time + c.seconds_between_epochs;
 
+  //if that epoch doesn't exist yet, create it
   if( now() >= next_epoch_start_time ){
 
     s.last_epoch_start_time = next_epoch_start_time;
@@ -437,7 +435,7 @@ void fusion::sync_tvl(){
  *  - set their last update to now() if there is anything to process
  */
 
-void fusion::sync_user(state& s, staker_struct& staker){
+inline void fusion::sync_user(state& s, staker_struct& staker){
   config3 c = config_s_3.get(); 
 
   //only continue if they have swax staked
