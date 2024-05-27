@@ -28,6 +28,7 @@ CONTRACT alcor : public contract {
 
 		//Main Actions
 		ACTION initunittest(const eosio::asset& wax_amount, const eosio::asset& lswax_amount);
+		ACTION newincentive(const name& creator, const uint64_t& poolId, const extended_asset& rewardToken, const uint32_t& duration);
 
 		//Notifications
 		[[eosio::on_notify("*::transfer")]] void receive_token_transfer(const name& from, const name& to, const asset& quantity, const std::string& memo);
@@ -36,6 +37,7 @@ CONTRACT alcor : public contract {
 	private:
 
 		//Multi Index Tables
+		incentives_table incentives_t = incentives_table( _self, _self.value );
 		pools_table pools_t = pools_table( _self, _self.value);
 
 };

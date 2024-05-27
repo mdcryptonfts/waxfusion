@@ -5,6 +5,10 @@
 
 //contractName: alcor
 
+uint64_t now(){
+  return current_time_point().sec_since_epoch();
+}
+
 
 /** since we dont have alcor's contract
  *  and all we need for unit tests is the existence of the lswax/wax pool in the table
@@ -35,4 +39,19 @@ ACTION alcor::initunittest(const eosio::asset& wax_amount, const eosio::asset& l
 		_row.protocolFeeB = asset(0, LSWAX_SYMBOL);
 		_row.liquidity = 0;
 	});
+}
+
+
+ACTION alcor::newincentive(const name& creator, const uint64_t& poolId, const extended_asset& rewardToken, const uint32_t& duration){
+	require_auth( creator );
+
+	incentives_t.emplace( _self, [&](auto &_row){
+		_row.id = incentives_t.available_primary_key();
+		_row.creator = creator;
+		_row.poolId = poolId;
+		_row.reward = rewardToken;
+		_row.periodFinish = now() + uint64_t(duration);
+		_row.rewardsDuration = uint64_t(duration);
+	});
+
 }

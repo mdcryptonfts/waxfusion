@@ -30,6 +30,56 @@
             ]
         },
         {
+            "name": "incentives",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "creator",
+                    "type": "name"
+                },
+                {
+                    "name": "poolId",
+                    "type": "uint64"
+                },
+                {
+                    "name": "reward",
+                    "type": "extended_asset"
+                },
+                {
+                    "name": "periodFinish",
+                    "type": "uint32"
+                },
+                {
+                    "name": "rewardsDuration",
+                    "type": "uint32"
+                },
+                {
+                    "name": "rewardRateE18",
+                    "type": "uint128"
+                },
+                {
+                    "name": "rewardPerTokenStored",
+                    "type": "uint128"
+                },
+                {
+                    "name": "totalStakingWeight",
+                    "type": "uint64"
+                },
+                {
+                    "name": "lastUpdateTime",
+                    "type": "uint32"
+                },
+                {
+                    "name": "numberOfStakes",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
             "name": "initunittest",
             "base": "",
             "fields": [
@@ -40,6 +90,28 @@
                 {
                     "name": "lswax_amount",
                     "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "newincentive",
+            "base": "",
+            "fields": [
+                {
+                    "name": "creator",
+                    "type": "name"
+                },
+                {
+                    "name": "poolId",
+                    "type": "uint64"
+                },
+                {
+                    "name": "rewardToken",
+                    "type": "extended_asset"
+                },
+                {
+                    "name": "duration",
+                    "type": "uint32"
                 }
             ]
         },
@@ -111,9 +183,21 @@
             "name": "initunittest",
             "type": "initunittest",
             "ricardian_contract": ""
+        },
+        {
+            "name": "newincentive",
+            "type": "newincentive",
+            "ricardian_contract": ""
         }
     ],
     "tables": [
+        {
+            "name": "incentives",
+            "type": "incentives",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
         {
             "name": "pools",
             "type": "pools_struct",

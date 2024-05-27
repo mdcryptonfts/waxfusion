@@ -8,6 +8,25 @@
     uint32_t      maxObservationNum;
   };
 
+
+  struct[[eosio::table, eosio::contract(CONTRACT_NAME)]] incentives {
+    uint64_t                  id;
+    eosio::name               creator;
+    uint64_t                  poolId;
+    eosio::extended_asset     reward;
+    uint32_t                  periodFinish;
+    uint32_t                  rewardsDuration;
+    uint128_t                 rewardRateE18;
+    uint128_t                 rewardPerTokenStored;
+    uint64_t                  totalStakingWeight;
+    uint32_t                  lastUpdateTime;
+    uint32_t                  numberOfStakes;
+
+    uint64_t  primary_key()const { return id; }
+  };
+  typedef eosio::multi_index< "incentives"_n, incentives> incentives_table;
+
+
   struct[[eosio::table, eosio::contract(CONTRACT_NAME)]] pools_struct {
     uint64_t                  id;
     bool                      active;
