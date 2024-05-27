@@ -283,7 +283,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		//look up this epoch
   		auto epoch_itr = epochs_t.require_find(relevant_epoch, "could not locate relevant epoch");
 
-  		while( epoch_itr->cpu_wallet != from ){
+  		while( epoch_itr->cpu_wallet != from && epoch_itr != epochs_t.begin() ){
   			epoch_itr --;
   		}
 

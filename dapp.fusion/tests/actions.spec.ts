@@ -113,6 +113,17 @@ const getDappTop21 = async (log = false) => {
     return top21    
 }
 
+const getEpochs = async (log = false) => {
+    const epochs = await contracts.dapp_contract.tables
+        .epochs(scopes.dapp)
+        .getTableRows()
+    if(log){
+        console.log('epochs:')
+        console.log(epochs)  
+    }
+    return epochs    
+}
+
 const getPolConfig = async (log = false) => {
     const pol_config = await contracts.pol_contract.tables
         .config2(scopes.pol)
@@ -192,6 +203,7 @@ const getSWaxStaker = async (user, log = false) => {
 }
 
 /* Tests */
+/*
 describe('\n\naddadmin action', () => {
 
     it('error: missing auth of _self', async () => {
@@ -502,4 +514,102 @@ describe('\n\nliquify action', () => {
         assert(bal_after[0].balance == lswax(10), "expected balance after to be 10 lsWAX")        
     });    
 
+});
+
+describe('\n\nliquifyexact action', () => {
+
+    it('error: missing auth of user', async () => {
+        const action = contracts.dapp_contract.actions.liquifyexact(['eosio', swax(10), lswax(10), 100000000]).send('mike@active');
+        await expectToThrow(action, "missing required authority eosio")
+    }); 
+
+    it('error: must liquify positive quantity', async () => {
+        await stake('mike', 10)
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(0), lswax(10), 100000000]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: Invalid quantity.")
+    });     
+      
+    it('error: output quantity not positive', async () => {
+        await stake('mike', 10)
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(0), 999999]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: Invalid output quantity.")
+    });       
+
+    it('error: input symbol mismatch', async () => {
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', lswax(10), lswax(10), 100000000]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: only SWAX can be liquified")
+    });    
+
+    it('error: output symbol mismatch', async () => {
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), swax(10), 100000000]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: output symbol should be LSWAX")
+    });      
+
+    it('error: not staking anything', async () => {
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(10), 99000000]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: you don't have anything staked here")
+    });  
+
+    it('error: max slippage out of range', async () => {
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(10), 100000000]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: max slippage is out of range")
+    });      
+
+     
+    it('error: trying to liquify more than you have', async () => {
+        await stake('mike', 10)
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(11), lswax(10), 99000000]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: you are trying to liquify more than you have")
+    });   
+  
+    it('error: output less than expected', async () => {
+        await stake('mike', 10)
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(20), 0]).send('mike@active');
+        const error_message = `eosio_assert_message: output would be ${lswax(10)} but expected ${lswax(20)}`
+        await expectToThrow(action, error_message)
+    });  
+
+     it('success', async () => {
+        await stake('mike', 10)
+        const bal_before = await getBalances('mike', contracts.token_contract)
+        assert(bal_before.length == 0, "expected no lsWAX balance")
+        await contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(10), 0]).send('mike@active');
+        const bal_after = await getBalances('mike', contracts.token_contract)
+        assert(bal_after[0].balance == lswax(10), "expected balance after to be 10 lsWAX")        
+    });  
+
+});
+*/
+describe('\n\nreallocate action', () => {
+
+    it('error: redemption period has not ended yet', async () => {
+        const action = contracts.dapp_contract.actions.reallocate([]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: redemption period has not ended yet")
+    }); 
+ 
+    it('error: there is no wax to reallocate', async () => {
+        await incrementTime( (60*60*24*9) + 1)
+        const action = contracts.dapp_contract.actions.reallocate([]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: there is no wax to reallocate")
+    }); 
+
+    it('success', async () => {
+        await stake('mike', 10000)
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');
+        await contracts.dapp_contract.actions.reqredeem(['mike', swax(10000), true]).send('mike@active');
+        await incrementTime(86400*10)
+        await contracts.dapp_contract.actions.sync(['dapp.fusion']).send('dapp.fusion@active')
+        await incrementTime(86400*7)
+        await contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time + (86400*7), 500]).send('mike@active');
+        await incrementTime( (86400*3) )
+        await contracts.dapp_contract.actions.claimrefunds([]).send('mike@active');
+        const dapp_state_before = await getDappState()
+        await incrementTime( (60*60*24*2) + 1)
+        await contracts.dapp_contract.actions.reallocate([]).send('mike@active');
+        const dapp_state_after = await getDappState()
+        assert( parseFloat(dapp_state_after.wax_for_redemption) + 10000 == parseFloat(dapp_state_before.wax_for_redemption), "expected 10,000 less redemption wax after reallocation" )
+        assert( parseFloat(dapp_state_after.wax_available_for_rentals) - 10000 == parseFloat(dapp_state_before.wax_available_for_rentals), "expected 10,000 more rental wax after reallocation" )
+    }); 
+    
 });

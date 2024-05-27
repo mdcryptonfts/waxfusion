@@ -314,14 +314,18 @@ void fusion::retire_swax(const int64_t& amount){
 
 inline void fusion::sync_epoch(config3& c, state& s){
 
-  eosio::name next_cpu_contract = get_next_cpu_contract( c, s );
-
   //calculate when the next epoch is supposed to start
   uint64_t next_epoch_start_time = s.last_epoch_start_time + c.seconds_between_epochs;
 
   //if that epoch doesn't exist yet, create it
-  if( now() >= next_epoch_start_time ){
+  //there is an edge case possible where if the contract has no interactions over the course
+  //of an entire epoch, then the epoch would never get created. this is solved by
+  //using a while loop to create any missing epochs if they got skipped
+  while( now() >= next_epoch_start_time ){
 
+    eosio::name next_cpu_contract = get_next_cpu_contract( c, s );
+
+    //update the global state with the new epoch/cpu_contract details
     s.last_epoch_start_time = next_epoch_start_time;
     s.current_cpu_contract = next_cpu_contract;
 
@@ -332,6 +336,8 @@ inline void fusion::sync_epoch(config3& c, state& s){
     if(epoch_itr == epochs_t.end()){
       create_epoch( c, next_epoch_start_time, next_cpu_contract, ZERO_WAX );
     }
+
+    next_epoch_start_time += c.seconds_between_epochs;
   }
 
   return;
