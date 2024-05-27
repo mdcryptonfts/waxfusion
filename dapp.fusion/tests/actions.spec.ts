@@ -391,3 +391,115 @@ describe('\n\ncreatefarms action', () => {
         await expectToThrow(action, "eosio_assert: hasn't been 1 week since last farms were created");
     });        
 });
+
+describe('\n\ndistribute action', () => {
+
+    it('success: zero_distribution', async () => {
+        await incrementTime(60*60*24)
+        await contracts.dapp_contract.actions.distribute([]).send('mike@active');
+        const dapp_state = await getDappState();
+        assert(dapp_state.total_revenue_distributed == wax(0), "expected 0 wax to be distributed")
+    }); 
+
+    it('success: rewards distributed', async () => {
+        await simulate_days(7, true)
+        const dapp_state = await getDappState();
+        assert(parseFloat(dapp_state.total_revenue_distributed) > 0, "expected positive wax to be distributed")        
+        
+    });      
+
+    it('error: hasnt been 24h since last distribution', async () => {
+        await incrementTime(60*60*24)
+        await contracts.dapp_contract.actions.distribute([]).send('mike@active');
+        const action = contracts.dapp_contract.actions.distribute([]).send('mike@active');
+        await expectToThrow(action, `eosio_assert: next distribution is not until ${initial_state.chain_time + (86400 * 2)}`)
+
+    });        
+});
+
+describe('\n\ninstaredeem action', () => {
+
+    it('error: missing auth of user', async () => {
+        const action = contracts.dapp_contract.actions.instaredeem(['eosio', swax(10)]).send('mike@active');
+        await expectToThrow(action, "missing required authority eosio")
+    }); 
+      
+    it('error: symbol mismatch', async () => {
+        const action = contracts.dapp_contract.actions.instaredeem(['mike', lswax(10)]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: symbol mismatch on swax_to_redeem")
+    });    
+
+     it('error: not staking anything', async () => {
+        const action = contracts.dapp_contract.actions.instaredeem(['mike', swax(10)]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: you don't have anything staked here")
+    });  
+
+     it('error: trying to redeem more than you have', async () => {
+        await stake('mike', 10)
+        const action = contracts.dapp_contract.actions.instaredeem(['mike', swax(11)]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: you are trying to redeem more than you have")
+    });   
+
+     it('error: must redeem positive quantity', async () => {
+        await stake('mike', 10)
+        const action = contracts.dapp_contract.actions.instaredeem(['mike', swax(0)]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: Must redeem a positive quantity")
+    });
+
+     it('error: not enough instaredeem funds available', async () => {
+        await stake('mike', 1000)
+        const memo = rent_cpu_memo('ricky', 49796.72299027, initial_state.chain_time)
+        await contracts.wax_contract.actions.transfer(['ricky', 'dapp.fusion', wax(1000), memo]).send('ricky@active')        
+        const action = contracts.dapp_contract.actions.instaredeem(['mike', swax(1000)]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: not enough instaredeem funds available")
+    });
+
+     it('success', async () => {
+        await stake('mike', 10)    
+        const bal_before = await getSWaxStaker('mike')
+        assert(bal_before.swax_balance == swax(10), "expected 10 swax before")          
+        await contracts.dapp_contract.actions.instaredeem(['mike', swax(10)]).send('mike@active');
+        const bal_after = await getSWaxStaker('mike')
+        assert(bal_after.swax_balance == swax(0), "expected 0 swax after")
+    });     
+});
+
+describe('\n\nliquify action', () => {
+
+    it('error: missing auth of user', async () => {
+        const action = contracts.dapp_contract.actions.liquify(['eosio', swax(10)]).send('mike@active');
+        await expectToThrow(action, "missing required authority eosio")
+    }); 
+
+     it('error: must liquify positive quantity', async () => {
+        await stake('mike', 10)
+        const action = contracts.dapp_contract.actions.liquify(['mike', swax(0)]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: Invalid quantity.")
+    });     
+      
+    it('error: symbol mismatch', async () => {
+        const action = contracts.dapp_contract.actions.liquify(['mike', lswax(10)]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: only SWAX can be liquified")
+    });    
+
+     it('error: not staking anything', async () => {
+        const action = contracts.dapp_contract.actions.liquify(['mike', swax(10)]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: you don't have anything staked here")
+    });  
+
+     it('error: trying to liquify more than you have', async () => {
+        await stake('mike', 10)
+        const action = contracts.dapp_contract.actions.liquify(['mike', swax(11)]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: you are trying to liquify more than you have")
+    });   
+  
+     it('success', async () => {
+        await stake('mike', 10)
+        const bal_before = await getBalances('mike', contracts.token_contract)
+        assert(bal_before.length == 0, "expected no lsWAX balance")
+        await contracts.dapp_contract.actions.liquify(['mike', swax(10)]).send('mike@active');
+        const bal_after = await getBalances('mike', contracts.token_contract)
+        assert(bal_after[0].balance == lswax(10), "expected balance after to be 10 lsWAX")        
+    });    
+
+});

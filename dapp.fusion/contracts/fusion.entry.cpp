@@ -597,6 +597,10 @@ ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_
 	
 	sync_epoch( c, s );
 
+	//make sure the asset symbol is valid
+	check( swax_to_redeem.symbol == SWAX_SYMBOL, "symbol mismatch on swax_to_redeem" );
+
+	//fetch the user data and process any pending payouts
 	auto staker_itr = staker_t.require_find(user.value, "you don't have anything staked here");
 	staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
 	sync_user( s, staker );
@@ -606,12 +610,11 @@ ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_
     check( swax_to_redeem.amount > 0, "Must redeem a positive quantity" );
     check( swax_to_redeem.amount < MAX_ASSET_AMOUNT, "quantity too large" );
 
-    eosio::asset new_sWAX_balance = staker.swax_balance;
-    new_sWAX_balance.amount = safeSubInt64( new_sWAX_balance.amount, swax_to_redeem.amount );
+    staker.swax_balance.amount = safeSubInt64( staker.swax_balance.amount, swax_to_redeem.amount );
 
 	//debit requested amount from their staked balance
 	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
-		_s.swax_balance -= swax_to_redeem;
+		_s.swax_balance = staker.swax_balance;
 		_s.last_update = staker.last_update;
 	});
 
@@ -638,7 +641,7 @@ ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_
 	states.set(s, _self);
 
 	//if they have any pending requests, make sure they dont add up to > their swax balance
-    debit_user_redemptions_if_necessary(user, new_sWAX_balance);
+    debit_user_redemptions_if_necessary(user, staker.swax_balance);
 
     //transfer the funds to the user and retire the swax
     retire_swax(swax_to_redeem.amount);
@@ -656,6 +659,7 @@ ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity){
 
     state s = states.get();	
 
+    //fetch the staker info and process any pending payouts
 	auto staker_itr = staker_t.require_find(user.value, "you don't have anything staked here");
 	staker_struct staker = { user, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
 	sync_user( s, staker );
@@ -664,11 +668,11 @@ ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity){
 		check(false, "you are trying to liquify more than you have");
 	}
 
-	eosio::asset new_sWAX_balance = staker.swax_balance - quantity;
+	staker.swax_balance.amount = safeSubInt64( staker.swax_balance.amount, quantity.amount );
 
 	//debit requested amount from their staked balance
 	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
-		_s.swax_balance -= quantity;
+		_s.swax_balance = staker.swax_balance;
 		_s.last_update = staker.last_update;
 	});
 
@@ -690,7 +694,7 @@ ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity){
 	//apply the changes to state table
 	states.set(s, _self);
 
-	debit_user_redemptions_if_necessary(user, new_sWAX_balance);
+	debit_user_redemptions_if_necessary(user, staker.swax_balance);
 
 	return;
 }
