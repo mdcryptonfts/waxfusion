@@ -808,18 +808,19 @@ ACTION fusion::redeem(const eosio::name& user){
 	//calculate the start/end time of the current redemption period, and the epoch related to it
 	uint64_t redemption_start_time = s.last_epoch_start_time;
 	uint64_t redemption_end_time = s.last_epoch_start_time + c.redemption_period_length_seconds;
-	uint64_t epoch_to_claim_from = s.last_epoch_start_time - c.seconds_between_epochs;
+	uint64_t epoch_to_claim_from = s.last_epoch_start_time - c.cpu_rental_epoch_length_seconds;
  
  	//make sure the redemption window is in progress
 	check( now() < redemption_end_time, 
 		( "next redemption does not start until " + std::to_string(s.last_epoch_start_time + c.seconds_between_epochs) ).c_str() 
 	);
 
-	//find if the user has a request for this period
+	//make sure the user has a redemption request for this perios
 	requests_tbl requests_t = requests_tbl(get_self(), user.value);
-
 	auto req_itr = requests_t.require_find(epoch_to_claim_from, "you don't have a redemption request for the current redemption period");
 
+	//this should never happen because the amounts were validated when the redemption requests were created
+	//this is just a safety check
 	check( req_itr->wax_amount_requested.amount <= staker.swax_balance.amount, "you are trying to redeem more than you have" );
 
 	//make sure s.wax_for_redemption has enough for them (it always should!)

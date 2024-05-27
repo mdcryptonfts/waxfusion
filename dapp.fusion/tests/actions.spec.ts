@@ -203,7 +203,7 @@ const getSWaxStaker = async (user, log = false) => {
 }
 
 /* Tests */
-/*
+
 describe('\n\naddadmin action', () => {
 
     it('error: missing auth of _self', async () => {
@@ -579,7 +579,7 @@ describe('\n\nliquifyexact action', () => {
     });  
 
 });
-*/
+
 describe('\n\nreallocate action', () => {
 
     it('error: redemption period has not ended yet', async () => {
@@ -611,5 +611,48 @@ describe('\n\nreallocate action', () => {
         assert( parseFloat(dapp_state_after.wax_for_redemption) + 10000 == parseFloat(dapp_state_before.wax_for_redemption), "expected 10,000 less redemption wax after reallocation" )
         assert( parseFloat(dapp_state_after.wax_available_for_rentals) - 10000 == parseFloat(dapp_state_before.wax_available_for_rentals), "expected 10,000 more rental wax after reallocation" )
     }); 
+    
+});
+
+describe('\n\nredeem action', () => {
+
+    it('error: missing auth of user', async () => {
+        const action = contracts.dapp_contract.actions.redeem(['mike']).send('eosio@active');
+        await expectToThrow(action, "missing required authority mike")
+    }); 
+ 
+    it('error: not staking anything', async () => {
+        const action = contracts.dapp_contract.actions.redeem(['mike']).send('mike@active');
+        await expectToThrow(action, "eosio_assert: you don't have anything staked here")
+    }); 
+
+    it('error: not redemption time yet', async () => {
+        await stake('mike', 10)
+        await incrementTime(86400*3)
+        const action = contracts.dapp_contract.actions.redeem(['mike']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: next redemption does not start until ${initial_state.chain_time + (60*60*24*7)}`)        
+    });
+
+    it('error: no pending requests', async () => {
+        await stake('mike', 10)
+        const action = contracts.dapp_contract.actions.redeem(['mike']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: you don't have a redemption request for the current redemption period`)        
+    }); 
+    
+    it('success', async () => {
+        await stake('mike', 10)
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');
+        await contracts.dapp_contract.actions.reqredeem(['mike', swax(10), true]).send('mike@active');
+        await incrementTime(60*60*24*17)
+        await contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time + (60*60*24*7), 0]).send('mike@active');
+        await incrementTime(60*60*24*3)
+        await contracts.dapp_contract.actions.claimrefunds([]).send('mike@active');             
+        const dapp_state_before = await getDappState()
+        assert(dapp_state_before.wax_for_redemption == wax(10), "expected 10 wax awaiting redemption")
+        await contracts.dapp_contract.actions.redeem(['mike']).send('mike@active');
+        const dapp_state_after = await getDappState()
+        assert(dapp_state_after.wax_for_redemption == wax(0), "expected 0 wax awaiting redemption")      
+    });
     
 });
