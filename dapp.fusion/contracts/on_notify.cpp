@@ -33,24 +33,24 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   	if( memo == "instant redeem" || memo == "rebalance" ){
 
+  		//make sure the token is lsWAX and it came from the POL contract
   		check( tkcontract == TOKEN_CONTRACT, "only LSWAX should be sent with this memo" );
-  		
   		check( from == POL_CONTRACT, ( "expected " + POL_CONTRACT.to_string() + " to be the sender" ).c_str() );
 
+  		//fetch the global state and config
 	    state s = states.get();
   		config3 c = config_s_3.get();
 
   		sync_epoch( c, s );  		
 
+  		//make sure the amount is valid
   		check( quantity >= c.minimum_unliquify_amount, "minimum unliquify amount not met" );	    
 
+  		//calculate the amount of wax represented by this quantity of lsWAX
 	    int64_t swax_to_redeem = internal_unliquify( quantity.amount, s );
 
-	    //make sure there is enough wax available
-		check( s.wax_available_for_rentals.amount >= swax_to_redeem, "not enough instaredeem funds available" );
-
-		//debit the amount from s.wax_available_for_rentals
-		s.wax_available_for_rentals.amount = safeSubInt64( s.wax_available_for_rentals.amount, swax_to_redeem );
+	    //make sure there is enough wax available to cover this redemption
+		check( s.wax_available_for_rentals.amount >= swax_to_redeem, "not enough instaredeem funds available" );		
 
 		//calculate the 0.05% share
 		//calculate the remainder for the user
@@ -58,45 +58,58 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 		int64_t protocol_share = calculate_asset_share( swax_to_redeem, PROTOCOL_FEE_1E6 );
 		int64_t user_share = calculate_asset_share( swax_to_redeem, user_percentage_1e6 );
 
+		//make sure the shares for the protocol(fees) and the user(pol.fusion) are <= the received quantity
 		check( safeAddInt64( protocol_share, user_share ) <= swax_to_redeem, "error calculating protocol fee" );
 
-		//transfer the funds to pol contract
-		std::string transfer_memo = memo == "instant redeem" ? "for staking pool only" : "rebalance";
-		transfer_tokens( from, asset( user_share, WAX_SYMBOL ), WAX_CONTRACT, transfer_memo );
-
-		//add the 0.05% to the revenue_awaiting_distribution
+		//debit the output wax amount from s.wax_available_for_rentals
+		//add the 0.05% fee to revenue_awaiting_distribution
+		//debit the swax currently backing lswax
+		//debit the liquified swax
+		//set the global state to apply the updated info
+		s.wax_available_for_rentals.amount = safeSubInt64( s.wax_available_for_rentals.amount, swax_to_redeem );
 		s.revenue_awaiting_distribution.amount = safeAddInt64( s.revenue_awaiting_distribution.amount, protocol_share );
-
-		//adjust the swax currently backing lswax
 		s.swax_currently_backing_lswax.amount = safeSubInt64( s.swax_currently_backing_lswax.amount, swax_to_redeem );
-
-		//adjust the liquified swax
 		s.liquified_swax.amount = safeSubInt64( s.liquified_swax.amount, quantity.amount );		
+		states.set(s, _self);
 
+		//retire the lswax sent, and the sWAX that was backing it
 		retire_swax(swax_to_redeem);	  
 		retire_lswax(quantity.amount);  
 
-  		states.set(s, _self);
+		//transfer the funds to pol contract, using the proper memo for this operation
+		std::string transfer_memo = memo == "instant redeem" ? "for staking pool only" : "rebalance";
+		transfer_tokens( from, asset( user_share, WAX_SYMBOL ), WAX_CONTRACT, transfer_memo );		
+
   		return;
   	}
 
   	if( memo == "wax_lswax_liquidity" ){
+
+  		//make sure the token is WAX, and that it came from the POL contract
   		check( tkcontract == WAX_CONTRACT, "only WAX should be sent with this memo" );
   		check( from == POL_CONTRACT, ( "expected " + POL_CONTRACT.to_string() + " to be the sender" ).c_str() );
 
+  		//fetch the global state and config
   		config3 c = config_s_3.get();
   		state s = states.get();	
 
   		sync_epoch( c, s );  		
 	    
+	    //calculate the amount of lsWAX that this quantity of wax can be converted to
 		int64_t converted_lsWAX_i64 = internal_liquify(quantity.amount, s);
 
+		//increase swax backing lsWAX with the quantity received
+		//increase liquified swax based on the converted amount
+		//increase wax available for rentals with the received wax
+		//set the global state to apply the changes
 		s.swax_currently_backing_lswax.amount = safeAddInt64(s.swax_currently_backing_lswax.amount, quantity.amount);
 		s.liquified_swax.amount = safeAddInt64(s.liquified_swax.amount, converted_lsWAX_i64);	  
 		s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, quantity.amount);    
-
 	    states.set(s, _self);
 
+	    //issue the swax at a 1:1 ratio with wax received
+	    //issue the lsWAX based on the converted ratio
+	    //transfer the lsWAX to the POL contract
 	    issue_swax(quantity.amount);
 		issue_lswax(converted_lsWAX_i64, _self);
 		transfer_tokens( POL_CONTRACT, asset( converted_lsWAX_i64, LSWAX_SYMBOL ), TOKEN_CONTRACT, "liquidity" );
@@ -113,13 +126,16 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   	if( memo == "stake" ){
   		check( tkcontract == WAX_CONTRACT, "only WAX is used for staking" );
   		
+  		//fetch the global state and config
   		state s = states.get();
   		config3 c = config_s_3.get();
 
   		sync_epoch( c, s );
 
+  		//make sure they are staking at least the minimum amount
   		check( quantity >= c.minimum_stake_amount, "minimum stake amount not met" );
 	
+		//fetch the staker details and process any pending payouts
 		auto staker_itr = staker_t.require_find(from.value, "you need to use the stake action first");
 		staker_struct staker = { from, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
 		sync_user( s, staker );
@@ -134,7 +150,8 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		});
 
   		//add this amount to the "currently_earning" sWAX bucket
-  		//state should not be fetched until after epoch is synced
+  		//add this amount to wax available for rentals
+  		//set the state to apply the changes
 	    s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, quantity.amount);
 	    s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, quantity.amount);
 	    states.set(s, _self);
@@ -152,27 +169,26 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   	if( memo == "unliquify" ){
   		//front end has to package in a "stake" action before transferring, to make sure they have a row
+
+  		//fetch the global state and config
   		state s = states.get();
   		config3 c = config_s_3.get();
 
   		sync_epoch( c, s );
 
+  		//make sure the token received was lsWAX, and that it meets the minimum threshold
   		check( tkcontract == TOKEN_CONTRACT, "only LSWAX can be unliquified" );
   		check( quantity >= c.minimum_unliquify_amount, "minimum unliquify amount not met" );
 
+  		//calculate how much sWAX represents the received lsWAX
   		int64_t converted_sWAX_i64 = internal_unliquify(quantity.amount, s);
 
-  		//debit the amount from liquified sWAX
-  		s.liquified_swax.amount = safeSubInt64(s.liquified_swax.amount, quantity.amount);
-  		s.swax_currently_backing_lswax.amount = safeSubInt64(s.swax_currently_backing_lswax.amount, converted_sWAX_i64);
-
-  		//add this amount to the "currently_earning" sWAX bucket
-  		s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, converted_sWAX_i64); 
-
+  		//fetch the staker details and process any pending payouts
 		auto staker_itr = staker_t.require_find(from.value, "you need to use the stake action first");
 		staker_struct staker = { from, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
 		sync_user( s, staker );
 
+		//add the converted lswax->swax amount to their staked balance
   		eosio::asset staked_balance = staker.swax_balance;
   		staked_balance.amount = safeAddInt64(staked_balance.amount, converted_sWAX_i64);
 
@@ -181,6 +197,13 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   			_s.last_update = staker.last_update;
   		});
 
+  		//debit the amount from liquified sWAX
+  		//debit the converted amount from swax currently backing lswax
+  		//add the converted amount to the "currently_earning" sWAX bucket
+  		//set the global state to apply the changes
+  		s.liquified_swax.amount = safeSubInt64(s.liquified_swax.amount, quantity.amount);
+  		s.swax_currently_backing_lswax.amount = safeSubInt64(s.swax_currently_backing_lswax.amount, converted_sWAX_i64);	
+  		s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, converted_sWAX_i64); 
   		states.set(s, _self);
 
   		//retire the lsWAX
@@ -211,6 +234,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   	if( memo == "lp_incentives" ){
   		check( tkcontract == WAX_CONTRACT, "only WAX is accepted with lp_incentives memo" );
 
+  		//fetch the global config and states
   		config3 c = config_s_3.get();
   		state s = states.get();
   		state2 s2 = state_s_2.get();
@@ -224,12 +248,11 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 		issue_swax(quantity.amount);
 		issue_lswax(converted_lsWAX_i64, _self);
 
-		//update the state
+		//update the states and apply the changes
   		s2.incentives_bucket.amount = safeAddInt64( s2.incentives_bucket.amount, converted_lsWAX_i64 );
   		s.wax_available_for_rentals.amount = safeAddInt64( s.wax_available_for_rentals.amount, quantity.amount );
   		s.swax_currently_backing_lswax.amount = safeAddInt64( s.swax_currently_backing_lswax.amount, quantity.amount );
   		s.liquified_swax.amount = safeAddInt64(s.liquified_swax.amount, converted_lsWAX_i64);
-
   		states.set(s, _self);
   		state_s_2.set(s2, _self);
 
@@ -412,37 +435,33 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   	if( words[1] == "unliquify_exact" ){
 
-  		check( words.size() >= 4, "memo for unliquify_exact operation is incomplete" );
   		check( tkcontract == TOKEN_CONTRACT, "only LSWAX can be unliquified" );
+  		check( words.size() >= 4, "memo for unliquify_exact operation is incomplete" );
 
+  		const uint64_t expected_output = std::strtoull( words[2].c_str(), NULL, 0 );
+  		const uint64_t max_slippage = std::strtoull( words[3].c_str(), NULL, 0 );  		
+
+		check( max_slippage >= 0 && max_slippage < ONE_HUNDRED_PERCENT_1E6, "max slippage is out of range" );
+		check( expected_output > (uint64_t) 0 && expected_output <= MAX_ASSET_AMOUNT_U64, "expected output is out of range" );  		
+
+		//fetch the global config and state
   		config3 c = config_s_3.get();
   		state s = states.get();
 
   		sync_epoch( c, s );
 
+  		//make sure they are trying to unliquify at least the minimum amount
   		check( quantity >= c.minimum_unliquify_amount, "minimum unliquify amount not met" );
-
-  		const uint64_t expected_output = std::strtoull( words[2].c_str(), NULL, 0 );
-  		const uint64_t max_slippage = std::strtoull( words[3].c_str(), NULL, 0 );
 
   		//calculate the conversion rate (amount of sWAX to stake to this user)
   		int64_t converted_sWAX_i64 = internal_unliquify(quantity.amount, s);
 
-		check( max_slippage >= 0 && max_slippage < ONE_HUNDRED_PERCENT_1E6, "max slippage is out of range" );
-		check( expected_output > (uint64_t) 0 && expected_output <= MAX_ASSET_AMOUNT_U64, "expected output is out of range" );
-
+  		//calculate what the output will be from this transaction, and make sure its acceptable for the user
 		uint64_t minimum_output_percentage = ONE_HUNDRED_PERCENT_1E6 - max_slippage;
 		int64_t minimum_output = calculate_asset_share( expected_output, minimum_output_percentage );
+		check( converted_sWAX_i64 >= minimum_output, "output would be " + asset(converted_sWAX_i64, SWAX_SYMBOL).to_string() + " but expected " + asset(minimum_output, SWAX_SYMBOL).to_string() );	  		 
 
-		check( converted_sWAX_i64 >= minimum_output, "output would be " + asset(converted_sWAX_i64, SWAX_SYMBOL).to_string() + " but expected " + asset(minimum_output, SWAX_SYMBOL).to_string() );	  		
-
-  		//debit the amount from liquified sWAX
-  		s.liquified_swax.amount = safeSubInt64(s.liquified_swax.amount, quantity.amount);
-  		s.swax_currently_backing_lswax.amount = safeSubInt64(s.swax_currently_backing_lswax.amount, converted_sWAX_i64);
-
-  		//add this amount to the "currently_earning" sWAX bucket
-  		s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, converted_sWAX_i64);  
-
+		//fetch the staker details and process any pending payouts
 		auto staker_itr = staker_t.require_find(from.value, "you need to use the stake action first");
 		staker_struct staker = { from, staker_itr->swax_balance, staker_itr->claimable_wax, staker_itr->last_update };
 		sync_user( s, staker );
@@ -455,9 +474,17 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   			_s.last_update = staker.last_update;
   		});
 
+  		//debit the amount from liquified sWAX
+  		//add this amount to the swax currently backing lswax bucket
+  		//add this amount to the "currently_earning" sWAX bucket
+  		//set the state to apply the changes
+  		s.liquified_swax.amount = safeSubInt64(s.liquified_swax.amount, quantity.amount);
+  		s.swax_currently_backing_lswax.amount = safeSubInt64(s.swax_currently_backing_lswax.amount, converted_sWAX_i64);
+  		s.swax_currently_earning.amount = safeAddInt64(s.swax_currently_earning.amount, converted_sWAX_i64); 
   		states.set(s, _self); 
 
-  		retire_lswax(quantity.amount);
+  		//retire the received quantity of lswax
+  		retire_lswax( quantity.amount );
 
   		return;
   	}  	

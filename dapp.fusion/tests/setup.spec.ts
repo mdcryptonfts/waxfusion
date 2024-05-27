@@ -67,6 +67,9 @@ const init = async () => {
     //deposit initial 100k liquidity to POL, and 100k initial staking pool funds
     await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for liquidity only']).send('eosio@active');
     await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for staking pool only']).send('eosio@active');
+
+    //add incentive to incentives table
+    await contracts.dapp_contract.actions.setincentive([2, '8,WAX', 'eosio.token', 100000000]).send('dapp.fusion@active')
 }
 
 const stake = async (user, amount, liquify = false, liquify_amount = amount) => {
@@ -81,7 +84,7 @@ const unliquify = async (user, amount) => {
     await contracts.token_contract.actions.transfer([user, 'dapp.fusion', lswax(amount), 'unliquify']).send(`${user}@active`);
 }
 
-const simulate_days = async (days = 1, stake_users = false) => {
+const simulate_days = async (days = 1, stake_users = false, claim_rewards = true) => {
 
     let current_time = initial_state.chain_time
 
@@ -107,13 +110,14 @@ const simulate_days = async (days = 1, stake_users = false) => {
         await setTime(current_time)
 
         //claim rewards
-        if(count < 10){
-            await contracts.dapp_contract.actions.claimgbmvote(['cpu1.fusion']).send('mike@active')
-        } else {
-            await contracts.dapp_contract.actions.claimgbmvote(['cpu2.fusion']).send('mike@active')
+        if(claim_rewards){
+            if(count < 10){
+                await contracts.dapp_contract.actions.claimgbmvote(['cpu1.fusion']).send('mike@active')
+            } else {
+                await contracts.dapp_contract.actions.claimgbmvote(['cpu2.fusion']).send('mike@active')
+            }
         }
         
-
         //distribute
         await contracts.dapp_contract.actions.distribute([]).send('mike@active')
 

@@ -35,6 +35,28 @@ const getAlcorPool = async (log = false) => {
     return alcor_pool 
 }
 
+const getAlcorIncentives = async (log = false) => {
+    const incentives = await contracts.alcor_contract.tables
+        .incentives(scopes.alcor)
+        .getTableRows()
+    if(log){
+        console.log("alcor incentives:")
+        console.log(incentives) 
+    }  
+    return incentives 
+}
+
+const getDappIncentives = async (log = false) => {
+    const incentives = await contracts.dapp_contract.tables
+        .lpfarms(scopes.dapp)
+        .getTableRows()
+    if(log){
+        console.log("dapp incentives:")
+        console.log(incentives) 
+    }  
+    return incentives 
+}
+
 const getBalances = async (user, contract, log = false) => {
     const scope = Name.from(user).value.value
     const rows = await contract.tables
@@ -111,6 +133,17 @@ const getPolState = async (log = false) => {
         console.log(pol_state)  
     }
     return pol_state;  
+}
+
+const getRedemptionRequests = async (user, log = false) => {
+    const requests = await contracts.dapp_contract.tables
+        .rdmrequests(Name.from(user).value.value)
+        .getTableRows()
+    if(log){
+        console.log(`${user}'s requests:`)
+        console.log(requests)
+    }
+    return requests; 
 }
 
 const getRenters = async (log = false) => {
@@ -247,6 +280,114 @@ describe('\n\nclaimaslswax action', () => {
         await stake('bob', 1000)
         await simulate_days(10)
         await contracts.dapp_contract.actions.claimaslswax(['bob', lswax(0.15), 0]).send('bob@active');
-        await getPayouts();
+        //await getPayouts();
     });                           
+});
+
+describe('\n\nclaimgbmvote action', () => {
+
+    it('error: not a cpu contract', async () => {
+        const action = contracts.dapp_contract.actions.claimgbmvote(['mike']).send('mike@active');
+        await expectToThrow(action, "eosio_assert: mike is not a cpu rental contract")
+    });  
+
+    it('error: not time to claim yet', async () => {
+        await simulate_days(1)
+        const action = contracts.dapp_contract.actions.claimgbmvote(['cpu1.fusion']).send('mike@active');
+        await expectToThrow(action, "eosio_assert: hasnt been 24h since your last claim")
+    });  
+
+    it('success', async () => {
+        await simulate_days(1, true, false)
+        const rewards_before = await getDappState();
+        await contracts.dapp_contract.actions.claimgbmvote(['cpu1.fusion']).send('mike@active');
+        const rewards_after = await getDappState();
+        assert( parseFloat(rewards_before.revenue_awaiting_distribution) < parseFloat(rewards_after.revenue_awaiting_distribution), "expected to have more rewards after claiming" )
+    });  
+});
+
+describe('\n\nclaimrefunds action', () => {
+
+    it('error: nothing to claim', async () => {
+        const action = contracts.dapp_contract.actions.claimrefunds([]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: there are no refunds to claim")
+    });  
+
+    it('success', async () => {
+        await simulate_days(11)
+        await contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time, 0]).send('mike@active');
+        await incrementTime(86400 * 3)
+        await contracts.dapp_contract.actions.claimrefunds([]).send('mike@active');
+    });  
+});
+
+describe('\n\nclaimrewards action', () => {
+
+    it('error: missing auth of staker', async () => {
+        await stake('mike', 500)
+        const action = contracts.dapp_contract.actions.claimrewards(['mike']).send('eosio@active');
+        await expectToThrow(action, "missing required authority mike")
+    });  
+ 
+     it('error: not staking anything', async () => {
+        const action = contracts.dapp_contract.actions.claimrewards(['mike']).send('mike@active');
+        await expectToThrow(action, "eosio_assert: you don't have anything staked here")
+    });
+
+     it('error: nothing to claim', async () => {
+        await stake('mike', 100)
+        await simulate_days(7, false)
+        await contracts.dapp_contract.actions.claimrewards(['mike']).send('mike@active');
+        const action = contracts.dapp_contract.actions.claimrewards(['mike']).send('mike@active');
+        await expectToThrow(action, "eosio_assert: you have no wax to claim")
+    });      
+
+     it('success', async () => {
+        await stake('mike', 100)
+        await simulate_days(7, false)
+        const balance_before = await getBalances('mike', contracts.wax_contract)
+        await contracts.dapp_contract.actions.claimrewards(['mike']).send('mike@active');
+        const balance_after = await getBalances('mike', contracts.wax_contract)
+        assert( parseFloat(balance_after[0].balance) > parseFloat(balance_before[0].balance), "expected > balance after claiming" )
+    });     
+});
+
+describe('\n\nclearexpired action', () => {
+
+    it('error: missing auth of user', async () => {
+        const action = contracts.dapp_contract.actions.clearexpired(['mike']).send('eosio@active');
+        await expectToThrow(action, "missing required authority mike")
+    });  
+ 
+    it('error: no expired requests', async () => {
+        const action = contracts.dapp_contract.actions.clearexpired(['mike']).send('mike@active');
+        await expectToThrow(action, "eosio_assert: there are no requests to clear")
+    });  
+
+    it('success', async () => {
+        await simulate_days(7, true)
+        await contracts.dapp_contract.actions.reqredeem(['mike', swax(100), true]).send('mike@active');
+        await incrementTime(60*60*24*10)
+        await contracts.dapp_contract.actions.clearexpired(['mike']).send('mike@active');
+    });        
+});
+
+describe('\n\ncreatefarms action', () => {
+
+    it('error: no incentives to distribute', async () => {
+        const action = contracts.dapp_contract.actions.createfarms([]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: no lswax in the incentives_bucket")
+    }); 
+
+    it('success', async () => {
+        await simulate_days(7, true)
+        await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
+    });      
+
+    it('error: hasnt been 7 days yet', async () => {
+        await simulate_days(7, true)
+        await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
+        const action = contracts.dapp_contract.actions.createfarms([]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: hasn't been 1 week since last farms were created");
+    });        
 });

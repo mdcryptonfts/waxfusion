@@ -1,8 +1,8 @@
 #pragma once
 
 void fusion::create_alcor_farm(const uint64_t& poolId, const eosio::symbol& token_symbol, const eosio::name& token_contract){
-  action(permission_level{get_self(), "active"_n}, ALCOR_CONTRACT,"newincentive"_n,
-      std::tuple{ get_self(), poolId, eosio::extended_asset(ZERO_LSWAX, TOKEN_CONTRACT), (uint32_t) LP_FARM_DURATION_SECONDS}
+  action(permission_level{ _self , "active"_n }, ALCOR_CONTRACT, "newincentive"_n,
+      std::tuple{ _self, poolId, eosio::extended_asset(ZERO_LSWAX, TOKEN_CONTRACT), (uint32_t) LP_FARM_DURATION_SECONDS }
     ).send();
   return;
 }

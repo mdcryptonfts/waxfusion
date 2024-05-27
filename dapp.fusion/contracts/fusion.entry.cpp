@@ -269,7 +269,7 @@ ACTION fusion::createfarms(){
 	uint64_t next_key = 0;
 	auto it = incentives_t.end();
 
-	if(incentives_t.begin() != incentives_t.end()){
+	if( incentives_t.begin() != incentives_t.end() ){
 		it --;
 	    next_key = it->id+ 1;
 	}
@@ -279,16 +279,17 @@ ACTION fusion::createfarms(){
 	//loop through the lp farms table and create the necessary farms on alcor
 	for(auto lp_itr = lpfarms_t.begin(); lp_itr != lpfarms_t.end(); lp_itr++){
 
+		//calculate how much of the incentives_bucket should go to this pair
 		int64_t lswax_allocation_i64 = calculate_asset_share( s2.incentives_bucket.amount, lp_itr->percent_share_1e6 );
+		
+		//keep track of how much lswax we've allocated so we can verify the amounts after this loop
 		total_lswax_allocated = safeAddInt64( total_lswax_allocated, lswax_allocation_i64 );
 
-		const std::string memo = "incentreward#" + std::to_string( next_key );
-
+		//call the `newincentive` action on alcor's contract
 		create_alcor_farm(lp_itr->poolId, lp_itr->symbol_to_incentivize, lp_itr->contract_to_incentivize);
 
-		auto alcor_itr = incentives_t.find(next_key);
-		check( alcor_itr->poolId == lp_itr->poolId, ("poolId for " + lp_itr->symbol_to_incentivize.code().to_string() + " doesn't match").c_str() );
-
+		//construct a memo and transfer the reward tokens to alcor after the farm is created
+		const std::string memo = "incentreward#" + std::to_string( next_key );
 		transfer_tokens( ALCOR_CONTRACT, asset(lswax_allocation_i64, LSWAX_SYMBOL), TOKEN_CONTRACT, memo );
 
 		next_key ++;	

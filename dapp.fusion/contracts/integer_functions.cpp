@@ -18,7 +18,7 @@ int64_t fusion::calculate_asset_share(const int64_t& quantity, const uint64_t& p
 	//since 100 * 1e6 = 1e8, we will just / SCALE_FACTOR_1E8 here to avoid extra unnecessary math
 	uint128_t result_128 = safeDivUInt128( divisor, SCALE_FACTOR_1E8 );
 
-  return safecast::safe_cast<int64_t>(result_128);
+  	return safecast::safe_cast<int64_t>(result_128);
 }
 
 /** internal_get_swax_allocations
@@ -87,6 +87,6 @@ int64_t fusion::internal_unliquify(const int64_t& quantity, state s){
 	uint128_t divisor = safeMulUInt128( uint128_t(s.swax_currently_backing_lswax.amount), uint128_t(quantity) );
 
   	uint128_t result_128 = safeDivUInt128( divisor, uint128_t(s.liquified_swax.amount) );
-  	
+
   	return safecast::safe_cast<int64_t>(result_128);
 }
