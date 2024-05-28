@@ -167,7 +167,7 @@ const getSWaxStaker = async (user, log = false) => {
 }
 
 /* Tests */
-describe('\n\nverify initial POL state and config', () => {
+describe('\n\nverify initial state and config', () => {
     //pass `true` to log the results in the console
     it('', async () => {
         await getDappConfig(true)
@@ -181,7 +181,18 @@ describe('\n\nstake memo', () => {
     it('error: need to use the stake action first', async () => {
     	const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), 'stake']).send('mike@active');
     	await expectToThrow(action, "eosio_assert: you need to use the stake action first")
-    });  
+    }); 
+
+    it('error: minimum amount not met', async () => {
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(0.1), 'stake']).send('mike@active');
+        await expectToThrow(action, "eosio_assert: minimum stake amount not met")
+    });     
+
+    it('error: wrong token', async () => {
+        await stake('mike', 10, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(0.1), 'stake']).send('mike@active');
+        await expectToThrow(action, "eosio_assert: only WAX is used for staking")
+    });       
 
     it('success: staked 10 wax', async () => {
         await stake('mike', 10)
@@ -195,6 +206,19 @@ describe('\n\nstake memo', () => {
 
 
 describe('\n\nunliquify memo', () => {
+
+    it('error: need to use the stake action first', async () => {
+        await stake('mike', 100, true)
+        await contracts.token_contract.actions.transfer(['mike', 'ricky', lswax(10), '']).send('mike@active');
+        const action = contracts.token_contract.actions.transfer(['ricky', 'dapp.fusion', lswax(10), 'unliquify']).send('ricky@active');
+        await expectToThrow(action, "eosio_assert: you need to use the stake action first")
+    });
+
+    it('error: wrong token sent', async () => {
+        await stake('mike', 10, true, 0.9)
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(1), 'unliquify']).send('mike@active');
+        await expectToThrow(action, "eosio_assert: only LSWAX can be unliquified")
+    });      
 
     it('error: minimum not met', async () => {
         await stake('mike', 10, true, 0.9)
@@ -217,7 +241,7 @@ describe('\n\nwaxfusion_revenue memo', () => {
         await stake('mike', 10, true)
         const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), 'waxfusion_revenue']).send('mike@active');
         await expectToThrow(action, "eosio_assert: only WAX is accepted with waxfusion_revenue memo")
-    });  
+    });   
 
     it('success, 100k wax deposited', async () => {
         await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(100000), 'waxfusion_revenue']).send('mike@active');
@@ -228,17 +252,18 @@ describe('\n\nwaxfusion_revenue memo', () => {
 
 describe('\n\nlp_incentives memo', () => {
 
-    it('error: only wax accepted', async () => {
-        await stake('mike', 10, true)
-        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), 'lp_incentives']).send('mike@active');
-        await expectToThrow(action, "eosio_assert: only WAX is accepted with lp_incentives memo")
-    });  
-
     it('success, 100k wax deposited', async () => {
         await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(100000), 'lp_incentives']).send('mike@active');
         const dapp_state2 = await getDappState2()
         assert(dapp_state2.incentives_bucket == lswax(100000), "incentives bucket should be 100k lswax")
     }); 
+
+    it('success, 1k lsWAX deposited', async () => {
+        await stake('mike', 1000, true)
+        await contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(1000), 'lp_incentives']).send('mike@active');
+        const dapp_state2 = await getDappState2()
+        assert(dapp_state2.incentives_bucket == lswax(1000), "incentives bucket should be 1000 lswax")
+    });     
 });
 
 

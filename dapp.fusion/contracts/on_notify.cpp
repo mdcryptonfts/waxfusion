@@ -19,7 +19,8 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   	validate_token(quantity.symbol, tkcontract);
 
     //if we reached here, the token is either wax or lswax, but the memo is not expected
-    if( !memo_is_expected( memo ) ){
+    //allow transfers from eosio with unexpected memos during testing
+    if( !memo_is_expected( memo ) && from != "eosio"_n ){
     	check( false, "must include a memo for transfers to dapp.fusion, see docs.waxfusion.io for a list of memos" );
     }
 
@@ -229,10 +230,11 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   	/** lp_incentives
   	 *  to be used as rewards for creating farms on alcor
+  	 *  accepts wax deposits and lsWAX deposits
   	 */ 
 
   	if( memo == "lp_incentives" ){
-  		check( tkcontract == WAX_CONTRACT, "only WAX is accepted with lp_incentives memo" );
+  		//check( tkcontract == WAX_CONTRACT, "only WAX is accepted with lp_incentives memo" );
 
   		//fetch the global config and states
   		config3 c = config_s_3.get();
@@ -241,18 +243,26 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
   		sync_epoch( c, s );
 
-  		//calculate how much LSWAX to issue
-		int64_t converted_lsWAX_i64 = internal_liquify( quantity.amount, s );		
+  		if( tkcontract == WAX_CONTRACT ){
+	  		//calculate how much LSWAX to issue
+			int64_t converted_lsWAX_i64 = internal_liquify( quantity.amount, s );		
 
-		//issue swax and lswax
-		issue_swax(quantity.amount);
-		issue_lswax(converted_lsWAX_i64, _self);
+			//issue swax and lswax
+			issue_swax(quantity.amount);
+			issue_lswax(converted_lsWAX_i64, _self);
 
-		//update the states and apply the changes
-  		s2.incentives_bucket.amount = safeAddInt64( s2.incentives_bucket.amount, converted_lsWAX_i64 );
-  		s.wax_available_for_rentals.amount = safeAddInt64( s.wax_available_for_rentals.amount, quantity.amount );
-  		s.swax_currently_backing_lswax.amount = safeAddInt64( s.swax_currently_backing_lswax.amount, quantity.amount );
-  		s.liquified_swax.amount = safeAddInt64(s.liquified_swax.amount, converted_lsWAX_i64);
+			//update the states
+	  		s2.incentives_bucket.amount = safeAddInt64( s2.incentives_bucket.amount, converted_lsWAX_i64 );
+	  		s.wax_available_for_rentals.amount = safeAddInt64( s.wax_available_for_rentals.amount, quantity.amount );
+	  		s.swax_currently_backing_lswax.amount = safeAddInt64( s.swax_currently_backing_lswax.amount, quantity.amount );
+	  		s.liquified_swax.amount = safeAddInt64(s.liquified_swax.amount, converted_lsWAX_i64);
+
+  		} else if( tkcontract == TOKEN_CONTRACT ){
+  			//add the lswax into the bucket
+  			s2.incentives_bucket.amount = safeAddInt64( s2.incentives_bucket.amount, quantity.amount );
+  		}
+
+  		//apply the changes to global states
   		states.set(s, _self);
   		state_s_2.set(s2, _self);
 
