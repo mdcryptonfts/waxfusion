@@ -137,6 +137,7 @@ CONTRACT fusion : public contract {
 
 		//Safemath
 		int64_t safeAddInt64(const int64_t& a, const int64_t& b);
+		uint64_t safeAddUInt64(const uint64_t& a, const uint64_t& b);
 		uint128_t safeAddUInt128(const uint128_t& a, const uint128_t& b);
 		int64_t safeDivInt64(const int64_t& a, const int64_t& b);
 		uint64_t safeDivUInt64(const uint64_t& a, const uint64_t& b);
@@ -144,4 +145,5 @@ CONTRACT fusion : public contract {
 		uint128_t safeMulUInt128(const uint128_t& a, const uint128_t& b);
 		uint64_t safeMulUInt64(const uint64_t& a, const uint64_t& b);
 		int64_t safeSubInt64(const int64_t& a, const int64_t& b);
+		uint64_t safeSubUInt64(const uint64_t& a, const uint64_t& b);
 };

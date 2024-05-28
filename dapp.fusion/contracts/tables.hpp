@@ -396,11 +396,12 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] state2 {
   uint64_t          last_incentive_distribution;
   eosio::asset      incentives_bucket;
   eosio::asset      total_value_locked;
-
+  uint64_t          total_shares_allocated;
 
   EOSLIB_SERIALIZE(state2, (last_incentive_distribution)
                           (incentives_bucket)
                           (total_value_locked)
+                          (total_shares_allocated)
                           )
 };
 using state_singleton_2 = eosio::singleton<"state2"_n, state2>;

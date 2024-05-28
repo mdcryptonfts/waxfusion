@@ -648,6 +648,10 @@
                 {
                     "name": "total_value_locked",
                     "type": "asset"
+                },
+                {
+                    "name": "total_shares_allocated",
+                    "type": "uint64"
                 }
             ]
         },

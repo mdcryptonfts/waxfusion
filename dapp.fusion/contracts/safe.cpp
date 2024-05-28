@@ -13,6 +13,25 @@ int64_t fusion::safeAddInt64(const int64_t& a, const int64_t& b){
 	return sum;
 }
 
+uint64_t fusion::safeAddUInt64(const uint64_t& a, const uint64_t& b){
+  uint64_t sum;
+
+  //precondition test
+  if ( std::numeric_limits<uint64_t>::max() - a < b ) {
+    check(false, "uint64_t addition would result in wrapping");
+  } else {
+    sum = a + b;
+  }  
+
+  //postcondition test
+  if (sum < a) {
+    check(false, "uint64_t addition resulted in wrapping");
+  }  
+
+  return sum;
+}
+
+
 uint128_t fusion::safeAddUInt128(const uint128_t& a, const uint128_t& b){
   uint128_t sum;
 
@@ -129,6 +148,18 @@ int64_t fusion::safeSubInt64(const int64_t& a, const int64_t& b){
   } else {
     diff = a - b;
   }	
+
+  return diff;
+}
+
+uint64_t fusion::safeSubUInt64(const uint64_t& a, const uint64_t& b){
+  uint64_t diff;
+  if ((b > 0 && a < std::numeric_limits<uint64_t>::min() + b) ||
+      (b < 0 && a > std::numeric_limits<uint64_t>::max() + b)) {
+    check(false, "subtraction would result in overflow or underflow");
+  } else {
+    diff = a - b;
+  } 
 
   return diff;
 }

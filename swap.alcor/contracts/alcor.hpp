@@ -27,6 +27,7 @@ CONTRACT alcor : public contract {
 		{}
 
 		//Main Actions
+		ACTION createpool(const eosio::name& account, const eosio::extended_asset& tokenA, const eosio::extended_asset& tokenB);
 		ACTION initunittest(const eosio::asset& wax_amount, const eosio::asset& lswax_amount);
 		ACTION newincentive(const name& creator, const uint64_t& poolId, const extended_asset& rewardToken, const uint32_t& duration);
 

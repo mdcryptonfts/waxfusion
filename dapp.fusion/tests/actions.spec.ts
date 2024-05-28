@@ -24,10 +24,10 @@ const scopes = {
     system: contracts.system_contract.value
 }
 
-const getAlcorPool = async (log = false) => {
+const getAlcorPool = async (log = false, id = 2) => {
     const alcor_pool = await contracts.alcor_contract.tables
         .pools(scopes.alcor)
-        .getTableRows(BigInt( initial_state.alcor_pool_id ))[0]
+        .getTableRows(BigInt( id ))[0]
     if(log){
         console.log("alcor pool:")
         console.log(alcor_pool) 
@@ -708,4 +708,85 @@ describe('\n\nrmvcpucntrct action', () => {
         const dapp_config_after = await getDappConfig()
         assert( dapp_config_after.cpu_contracts.indexOf('cpu2.fusion') == -1, "expected cpu2.fusion to not be in the config" )        
     });     
+});
+
+describe('\n\nrmvincentive action', () => {
+
+    it('error: missing auth of self', async () => {
+        const action = contracts.dapp_contract.actions.rmvincentive([2]).send('eosio@active');
+        await expectToThrow(action, "missing required authority dapp.fusion")
+    }); 
+     
+    it(`error: this poolId doesn't exist in the lpfarms table`, async () => {
+        const action = contracts.dapp_contract.actions.rmvincentive([1]).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: this poolId doesn't exist in the lpfarms table`)
+    });   
+
+    it(`success`, async () => {
+        const incentives_before = await getDappIncentives()
+        assert( incentives_before.length == 1, "there should be 1 incentive in the table" )
+        await contracts.dapp_contract.actions.rmvincentive([2]).send('dapp.fusion@active');
+        const incentives_after = await getDappIncentives()
+        assert( incentives_after.length == 0, "there should be 0 incentives in the table" )        
+    });         
+});
+
+describe('\n\nsetfallback action', () => {
+
+    it('error: missing auth of caller', async () => {
+        const action = contracts.dapp_contract.actions.setfallback(['mike', 'mike']).send('eosio@active');
+        await expectToThrow(action, "missing required authority mike")
+    }); 
+     
+    it(`error: caller is not an admin`, async () => {
+        const action = contracts.dapp_contract.actions.setfallback(['mike', 'mike']).send('mike@active');
+        await expectToThrow(action, "eosio_assert: this action requires auth from one of the admin_wallets in the config table")
+    });   
+
+    it(`error: cpu receiver is not a wax account`, async () => {
+        const action = contracts.dapp_contract.actions.setfallback(['dapp.fusion', 'someguy']).send('dapp.fusion@active');
+        await expectToThrow(action, "eosio_assert: cpu receiver is not a wax account")
+    });     
+
+    it(`success`, async () => {
+        const config_before = await getDappConfig()
+        assert( config_before.fallback_cpu_receiver == 'updatethings', "expected updatethings to be the fallback" )
+        await contracts.dapp_contract.actions.setfallback(['dapp.fusion', 'mike']).send('dapp.fusion@active');
+        const config_after = await getDappConfig()
+        assert( config_after.fallback_cpu_receiver == 'mike', "expected mike to be the fallback" )
+    });         
+});
+
+describe('\n\nsetincentive action', () => {
+
+    it('error: missing auth of self', async () => {
+        const action = contracts.dapp_contract.actions.setincentive([3, '4,HONEY', 'nfthivehoney', 1000000]).send('eosio@active');
+        await expectToThrow(action, "missing required authority dapp.fusion")        
+    }); 
+     
+    it('error: share must be positive', async () => {
+        const action = contracts.dapp_contract.actions.setincentive([3, '4,HONEY', 'nfthivehoney', 0]).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: percent_share_1e6 must be positive`)        
+    });   
+
+    it('error: pool does not exist', async () => {
+        const action = contracts.dapp_contract.actions.setincentive([4, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: this poolId does not exist`)        
+    });  
+
+    it('error: pool does not contain the token entered', async () => {
+        const action = contracts.dapp_contract.actions.setincentive([2, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: this poolId does not contain the symbol/contract combo you entered`)        
+    });   
+
+    it('error: lsWAX can not be paired against itself', async () => {
+        const action = contracts.dapp_contract.actions.setincentive([2, '8,LSWAX', 'token.fusion', 1000000]).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: LSWAX cannot be paired against itself`)        
+    });  
+
+    it('success', async () => {
+        await contracts.dapp_contract.actions.setincentive([3, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        const incentives_after = await getDappIncentives()
+        assert( incentives_after.length == 2, "there should be 2 incentives in the table" )
+    });                          
 });

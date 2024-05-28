@@ -30,6 +30,24 @@
             ]
         },
         {
+            "name": "createpool",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "tokenA",
+                    "type": "extended_asset"
+                },
+                {
+                    "name": "tokenB",
+                    "type": "extended_asset"
+                }
+            ]
+        },
+        {
             "name": "incentives",
             "base": "",
             "fields": [
@@ -179,6 +197,11 @@
         }
     ],
     "actions": [
+        {
+            "name": "createpool",
+            "type": "createpool",
+            "ricardian_contract": ""
+        },
         {
             "name": "initunittest",
             "type": "initunittest",

@@ -9,6 +9,28 @@ uint64_t now(){
   return current_time_point().sec_since_epoch();
 }
 
+ACTION alcor::createpool(const eosio::name& account, const eosio::extended_asset& tokenA, const eosio::extended_asset& tokenB)
+{
+	require_auth( account );
+	
+	pools_t.emplace(_self, [&](auto &_row){
+		_row.id = pools_t.available_primary_key();
+		_row.active = true;
+		_row.tokenA = tokenA;
+		_row.tokenB = tokenB;
+		_row.fee = 3000;
+		_row.feeProtocol = 0;
+		_row.tickSpacing = 60;
+		_row.maxLiquidityPerTick = 1247497401346422;
+		_row.currSlot = 	{0,1711149497,1,1};
+		_row.feeGrowthGlobalAX64 = 0;
+		_row.feeGrowthGlobalBX64 = 0;
+		_row.protocolFeeA = asset(0, tokenA.quantity.symbol);
+		_row.protocolFeeB = asset(0, tokenB.quantity.symbol);
+		_row.liquidity = 0;
+	});
+}
+
 
 /** since we dont have alcor's contract
  *  and all we need for unit tests is the existence of the lswax/wax pool in the table

@@ -56,6 +56,7 @@ const init = async () => {
     await contracts.cpu2.actions.initstate().send();
     await contracts.cpu3.actions.initstate().send();  
     await contracts.alcor_contract.actions.initunittest([initial_state.alcor_wax_pool, initial_state.alcor_lswax_pool]).send();       
+    await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 HONEY', contract: 'nfthivehoney'}, {quantity: lswax(0), contract: 'token.fusion'}]).send('eosio@active');       
     await contracts.wax_contract.actions.create(['eosio', initial_state.wax_supply]).send();
     await contracts.wax_contract.actions.issue(['eosio', initial_state.wax_supply, 'issuing wax']).send('eosio@active');
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.swax_supply]).send();
@@ -69,7 +70,7 @@ const init = async () => {
     await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for staking pool only']).send('eosio@active');
 
     //add incentive to incentives table
-    await contracts.dapp_contract.actions.setincentive([2, '8,WAX', 'eosio.token', 100000000]).send('dapp.fusion@active')
+    await contracts.dapp_contract.actions.setincentive([2, '8,WAX', 'eosio.token', 25000000]).send('dapp.fusion@active')
 }
 
 const stake = async (user, amount, liquify = false, liquify_amount = amount) => {

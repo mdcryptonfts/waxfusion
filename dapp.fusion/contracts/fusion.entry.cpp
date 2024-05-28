@@ -469,7 +469,7 @@ ACTION fusion::initstate2(){
 	s2.last_incentive_distribution = 0;
 	s2.incentives_bucket = ZERO_LSWAX;
 	s2.total_value_locked = ZERO_WAX;
-
+	s2.total_shares_allocated = 0;
 	state_s_2.set(s2, _self);
 }
 
@@ -1126,8 +1126,17 @@ ACTION fusion::rmvcpucntrct(const eosio::name& contract_to_remove){
 ACTION fusion::rmvincentive(const uint64_t& poolId){
 	require_auth( _self );
 
+	//fetch the global state
+	state2 s2 = state_s_2.get(); 	
+
 	auto lp_itr = lpfarms_t.require_find( poolId, "this poolId doesn't exist in the lpfarms table" );
+
+	s2.total_shares_allocated = safeSubUInt64( s2.total_shares_allocated, lp_itr->percent_share_1e6 );
+
 	lp_itr = lpfarms_t.erase( lp_itr );
+
+	//apply the global state change
+	state_s_2.set(s2, _self);
 }
 
 /** setfallback
@@ -1155,6 +1164,9 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
 	require_auth( _self );
 	check(percent_share_1e6 > 0, "percent_share_1e6 must be positive");
 
+	//fetch the global state
+	state2 s2 = state_s_2.get(); 
+
 	auto itr = pools_t.require_find(poolId, "this poolId does not exist");
 
 	if( (itr->tokenA.quantity.symbol != symbol_to_incentivize && itr->tokenA.contract != contract_to_incentivize)
@@ -1171,9 +1183,9 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
 
 	auto lp_itr = lpfarms_t.find( poolId );
 
-	//TODO make sure percentages dont add up to > 100%
-
 	if(lp_itr == lpfarms_t.end()){
+
+		s2.total_shares_allocated = safeAddUInt64( s2.total_shares_allocated, percent_share_1e6 );
 
 		lpfarms_t.emplace(_self, [&](auto &_lp){
 			_lp.poolId = poolId;
@@ -1184,6 +1196,20 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
 
 	} else {
 
+		//make sure a change is being made
+		check( lp_itr->percent_share_1e6 != percent_share_1e6, "the share you entered is the same as the existing share" );
+
+		//calculate the difference in global shares
+		if( lp_itr->percent_share_1e6 > percent_share_1e6 ){
+			//subtract from global shares
+			uint64_t difference = safeSubUInt64( lp_itr->percent_share_1e6, percent_share_1e6 );
+			s2.total_shares_allocated = safeSubUInt64( s2.total_shares_allocated, difference );
+		} else {
+			//add to global shares
+			uint64_t difference = safeSubUInt64( percent_share_1e6, lp_itr->percent_share_1e6 );
+			s2.total_shares_allocated = safeAddUInt64( s2.total_shares_allocated, difference );
+		}
+
 		lpfarms_t.modify(lp_itr, _self, [&](auto &_lp){
 			_lp.poolId = poolId;
   			_lp.symbol_to_incentivize = symbol_to_incentivize;
@@ -1192,6 +1218,10 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
 		});
 
 	}
+
+	//validate that the global incentive shares are not > 100%, and apply the state change
+	check( s2.total_shares_allocated <= ONE_HUNDRED_PERCENT_1E6, "total shares can not be > 100%" );
+	state_s_2.set( s2, _self );
 
 }
 
