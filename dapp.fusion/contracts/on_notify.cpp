@@ -13,14 +13,14 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
     check( quantity.amount < MAX_ASSET_AMOUNT, "quantity too large" );
 
     //accept random tokens but dont execute any logic
-    if( !memo_is_expected( memo ) && tkcontract != WAX_CONTRACT && tkcontract != TOKEN_CONTRACT ) return;
+    if( tkcontract != WAX_CONTRACT && tkcontract != TOKEN_CONTRACT ) return;
 
     //only accept wax and lsWAX (sWAX is only issued, not transferred)
   	validate_token(quantity.symbol, tkcontract);
 
     //if we reached here, the token is either wax or lswax, but the memo is not expected
     if( !memo_is_expected( memo ) ){
-    	//TODO either throw error or add to the bucket
+    	check( false, "must include a memo for transfers to dapp.fusion, see docs.waxfusion.io for a list of memos" );
     }
 
   	/** instant redeem and rebalance memos

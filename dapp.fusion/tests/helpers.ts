@@ -9,6 +9,10 @@ function almost_equal(actual, expected, tolerance = 0.00000003) {
 }
 
 //Assets
+const honey = (amount) => {
+    return `${parseFloat(amount).toFixed(4)} HONEY`
+}
+
 const lswax = (amount) => {
     return `${parseFloat(amount).toFixed(8)} LSWAX`
 }
@@ -63,6 +67,7 @@ const validate_supply_and_payouts = (snaps, swax_earning, swax_backing, lswax_su
 module.exports = {
     almost_equal,
 	calculate_wax_and_lswax_outputs,
+    honey,
 	lswax,
 	rent_cpu_memo,
 	swax,

@@ -1,5 +1,5 @@
 const { blockchain, contracts, incrementTime, init, initial_state, setTime, stake, simulate_days, unliquify } = require("./setup.spec.ts")
-const { calculate_wax_and_lswax_outputs, lswax, rent_cpu_memo, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
+const { calculate_wax_and_lswax_outputs, honey, lswax, rent_cpu_memo, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
 const { nameToBigInt, TimePoint, expectToThrow } = require("@eosnetwork/vert");
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
@@ -271,6 +271,7 @@ describe('\n\nunliquify_exact memo', () => {
  
 });
 
+/*
 describe('\n\nsimulate_days', () => {
 
     it('success', async () => {
@@ -335,6 +336,25 @@ describe('\n\nsimulate_days', () => {
         //await getPayouts()    
     });  
  
+});
+*/
+
+describe('\n\nno memo / unexpected memo', () => {
+    const err = `eosio_assert: must include a memo for transfers to dapp.fusion, see docs.waxfusion.io for a list of memos`
+    it('honey was received', async () => {
+        await contracts.honey_contract.actions.transfer(['mike', 'dapp.fusion', honey(10), '']).send('mike@active');
+    });  
+
+    it('wax was received', async () => {
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), 's']).send('mike@active');
+        await expectToThrow(action, err)
+    });     
+
+    it('lswax was received', async () => {
+        await stake('mike', 100, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), '']).send('mike@active');
+        await expectToThrow(action, err)
+    });    
 });
 
 module.exports = {

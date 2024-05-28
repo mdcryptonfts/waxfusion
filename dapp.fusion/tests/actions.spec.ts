@@ -905,6 +905,41 @@ describe('\n\nunstakecpu action', () => {
     });       
 });
 */
+
+describe('\n\nsync action', () => {
+
+    it('error: missing auth of caller', async () => {
+        const action = contracts.dapp_contract.actions.sync(['mike']).send('eosio@active');
+        await expectToThrow(action, `missing required authority mike`)
+    }); 
+      
+    it('error: caller is not an admin', async () => {
+        const action = contracts.dapp_contract.actions.sync(['mike']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: mike is not an admin`)
+    });
+
+    it('success', async () => {
+        await contracts.dapp_contract.actions.sync(['oig']).send('oig@active');
+    });           
+});
+
+describe('\n\nsynctvl action', () => {
+
+    it('error: missing auth of caller', async () => {
+        const action = contracts.dapp_contract.actions.synctvl(['mike']).send('eosio@active');
+        await expectToThrow(action, `missing required authority mike`)
+    }); 
+      
+    it('error: caller is not an admin', async () => {
+        const action = contracts.dapp_contract.actions.synctvl(['mike']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: mike is not an admin`)
+    });
+
+    it('success', async () => {
+        await contracts.dapp_contract.actions.synctvl(['oig']).send('oig@active');
+    });           
+});
+
 describe('\n\nupdatetop21 action', () => {
 
     it('error: hasnt been 24h', async () => {

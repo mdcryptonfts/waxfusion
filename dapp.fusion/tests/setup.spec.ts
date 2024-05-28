@@ -10,6 +10,7 @@ const contracts = {
  	cpu2: blockchain.createContract('cpu2.fusion', '../cpu.fusion/build/cpucontract'),
  	cpu3: blockchain.createContract('cpu3.fusion', '../cpu.fusion/build/cpucontract'),	
  	dapp_contract: blockchain.createContract('dapp.fusion', 'build/fusion'),
+    honey_contract: blockchain.createContract('nfthivehoney', '../eosio.token/build/token'),
  	pol_contract: blockchain.createContract('pol.fusion', '../pol.fusion/build/polcontract'),
  	stake_contract: blockchain.createContract('eosio.stake', '../mock.stake/build/stake'),
  	system_contract: blockchain.createContract('eosio', '../mock.system/build/system'),
@@ -26,6 +27,7 @@ const initial_state = {
     chain_time: 1710460800,
     circulating_wax: `10000000.00000000 WAX`,
     dapp_rental_pool: Number(calculate_wax_and_lswax_outputs(100000, 100000 / 95300, 1)[1]), //48796.72299027
+    honey_supply: `461168601842738.7903 HONEY`,
     swax_backing_lswax: Number(calculate_wax_and_lswax_outputs(100000, 100000 / 95300, 1)[1]), //48796.72299027  
     swax_supply: `46116860184.27387903 SWAX`,
     lswax_supply: `46116860184.27387903 LSWAX`,
@@ -58,6 +60,8 @@ const init = async () => {
     await contracts.alcor_contract.actions.initunittest([initial_state.alcor_wax_pool, initial_state.alcor_lswax_pool]).send();       
     await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 HONEY', contract: 'nfthivehoney'}, {quantity: lswax(0), contract: 'token.fusion'}]).send('eosio@active');       
     await contracts.wax_contract.actions.create(['eosio', initial_state.wax_supply]).send();
+    await contracts.honey_contract.actions.create(['mike', initial_state.honey_supply]).send();
+    await contracts.honey_contract.actions.issue(['mike', initial_state.honey_supply, 'issuing honey']).send('mike@active');
     await contracts.wax_contract.actions.issue(['eosio', initial_state.wax_supply, 'issuing wax']).send('eosio@active');
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.swax_supply]).send();
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.lswax_supply]).send();

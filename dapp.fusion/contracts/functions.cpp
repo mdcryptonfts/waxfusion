@@ -284,7 +284,8 @@ void fusion::issue_swax(const int64_t& amount){
 }
 
 bool fusion::memo_is_expected(const std::string& memo){
-  if( memo == "instant redeem" || memo == "rebalance" || "wax_lswax_liquidity" || memo == "stake" || memo == "unliquify" || memo == "waxfusion_revenue" || memo == "cpu rental return" || memo == "lp_incentives" ){
+
+  if( memo == "instant redeem" || memo == "rebalance" || memo == "wax_lswax_liquidity" || memo == "stake" || memo == "unliquify" || memo == "waxfusion_revenue" || memo == "cpu rental return" || memo == "lp_incentives" ){
     return true;
   }
 
