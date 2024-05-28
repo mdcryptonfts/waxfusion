@@ -532,6 +532,9 @@ ACTION fusion::inittop21(){
 	 *  the below loop is good enough for unit testing environment
 	 *  as its not important that the mock system contract be identical
 	 *  to the core system contract
+	 * 
+	 *  see here to verify that the implentation on testnet is confirmed working:
+	 *  https://testnet.waxblock.io/account/dapp.fusion?code=dapp.fusion&scope=dapp.fusion&table=top21&lower_bound=&upper_bound=&limit=10&reverse=false#contract-tables
 	 */
 
 	for( auto it = _producers.begin(); it != _producers.end() 

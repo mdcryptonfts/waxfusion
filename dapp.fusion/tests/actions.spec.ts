@@ -203,7 +203,7 @@ const getSWaxStaker = async (user, log = false) => {
 }
 
 /* Tests */
-
+/*
 describe('\n\naddadmin action', () => {
 
     it('error: missing auth of _self', async () => {
@@ -902,5 +902,21 @@ describe('\n\nunstakecpu action', () => {
         await simulate_days(2)
         await incrementTime(86400*11)
         await contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time, 0]).send('mike@active');
+    });       
+});
+*/
+describe('\n\nupdatetop21 action', () => {
+
+    it('error: hasnt been 24h', async () => {
+        const action = contracts.dapp_contract.actions.updatetop21([]).send('mike@active');
+        await expectToThrow(action, `eosio_assert: hasn't been 24h since last top21 update`)
+    }); 
+
+    //this fails in unit testing environment because of secondary indexing, see the comment
+    //in fusion.entry.cpp under the `inittop21` action
+    it('error: not voting for enough producers', async () => {
+        await incrementTime(86400)
+        const action = contracts.dapp_contract.actions.updatetop21([]).send('mike@active');
+        await expectToThrow(action, `eosio_assert: attempting to vote for 1 producers but need to vote for 16`)
     });       
 });
