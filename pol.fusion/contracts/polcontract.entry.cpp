@@ -275,7 +275,7 @@ ACTION polcontract::rebalance(){
 	    		//before we divide by 2, make sure the result would be positive
 	    		check( max_weight > 1, "division would result in a nonpositive quantity" );
 
-	    		//this needs to also factor in the real price
+	    		//the weight of our transfer before factoring in the real price (by calling internal_liquify)
 	    		int64_t weighted_amount_to_transfer = safeDivInt64(max_weight, 2);
 
 	    		//calculate how much lswax is needed to represent the underlying wax amount
