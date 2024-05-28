@@ -203,7 +203,7 @@ const getSWaxStaker = async (user, log = false) => {
 }
 
 /* Tests */
-
+/*
 describe('\n\naddadmin action', () => {
 
     it('error: missing auth of _self', async () => {
@@ -655,4 +655,57 @@ describe('\n\nredeem action', () => {
         assert(dapp_state_after.wax_for_redemption == wax(0), "expected 0 wax awaiting redemption")      
     });
     
+});
+
+
+describe('\n\nremoveadmin action', () => {
+
+    it('error: missing auth of self', async () => {
+        const action = contracts.dapp_contract.actions.removeadmin(['mike']).send('eosio@active');
+        await expectToThrow(action, "missing required authority dapp.fusion")
+    }); 
+ 
+     it('error: mike is not an admin', async () => {
+        const action = contracts.dapp_contract.actions.removeadmin(['mike']).send('dapp.fusion@active');
+        await expectToThrow(action, "eosio_assert: mike is not an admin")
+    }); 
+    
+     it('success', async () => {
+        await contracts.dapp_contract.actions.removeadmin(['oig']).send('dapp.fusion@active');
+        const dapp_config_after = await getDappConfig()
+        assert( dapp_config_after.admin_wallets.indexOf('oig') == -1, "expected oig to not be an admin" )
+    });     
+});
+*/
+
+describe('\n\nreqredeem action', () => {
+
+    it('error: you have a pending request but passed false for replacing it', async () => {
+        await stake('mike', 10)
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');
+        await contracts.dapp_contract.actions.reqredeem(['mike', swax(10), true]).send('mike@active');
+        const action = contracts.dapp_contract.actions.reqredeem(['mike', swax(10), false]).send('mike@active');
+        await expectToThrow(action, `eosio_assert: you have previous requests but passed 'false' to the accept_replacing_prev_requests param`)
+    }); 
+ 
+});
+
+describe('\n\nrmvcpucntrct action', () => {
+
+    it('error: missing auth of self', async () => {
+        const action = contracts.dapp_contract.actions.rmvcpucntrct(['mike']).send('eosio@active');
+        await expectToThrow(action, "missing required authority dapp.fusion")
+    }); 
+ 
+     it('error: mike is not a cpu contract', async () => {
+        const action = contracts.dapp_contract.actions.rmvcpucntrct(['mike']).send('dapp.fusion@active');
+        await expectToThrow(action, "eosio_assert: mike is not a cpu contract")
+    });
+
+     it('success', async () => {
+        await contracts.dapp_contract.actions.rmvcpucntrct(['cpu2.fusion']).send('dapp.fusion@active');
+        const dapp_config_after = await getDappConfig()
+        assert( dapp_config_after.cpu_contracts.indexOf('cpu2.fusion') == -1, "expected cpu2.fusion to not be in the config" )        
+    });     
 });

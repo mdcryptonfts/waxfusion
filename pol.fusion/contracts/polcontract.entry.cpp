@@ -140,7 +140,7 @@ ACTION polcontract::initstate3(){
 	state3 s{};
 	s.wax_available_for_rentals = ZERO_WAX;
 	s.next_day_end_time = now() + SECONDS_PER_DAY;
-	s.cost_to_rent_1_wax = asset(120000, WAX_SYMBOL); // 0.01 WAX per day
+	s.cost_to_rent_1_wax = asset(120000, WAX_SYMBOL); // 0.0012 WAX per day
 	s.last_vote_time = 0;
 	s.wax_bucket = ZERO_WAX;
 	s.lswax_bucket = ZERO_LSWAX;
@@ -275,7 +275,7 @@ ACTION polcontract::rebalance(){
 	    		//before we divide by 2, make sure the result would be positive
 	    		check( max_weight > 1, "division would result in a nonpositive quantity" );
 
-	    		//this needs to also factor in the real price somehow
+	    		//this needs to also factor in the real price
 	    		int64_t weighted_amount_to_transfer = safeDivInt64(max_weight, 2);
 
 	    		//calculate how much lswax is needed to represent the underlying wax amount
