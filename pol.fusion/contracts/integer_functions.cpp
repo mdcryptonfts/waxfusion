@@ -25,7 +25,7 @@ void polcontract::calculate_liquidity_allocations(const liquidity_struct& lp_det
 																					int64_t& wax_bucket_allocation,
 																					int64_t& buy_lswax_allocation)
 {
-    //since will will be doing some large number math, we will get the max scaling factor for the liquidity allocation
+    //since we will be doing some large number math, we will get the max scaling factor for the liquidity allocation
     //and scale it as large as we safely can
     uint128_t scale_factor = max_scale_without_room( uint128_t(liquidity_allocation) );
 
