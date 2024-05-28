@@ -1,6 +1,6 @@
 const { blockchain, contracts, incrementTime, init, initial_state, setTime, stake, simulate_days, unliquify } = require("./setup.spec.ts")
 const { getPayouts } = require('./notifications.spec.ts')
-const { calculate_wax_and_lswax_outputs, lswax, rent_cpu_memo, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
+const { almost_equal, calculate_wax_and_lswax_outputs, lswax, rent_cpu_memo, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
 const { nameToBigInt, TimePoint, expectToThrow } = require("@eosnetwork/vert");
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
@@ -203,7 +203,7 @@ const getSWaxStaker = async (user, log = false) => {
 }
 
 /* Tests */
-/*
+
 describe('\n\naddadmin action', () => {
 
     it('error: missing auth of _self', async () => {
@@ -401,7 +401,21 @@ describe('\n\ncreatefarms action', () => {
         await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
         const action = contracts.dapp_contract.actions.createfarms([]).send('mike@active');
         await expectToThrow(action, "eosio_assert: hasn't been 1 week since last farms were created");
-    });        
+    });  
+
+    it('success with 2 farms', async () => {
+        await contracts.dapp_contract.actions.setincentive([3, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        const incentives_after = await getDappIncentives()
+        assert( incentives_after.length == 2, "there should be 2 incentives in the table" )
+        await simulate_days(7, true)
+        await incrementTime(86400*7)
+        const dapp_state_before = await getDappState2()
+        await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
+        const alcor_incentives = await getAlcorIncentives()
+        assert( alcor_incentives.length == 2, "there should be 2 incentives on alcor" )
+        const dapp_state_after = await getDappState2()
+        almost_equal( parseFloat(dapp_state_before.incentives_bucket) * 0.74, parseFloat(dapp_state_after.incentives_bucket) )
+    });           
 });
 
 describe('\n\ndistribute action', () => {
@@ -676,7 +690,7 @@ describe('\n\nremoveadmin action', () => {
         assert( dapp_config_after.admin_wallets.indexOf('oig') == -1, "expected oig to not be an admin" )
     });     
 });
-*/
+
 
 describe('\n\nreqredeem action', () => {
 
@@ -789,4 +803,104 @@ describe('\n\nsetincentive action', () => {
         const incentives_after = await getDappIncentives()
         assert( incentives_after.length == 2, "there should be 2 incentives in the table" )
     });                          
+});
+
+describe('\n\nsetpolshare action', () => {
+
+    it('error: missing auth of self', async () => {
+        const action = contracts.dapp_contract.actions.setpolshare([5000000]).send('eosio@active');
+        await expectToThrow(action, "missing required authority dapp.fusion")        
+    }); 
+         
+    it('error: share must be >= 5%', async () => {
+        const action = contracts.dapp_contract.actions.setpolshare([4900000]).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: acceptable range is 5-10%`)        
+    });   
+
+    it('error: share must be <= 10%', async () => {
+        const action = contracts.dapp_contract.actions.setpolshare([10000001]).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: acceptable range is 5-10%`)        
+    });   
+
+    it('success', async () => {
+        await contracts.dapp_contract.actions.setpolshare([6942000]).send('dapp.fusion@active');
+        const dapp_config = await getDappConfig()
+        assert( dapp_config.pol_share_1e6 == 6942000, "pol share should be 6942000" )
+    });                                       
+});
+
+describe('\n\nsetrentprice action', () => {
+
+    it('error: missing auth of caller', async () => {
+        const action = contracts.dapp_contract.actions.setrentprice(['mike', wax(0.2)]).send('eosio@active');
+        await expectToThrow(action, "missing required authority mike")        
+    }); 
+     
+    it('error: caller is not an admin', async () => {
+        const action = contracts.dapp_contract.actions.setrentprice(['mike', wax(0.2)]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: this action requires auth from one of the admin_wallets in the config table")        
+    });                                             
+
+    it('error: cost must be positive', async () => {
+        const action = contracts.dapp_contract.actions.setrentprice(['oig', wax(0)]).send('oig@active');
+        await expectToThrow(action, "eosio_assert: cost must be positive")        
+    }); 
+
+    it('error: symbol mismatch', async () => {
+        const action = contracts.dapp_contract.actions.setrentprice(['oig', lswax(0.1)]).send('oig@active');
+        await expectToThrow(action, "eosio_assert: symbol and precision must match WAX")        
+    });         
+
+    it('success', async () => {
+        await contracts.dapp_contract.actions.setrentprice(['oig', wax(0.42)]).send('oig@active');
+        const dapp_state = await getDappState()
+        assert( dapp_state.cost_to_rent_1_wax == wax(0.42), "rent price should be 0.42 wax" )    
+    });    
+});
+
+describe('\n\nstake action', () => {
+
+    it('error: missing auth of staker', async () => {
+        const action = contracts.dapp_contract.actions.stake(['mike']).send('eosio@active');
+        await expectToThrow(action, "missing required authority mike")        
+    }); 
+
+});
+
+describe('\n\nstakeallcpu action', () => {
+
+    it('error: next stakeall time is > now', async () => {
+        const action = contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');
+        await expectToThrow(action, "eosio_assert: next stakeall time is not until 1710547200")
+    }); 
+
+    it('success', async () => {
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');
+    }); 
+});
+
+describe('\n\nunstakecpu action', () => {
+
+    it('error: epoch doesnt exist', async () => {
+        const action = contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time - 1, 0]).send('mike@active');
+        await expectToThrow(action, `eosio_assert: could not find epoch ${initial_state.chain_time -1}`)
+    }); 
+
+    it('error: not time to unstake yet', async () => {
+        const action = contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time, 0]).send('mike@active');
+        await expectToThrow(action, `eosio_assert: can not unstake until another ${(86400*11)} seconds has passed`)
+    }); 
+
+    it('error: nothing to unstake', async () => {
+        await incrementTime(86400*11)
+        const action = contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time, 0]).send('mike@active');
+        await expectToThrow(action, `eosio_assert: cpu1.fusion has nothing to unstake`)
+    });    
+
+    it('success', async () => {
+        await simulate_days(2)
+        await incrementTime(86400*11)
+        await contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time, 0]).send('mike@active');
+    });       
 });

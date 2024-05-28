@@ -61,6 +61,7 @@ const validate_supply_and_payouts = (snaps, swax_earning, swax_backing, lswax_su
 }
 
 module.exports = {
+    almost_equal,
 	calculate_wax_and_lswax_outputs,
 	lswax,
 	rent_cpu_memo,

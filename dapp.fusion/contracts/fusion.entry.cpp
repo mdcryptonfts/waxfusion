@@ -1343,16 +1343,22 @@ ACTION fusion::stakeallcpu(){
 * this only exists to keep data refreshed and make it easier for front ends to display fresh data
 * it's not necessary for the dapp to function properly
 * therefore it requires admin auth to avoid random people spamming the network and running this constantly
+* also, the logic in this action gets executed any time a user interacts with this contract, so the only
+* reason to call this action is if there hasn't been a contract interaction from users 
 */ 
 
 ACTION fusion::sync(const eosio::name& caller){
 	require_auth( caller );
 	check( is_an_admin( caller ), ( caller.to_string() + " is not an admin" ).c_str() );
 	
+	//fetch the global state and config
 	state s = states.get();
 	config3 c = config_s_3.get();
 
+	//make sure all necessary epochs are created
 	sync_epoch( c, s );
+
+	//apply the changes to global state
 	states.set(s, _self);
 }
 
@@ -1387,21 +1393,21 @@ ACTION fusion::unstakecpu(const uint64_t& epoch_id, const int& limit){
 
 	check( epoch_itr->time_to_unstake <= now(), ("can not unstake until another " + std::to_string( epoch_itr-> time_to_unstake - now() ) + " seconds has passed").c_str() );
 
+	//check the system contract and make sure there is something to unstake
 	del_bandwidth_table del_tbl( SYSTEM_CONTRACT, epoch_itr->cpu_wallet.value );
 
 	if( del_tbl.begin() == del_tbl.end() ){
 		check( false, ( epoch_itr->cpu_wallet.to_string() + " has nothing to unstake" ).c_str() );
 	}	
 
+	//the deatult amount of rows to erase is 500, can be overridden by passing a number > 0 to the action
 	int rows_limit = limit == 0 ? 500 : limit;
 
 	action(permission_level{get_self(), "active"_n}, epoch_itr->cpu_wallet,"unstakebatch"_n,std::tuple{ rows_limit }).send();
 
+	//if there are any expired rentals, erase them from the table
 	renters_table renters_t = renters_table( _self, epoch_to_check );
-
-	if( renters_t.begin() == renters_t.end() ){
-		return;
-	}
+	if( renters_t.begin() == renters_t.end() ) return;
 
 	int count = 0;
 	auto rental_itr = renters_t.begin();
@@ -1434,6 +1440,7 @@ ACTION fusion::updatetop21(){
 		);
 	}
 
+	//avoid CPU overhead by only parsing string with check function if the conditions are not met
 	if( top_producers.size() < MINIMUM_PRODUCERS_TO_VOTE_FOR ) {
 		check( false, ("attempting to vote for " + std::to_string( top_producers.size() ) + " producers but need to vote for " + std::to_string( MINIMUM_PRODUCERS_TO_VOTE_FOR ) ).c_str() );
 	}	
