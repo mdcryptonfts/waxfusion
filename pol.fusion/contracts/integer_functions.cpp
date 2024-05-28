@@ -17,7 +17,7 @@ int64_t polcontract::calculate_asset_share(const int64_t& quantity, const uint64
 	//since 100 * 1e6 = 1e8, we will just / SCALE_FACTOR_1E8 here to avoid extra unnecessary math
 	uint128_t result_128 = safeDivUInt128( divisor, SCALE_FACTOR_1E8 );
 
-  return int64_t(result_128);
+	return safecast::safe_cast<int64_t>(result_128);
 }
 
 void polcontract::calculate_liquidity_allocations(const liquidity_struct& lp_details, 
@@ -50,7 +50,7 @@ void polcontract::calculate_liquidity_allocations(const liquidity_struct& lp_det
     uint128_t lswax_alloc_128 = safeDivUInt128( adjusted_intermediate_result, scale_factor );
 
     //set the buckets created above to their appropriate amounts
-    buy_lswax_allocation = int64_t(lswax_alloc_128);
+    buy_lswax_allocation = safecast::safe_cast<int64_t>(lswax_alloc_128);
     wax_bucket_allocation = safeSubInt64( liquidity_allocation, buy_lswax_allocation );
 
     return;
@@ -118,7 +118,7 @@ int64_t polcontract::internal_liquify(const int64_t& quantity, dapp_tables::stat
 		//divide by the amount of swax that's currently backing lswax
 		uint128_t result_128 = safeDivUInt128( quantity_scaled_by_lswax, uint128_t(s.swax_currently_backing_lswax.amount) );
 
-		return int64_t(result_128);      	
+		return safecast::safe_cast<int64_t>(result_128);
     }		
 }
 
@@ -135,7 +135,7 @@ int64_t polcontract::internal_unliquify(const int64_t& quantity, dapp_tables::st
 	//divide by the amount of lswax in existence
   	uint128_t result_128 = safeDivUInt128( quantity_scaled_by_swax, uint128_t(s.liquified_swax.amount) );
 
-  	return int64_t(result_128);  
+  	return safecast::safe_cast<int64_t>(result_128);
 } 
 
 /** pool_ratio_1e18

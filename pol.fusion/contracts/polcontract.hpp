@@ -16,6 +16,7 @@
 #include <eosio/transaction.hpp>
 #include <eosio/singleton.hpp>
 #include <cmath>
+#include "safecast.hpp"
 #include "tables.hpp"
 #include "alcor.hpp"
 #include "dapp.hpp"
