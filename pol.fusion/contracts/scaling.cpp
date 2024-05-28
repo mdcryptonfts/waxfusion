@@ -64,7 +64,7 @@ uint128_t polcontract::max_scale_with_room(const uint128_t& num){
 }
 
 
-/** max_scale_with_room
+/** max_scale_without_room
  *  will return the max scaling factor for a number,
  *  leaving no room to multiply it any further
  */
