@@ -417,25 +417,8 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   			_e.wax_bucket = epoch_wax_bucket;
   		});
 
-  		//add this rental into the renters table
-  		renters_table renters_t = renters_table( _self, epoch_id_to_rent_from );
-        auto renter_receiver_idx = renters_t.get_index<"fromtocombo"_n>();
-        const uint128_t renter_receiver_combo = mix64to128(from.value, cpu_receiver.value);
-
-        auto rental_itr = renter_receiver_idx.find(renter_receiver_combo);
-
-        if( rental_itr == renter_receiver_idx.end() ){
-        	renters_t.emplace(_self, [&](auto &_r){
-        		_r.ID = renters_t.available_primary_key();
-        		_r.renter = from;
-        		_r.rent_to_account = cpu_receiver;
-        		_r.amount_staked = eosio::asset( (int64_t) amount_to_rent_with_precision, WAX_SYMBOL );
-        	});
-        } else {
-        	renter_receiver_idx.modify(rental_itr, _self, [&](auto &_r){
-        		_r.amount_staked.amount = safeAddInt64( _r.amount_staked.amount, (int64_t) amount_to_rent_with_precision );
-        	});
-        }
+  		//update or emplace the rental details into the renters table
+  		upsert_rental( epoch_id_to_rent_from, from, cpu_receiver, (int64_t) amount_to_rent_with_precision );
 
   		//update the state
   		states.set(s, _self);

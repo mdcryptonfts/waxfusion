@@ -200,19 +200,6 @@ uint64_t fusion::get_seconds_to_rent_cpu( state s, config3 c, const uint64_t& ep
         //renting from epoch 3 (hasnt started yet)
         seconds_to_rent = days_to_seconds(18) - seconds_into_current_epoch;
 
-        //see if this epoch exists yet - if it doesn't, create it
-        auto next_epoch_itr = epochs_t.find( epoch_id_to_rent_from );
-
-        if( next_epoch_itr == epochs_t.end() ){
-
-          uint64_t next_epoch_start_time = s.last_epoch_start_time + c.seconds_between_epochs;
-
-          eosio::name next_cpu_contract = get_next_cpu_contract( c, s );
-
-          //create the next epoch
-          create_epoch( c, next_epoch_start_time, next_cpu_contract, ZERO_WAX );
-        }
-
       } else if( epoch_id_to_rent_from == s.last_epoch_start_time ){
         //renting from epoch 2 (started most recently)
         seconds_to_rent = days_to_seconds(11) - seconds_into_current_epoch;
@@ -505,6 +492,34 @@ inline void fusion::sync_user(state& s, staker_struct& staker){
 void fusion::transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const std::string& memo){
   action(permission_level{get_self(), "active"_n}, contract,"transfer"_n,std::tuple{ get_self(), user, amount_to_send, memo}).send();
   return;
+}
+
+void fusion::upsert_rental(const uint64_t& epoch_id, const name& user, const name& receiver, const int64_t& amount){
+
+    //initialize the renters table/scope/index
+    renters_table renters_t = renters_table( _self, epoch_id );
+    auto renter_receiver_idx = renters_t.get_index<"fromtocombo"_n>();
+    const uint128_t renter_receiver_combo = mix64to128(user.value, receiver.value);
+
+    //see if this key exists already
+    auto rental_itr = renter_receiver_idx.find(renter_receiver_combo);
+
+    //if it doesnt exist, emplace it
+    if( rental_itr == renter_receiver_idx.end() ){
+      renters_t.emplace(_self, [&](auto &_r){
+        _r.ID = renters_t.available_primary_key();
+        _r.renter = user;
+        _r.rent_to_account = receiver;
+        _r.amount_staked = eosio::asset( amount, WAX_SYMBOL );
+      });
+    } else {
+      //if it exists, modify it
+      renter_receiver_idx.modify(rental_itr, _self, [&](auto &_r){
+        _r.amount_staked.amount = safeAddInt64( _r.amount_staked.amount, amount );
+      });
+    }  
+
+    return;
 }
 
 void fusion::validate_distribution_amounts(const int64_t& user_alloc_i64, const int64_t& pol_alloc_i64, 

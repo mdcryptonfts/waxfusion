@@ -132,6 +132,7 @@ CONTRACT fusion : public contract {
 		void validate_distribution_amounts(const int64_t& user_alloc_i64,	const int64_t& pol_alloc_i64, 
 			const int64_t& eco_alloc_i64, const int64_t& swax_autocompounding_alloc_i64,
       		const int64_t& swax_earning_alloc_i64, const int64_t& amount_to_distribute_i64);
+		void upsert_rental(const uint64_t& epoch_id, const name& user, const name& receiver, const int64_t& amount);
 		void validate_token(const eosio::symbol& symbol, const eosio::name& contract);
 		void zero_distribution(const state& s);
 

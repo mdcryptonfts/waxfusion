@@ -203,7 +203,7 @@ const getSWaxStaker = async (user, log = false) => {
 }
 
 /* Tests */
-/*
+
 describe('\n\naddadmin action', () => {
 
     it('error: missing auth of _self', async () => {
@@ -904,7 +904,7 @@ describe('\n\nunstakecpu action', () => {
         await contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time, 0]).send('mike@active');
     });       
 });
-*/
+
 
 describe('\n\nsync action', () => {
 

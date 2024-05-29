@@ -289,14 +289,58 @@ describe('\n\nrent_cpu memo', () => {
 
 
 describe('\n\nunliquify_exact memo', () => {
+    const memo = `|unliquify_exact|1000000000|0|`
 
     it('error: only lswax accepted', async () => {
-
+        await stake('mike', 1000, true)
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: only LSWAX can be unliquified")        
     });  
  
+     it('error: incomplete memo', async () => {
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), `|unliquify_exact|10|`]).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: memo for unliquify_exact operation is incomplete")        
+    });  
+
+    it('error: minimum not met', async () => {
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(0.9), memo]).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: minimum unliquify amount not met")        
+    });   
+
+    it('error: need to use the stake action first', async () => {
+        await stake('mike', 100, true)
+        await contracts.token_contract.actions.transfer(['mike', 'ricky', lswax(10), '']).send('mike@active');
+        const action = contracts.token_contract.actions.transfer(['ricky', 'dapp.fusion', lswax(10), memo]).send('ricky@active');
+        await expectToThrow(action, "eosio_assert: you need to use the stake action first")
+    });  
+
+    it('error: output less than expected', async () => {
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), '|unliquify_exact|1100000000|0|']).send('mike@active') 
+        await expectToThrow(action, "eosio_assert_message: output would be 10.00000000 SWAX but expected 11.00000000 SWAX")        
+    });    
+
+    it('error: max slippage out of range', async () => {
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), '|unliquify_exact|1100000000|100000001|']).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: max slippage is out of range")        
+    });   
+
+    it('error: expected out of range', async () => {
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), '|unliquify_exact|4611686018427387904|99999999|']).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: expected output is out of range")        
+    });   
+
+    it('success', async () => {
+        await stake('mike', 1000, true)
+        await contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), memo]).send('mike@active') 
+    });                  
 });
 
-/*
+
 describe('\n\nsimulate_days', () => {
 
     it('success', async () => {
@@ -362,7 +406,7 @@ describe('\n\nsimulate_days', () => {
     });  
  
 });
-*/
+
 
 describe('\n\nno memo / unexpected memo', () => {
     const err = `eosio_assert: must include a memo for transfers to dapp.fusion, see docs.waxfusion.io for a list of memos`
@@ -380,6 +424,93 @@ describe('\n\nno memo / unexpected memo', () => {
         const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), '']).send('mike@active');
         await expectToThrow(action, err)
     });    
+});
+
+describe('\n\ninstant redeem memo', () => {
+    
+    it('error: only lswax accepted', async () => {
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), 'instant redeem']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: only LSWAX should be sent with this memo`)
+    });  
+
+    it('error: sender should be pol.fusion', async () => {
+        await stake('mike', 10, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), 'instant redeem']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: expected pol.fusion to be the sender`)
+    }); 
+
+    it('error: minimum not met', async () => {
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10), '']).send('mike@active');
+        await stake('pol.fusion', 10, true)
+        const action = contracts.token_contract.actions.transfer(['pol.fusion', 'dapp.fusion', lswax(0.9), 'instant redeem']).send('pol.fusion@active');
+        await expectToThrow(action, `eosio_assert: minimum unliquify amount not met`)
+    });      
+  
+    it('error: not enough instant redeem funds available', async () => {
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(100000), '']).send('mike@active');
+        await stake('pol.fusion', 100000, true)
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send()
+        const action = contracts.token_contract.actions.transfer(['pol.fusion', 'dapp.fusion', lswax(100000), 'instant redeem']).send('pol.fusion@active');
+        await expectToThrow(action, `eosio_assert: not enough instaredeem funds available`)
+    });  
+
+    it('success', async () => {
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(100000), '']).send('mike@active');
+        await stake('pol.fusion', 100000, true)
+        await contracts.token_contract.actions.transfer(['pol.fusion', 'dapp.fusion', lswax(100000), 'instant redeem']).send('pol.fusion@active');
+    });        
+});
+
+describe('\n\nrebalance memo', () => {
+    
+    it('error: only lswax accepted', async () => {
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), 'rebalance']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: only LSWAX should be sent with this memo`)
+    });  
+
+    it('error: sender should be pol.fusion', async () => {
+        await stake('mike', 10, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), 'rebalance']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: expected pol.fusion to be the sender`)
+    }); 
+
+    it('error: minimum not met', async () => {
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10), '']).send('mike@active');
+        await stake('pol.fusion', 10, true)
+        const action = contracts.token_contract.actions.transfer(['pol.fusion', 'dapp.fusion', lswax(0.9), 'rebalance']).send('pol.fusion@active');
+        await expectToThrow(action, `eosio_assert: minimum unliquify amount not met`)
+    });      
+  
+    it('error: not enough instant redeem funds available', async () => {
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(100000), '']).send('mike@active');
+        await stake('pol.fusion', 100000, true)
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send()
+        const action = contracts.token_contract.actions.transfer(['pol.fusion', 'dapp.fusion', lswax(100000), 'rebalance']).send('pol.fusion@active');
+        await expectToThrow(action, `eosio_assert: not enough instaredeem funds available`)
+    });  
+
+    it('success', async () => {
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(100000), '']).send('mike@active');
+        await stake('pol.fusion', 100000, true)
+        await contracts.token_contract.actions.transfer(['pol.fusion', 'dapp.fusion', lswax(100000), 'rebalance']).send('pol.fusion@active');
+    });        
+});
+
+describe('\n\nwax_lswax_liquidity memo', () => {
+    
+    it('error: only wax accepted', async () => {
+        await stake('mike', 10, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), 'wax_lswax_liquidity']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: only WAX should be sent with this memo`)
+    });  
+
+    it('error: sender should be pol.fusion', async () => {
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), 'wax_lswax_liquidity']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: expected pol.fusion to be the sender`)
+    }); 
+      
 });
 
 module.exports = {
