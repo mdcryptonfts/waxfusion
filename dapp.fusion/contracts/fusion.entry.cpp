@@ -260,7 +260,7 @@ ACTION fusion::createfarms(){
 	states.set(s, _self);
 
 	//make sure enough time has passed since last distribution, and that there are funds to use for incentives
-	check( s2.last_incentive_distribution + LP_FARM_DURATION_SECONDS < now(), "hasn't been 1 week since last farms were created");
+	check( s2.last_incentive_distribution + LP_FARM_DURATION_SECONDS <= now(), "hasn't been 1 week since last farms were created");
 	check( s2.incentives_bucket.amount > 0, "no lswax in the incentives_bucket" );
 
 	//we have to know what the ID of each incentive will be on alcor's contract before submitting

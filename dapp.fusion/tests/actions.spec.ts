@@ -415,7 +415,29 @@ describe('\n\ncreatefarms action', () => {
         assert( alcor_incentives.length == 2, "there should be 2 incentives on alcor" )
         const dapp_state_after = await getDappState2()
         almost_equal( parseFloat(dapp_state_before.incentives_bucket) * 0.74, parseFloat(dapp_state_after.incentives_bucket) )
-    });           
+    });  
+
+    it('success with previous farms in table', async () => {
+        await contracts.dapp_contract.actions.setincentive([3, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        const incentives_after = await getDappIncentives()
+        assert( incentives_after.length == 2, "there should be 2 incentives in the table" )
+        await simulate_days(7, true)
+        await incrementTime(86400*7)
+        const dapp_state_before = await getDappState2()
+        await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
+        const alcor_incentives = await getAlcorIncentives()
+        assert( alcor_incentives.length == 2, "there should be 2 incentives on alcor" )
+        const dapp_state_after = await getDappState2()
+        almost_equal( parseFloat(dapp_state_before.incentives_bucket) * 0.74, parseFloat(dapp_state_after.incentives_bucket) )
+
+        await incrementTime(86400*7)
+        const dapp_state_before_2 = await getDappState2()
+        await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
+        const alcor_incentives_2 = await getAlcorIncentives()
+        assert( alcor_incentives_2.length == 4, "there should be 4 incentives on alcor" )
+        const dapp_state_after_2 = await getDappState2()
+        almost_equal( parseFloat(dapp_state_before_2.incentives_bucket) * 0.74, parseFloat(dapp_state_after_2.incentives_bucket) )        
+    });               
 });
 
 describe('\n\ndistribute action', () => {

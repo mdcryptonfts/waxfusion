@@ -285,6 +285,64 @@ describe('\n\nrent_cpu memo', () => {
         await expectToThrow(action, "eosio_assert: only WAX can be sent with this memo")
     });  
  
+    it('error: !is_account( receiver )', async () => {
+        const memo = rent_cpu_memo('steve', 100, initial_state.chain_time)
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: steve is not an account")
+    });  
+
+    it('error: incomplete memo', async () => {
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), `|rent_cpu|mike|10|`]).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: memo for rent_cpu operation is incomplete")
+    });     
+
+    it('error: max amount to rent', async () => {
+        const memo = rent_cpu_memo('mike', 10000001, initial_state.chain_time)
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: maximum wax amount to rent is 10000000")
+    }); 
+
+    it('error: min amount to rent', async () => {
+        const memo = rent_cpu_memo('mike', 9, initial_state.chain_time)
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: minimum wax amount to rent is 10")
+    }); 
+
+    it('error: not enough wax in rental pool', async () => {
+        const memo = rent_cpu_memo('mike', 10000000, initial_state.chain_time)
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: there is not enough wax in the rental pool to cover this rental")
+    }); 
+    
+    it('error: too late for this epoch', async () => {
+        await incrementTime(86400*11)
+        const memo = rent_cpu_memo('mike', 10, initial_state.chain_time)
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: it is too late to rent from this epoch, please rent from the next one")
+    });  
+
+    it('error: epoch does not exist', async () => {
+        const memo = rent_cpu_memo('mike', 10, initial_state.chain_time - (86400*7))
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active') 
+        await expectToThrow(action, `eosio_assert: epoch ${initial_state.chain_time - (86400*7)} does not exist`)
+    });    
+
+    it('error: invalid epoch', async () => {
+        const memo = rent_cpu_memo('mike', 10, initial_state.chain_time - (86400*14))
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: you are trying to rent from an invalid epoch")
+    });   
+
+    it('error: didnt send enough wax', async () => {
+        const memo = rent_cpu_memo('mike', 1000, initial_state.chain_time)
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(1), memo]).send('mike@active') 
+        await expectToThrow(action, `eosio_assert: expected to receive ${wax(13.2)}`)
+    });   
+
+    it('success', async () => {
+        const memo = rent_cpu_memo('mike', 1000, initial_state.chain_time)
+        await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(13.2), memo]).send('mike@active') 
+    });            
 });
 
 
@@ -344,21 +402,7 @@ describe('\n\nunliquify_exact memo', () => {
 describe('\n\nsimulate_days', () => {
 
     it('success', async () => {
-        //await stake('bob', 10000, true, 5000)
-        //await stake('mike', 10000)
         await simulate_days(14, true)
-
-        //check the dapp state
-        //await getDappState(true)
-
-        //check the pol state
-        //await getPolState(true)
-
-        //swax backing lswax should now be initial + (5*simulation)
-
-        //check the staked balance of each user
-
-        //check the lswax balance of each user
 
         //check the lswax supply
         await getSupply(contracts.token_contract, "LSWAX")
@@ -366,19 +410,8 @@ describe('\n\nsimulate_days', () => {
         //check the swax supply
         await getSupply(contracts.token_contract, "SWAX")
 
-        //await unliquify('bob', 10000);
-        //const bobs_bal = await getBalances('bob', contracts.token_contract, true)
-
-        //try using pol contract to mess things up (instant redeem, rebalance)
-        //await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10000), '']).send('mike@active')
-        //await contracts.token_contract.actions.transfer(['bob', 'pol.fusion', lswax(10000), '']).send('bob@active')
-        //await contracts.pol_contract.actions.rebalance([]).send('mike@active')
-
         //check the dapp state
         const dapp_state = await getDappState()
-
-        //check the pol state
-        //await getPolState(true)
 
         //check the lswax supply
         const lswax_supply = await getSupply(contracts.token_contract, "LSWAX")
