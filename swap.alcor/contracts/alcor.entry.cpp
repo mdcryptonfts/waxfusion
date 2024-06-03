@@ -5,6 +5,21 @@
 
 //contractName: alcor
 
+uint128_t alcor::calculate_sqrtPriceX64(int64_t amountA, int64_t amountB){
+		if(amountA == amountB) return SQRT_64_1_TO_1;
+		else if( (amountA == 0 && amountB != 0) || (amountB == 0 && amountA != 0) ) return 10;
+
+    double priceRatio = static_cast<double>(amountA) / static_cast<double>(amountB);
+    double sqrtPrice = sqrt(priceRatio);
+
+    double scaled_sqrt = sqrtPrice * double(SCALE_FACTOR_1E8);
+    uint64_t sqrt_int = uint64_t(scaled_sqrt);
+
+    uint128_t sqrtPriceX64 = ( uint128_t(sqrt_int) * TWO_POW_64 ) / SCALE_FACTOR_1E8;
+
+    return sqrtPriceX64;
+}
+
 uint64_t now(){
   return current_time_point().sec_since_epoch();
 }
@@ -22,7 +37,7 @@ ACTION alcor::createpool(const eosio::name& account, const eosio::extended_asset
 		_row.feeProtocol = 0;
 		_row.tickSpacing = 60;
 		_row.maxLiquidityPerTick = 1247497401346422;
-		_row.currSlot = 	{0,1711149497,1,1};
+		_row.currSlot = {SQRT_64_1_TO_1,1711149497,1,1};
 		_row.feeGrowthGlobalAX64 = 0;
 		_row.feeGrowthGlobalBX64 = 0;
 		_row.protocolFeeA = asset(0, tokenA.quantity.symbol);
@@ -45,16 +60,18 @@ ACTION alcor::initunittest(const eosio::asset& wax_amount, const eosio::asset& l
 		pools_t.erase( itr );
 	}
 
+	uint128_t sqrtPriceX64 = calculate_sqrtPriceX64(wax_amount.amount, lswax_amount.amount);	
+
 	pools_t.emplace(_self, [&](auto &_row){
 		_row.id = 2;
 		_row.active = true;
-		_row.tokenA = { asset(wax_amount), WAX_CONTRACT };
-		_row.tokenB = { asset(lswax_amount), TOKEN_CONTRACT };
+		_row.tokenA = { wax_amount, WAX_CONTRACT };
+		_row.tokenB = { lswax_amount, TOKEN_CONTRACT };
 		_row.fee = 3000;
 		_row.feeProtocol = 0;
 		_row.tickSpacing = 60;
 		_row.maxLiquidityPerTick = 1247497401346422;
-		_row.currSlot = 	{0,1711149497,1,1};
+		_row.currSlot = {sqrtPriceX64,1711149497,1,1};
 		_row.feeGrowthGlobalAX64 = 0;
 		_row.feeGrowthGlobalBX64 = 0;
 		_row.protocolFeeA = asset(0, WAX_SYMBOL);

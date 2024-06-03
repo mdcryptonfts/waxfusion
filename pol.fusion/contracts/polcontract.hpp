@@ -72,29 +72,28 @@ CONTRACT polcontract : public contract {
 		refunds_table refunds_t = refunds_table(SYSTEM_CONTRACT, get_self().value);
 		renters_table renters_t = renters_table(get_self(), get_self().value);
 
-
 		//Functions
 		void add_liquidity( state3& s, liquidity_struct& lp_details );
 		int64_t calculate_asset_share(const int64_t& quantity, const uint64_t& percentage);
 		void calculate_liquidity_allocations(const liquidity_struct& lp_details, 
 			int64_t& liquidity_allocation, int64_t& wax_bucket_allocation, int64_t& buy_lswax_allocation);
-		uint128_t calculate_share_from_e18(const uint128_t& amount, const uint64_t& percentage);
 		int64_t cpu_rental_price(const uint64_t& days, const int64_t& price_per_day, const int64_t& amount);
 		int64_t cpu_rental_price_from_seconds(const uint64_t& seconds, const int64_t& price_per_day, const uint64_t& amount);
 		uint64_t days_to_seconds(const uint64_t& days);
 		void deposit_liquidity_to_alcor(const liquidity_struct& lp_details);
 		liquidity_struct get_liquidity_info(config2 c, dapp_tables::state ds);
-		uint128_t pool_ratio_1e18(const int64_t& wax_amount, const int64_t& lswax_amount);
 		int64_t internal_liquify(const int64_t& quantity, dapp_tables::state s);
 		int64_t internal_unliquify(const int64_t& quantity, dapp_tables::state s);
 		uint64_t now();
 		std::vector<std::string> parse_memo(std::string memo);
 		uint128_t seconds_to_days_1e6(const uint64_t& seconds);
+		std::vector<int64_t> sqrt64_to_price(const uint128_t& sqrtPriceX64);
 		void stake_wax(const name& receiver, const int64_t& cpu_amount, const int64_t& net_amount);
+		int64_t token_price(const int64_t& amount_A, const int64_t& amount_B);
 		void transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const std::string& memo);
 		void update_state();
 		void update_votes();
-		void validate_allocations(const int64_t& quantity, const int64_t& lswax_alloc, const int64_t& wax_alloc, const int64_t& rental_alloc);
+		void validate_allocations(const int64_t& quantity, const std::vector<int64_t> allocations);
 
 		//Safemath
 		int64_t safeAddInt64(const int64_t& a, const int64_t& b);

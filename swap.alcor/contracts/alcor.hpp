@@ -41,6 +41,9 @@ CONTRACT alcor : public contract {
 		incentives_table incentives_t = incentives_table( _self, _self.value );
 		pools_table pools_t = pools_table( _self, _self.value);
 
+		//Functions
+		uint128_t calculate_sqrtPriceX64(int64_t amountA, int64_t amountB);
+
 };
 
 

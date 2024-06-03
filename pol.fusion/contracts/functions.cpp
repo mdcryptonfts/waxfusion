@@ -4,13 +4,11 @@
 void polcontract::add_liquidity( state3& s, liquidity_struct& lp_details ){
 
   //scale the wax bucket by e18
-  uint128_t wax_bucket_e18 = safeMulUInt128( uint128_t(s.wax_bucket.amount), SCALE_FACTOR_1E18 );
-
-  //make sure its safe to do division
-  check( wax_bucket_e18 > lp_details.alcors_lswax_price, "can not safely divide the bucket" );
+  uint128_t wax_bucket_scaled = safeMulUInt128( uint128_t(s.wax_bucket.amount), SCALE_FACTOR_1E8 );
+  check( wax_bucket_scaled > lp_details.alcors_lswax_price, "can not safely divide the bucket" );
 
   //Maximum possible based on buckets
-  uint128_t max_wax_possible = safeDivUInt128( wax_bucket_e18, lp_details.alcors_lswax_price );
+  uint128_t max_wax_possible = safeDivUInt128( wax_bucket_scaled, lp_details.alcors_lswax_price );
   uint128_t max_lswax_possible = uint128_t(s.lswax_bucket.amount);
 
   // Determine the limiting factor
@@ -21,48 +19,21 @@ void polcontract::add_liquidity( state3& s, liquidity_struct& lp_details ){
       wax_to_add = uint128_t(s.wax_bucket.amount);
 
       //scale wax_to_add before division
-      uint128_t wax_to_add_e18 = safeMulUInt128( wax_to_add, SCALE_FACTOR_1E18 );
+      uint128_t wax_to_add_scaled = safeMulUInt128( wax_to_add, SCALE_FACTOR_1E8 );
 
       //make sure division is safe
-      check( wax_to_add_e18 > lp_details.alcors_lswax_price, "can not safely divide to calculate LP" );
+      check( wax_to_add_scaled > lp_details.alcors_lswax_price, "can not safely divide to calculate LP" );
 
       //calculate the amount of lswax to pair with the wax bucket
-      lswax_to_add = safeDivUInt128( wax_to_add_e18, lp_details.alcors_lswax_price );
+      lswax_to_add = safeDivUInt128( wax_to_add_scaled, lp_details.alcors_lswax_price );
 
   } else {
       // LSWAX is the limiting factor so we will add the full bucket to alcor
       lswax_to_add = uint128_t(s.lswax_bucket.amount);
 
-      /** if alcor price < the max_scale_factor for lswax_to_add,
-       *  multiplying these 2 numbers together is acceptable
-       *  otherwise there will be overflow, so we can run a loop
-       *  to scale down until the size is acceptable
-       * 
-       *  we use a bool to determine if we scaled down or not
-       *  otherwise we would be dividing the end result by too large of 
-       *  a scale factor, unnecessarily which would cause incorrect math
-       */
 
-      uint128_t scale_factor = max_scale_without_room( lswax_to_add );
-
-      int count = 0;
-      bool scaled_down_alcor = false;
-
-      while(lp_details.alcors_lswax_price > scale_factor && count < 12 ){
-        scaled_down_alcor = true;
-        lp_details.alcors_lswax_price /= 10;
-        count++;
-
-        if(count == 11){
-          check(false, "can not get pool price");
-        }
-        
-      }
-
-      //multiply wax_to_add by alcors price before division, to determine the correct amount to add
-      //then scale it down by the scale factor
       uint128_t wax_to_add_scaled = safeMulUInt128( lswax_to_add, lp_details.alcors_lswax_price );
-      wax_to_add = scaled_down_alcor ? safeDivUInt128( wax_to_add_scaled, scale_factor ) : safeDivUInt128( wax_to_add_scaled, SCALE_FACTOR_1E18 );
+      wax_to_add = safeDivUInt128( wax_to_add_scaled, SCALE_FACTOR_1E8 );
   }
 
   //determine whether tokenA or tokenB is wax, and populate the data accordingly so we can construct a transaction for alcor
@@ -72,8 +43,6 @@ void polcontract::add_liquidity( state3& s, liquidity_struct& lp_details ){
   //set the minimum amounts to add for each asset at 99.5% to allow minor slippage
   lp_details.poolA.minAsset = lp_details.aIsWax ? asset( calculate_asset_share( int64_t(wax_to_add), 99500000), WAX_SYMBOL ) : asset( calculate_asset_share( int64_t(lswax_to_add), 99500000), LSWAX_SYMBOL );
   lp_details.poolB.minAsset = !lp_details.aIsWax ? asset( calculate_asset_share( int64_t(wax_to_add), 99500000), WAX_SYMBOL ) : asset( calculate_asset_share( int64_t(lswax_to_add), 99500000), LSWAX_SYMBOL );
-
-
 
 
   //debit the amounts from wax bucket and lswax bucket
@@ -144,8 +113,8 @@ void polcontract::deposit_liquidity_to_alcor(const liquidity_struct& lp_details)
       _self,
       lp_details.poolA.amountToAdd,
       lp_details.poolB.amountToAdd,
-      int32_t(-443580),
-      int32_t(443580),
+      int32_t(-443580), //lowest tick, full range
+      int32_t(443580), //highest tick, full range
       lp_details.poolA.minAsset,
       lp_details.poolB.minAsset,
       uint32_t(0),
@@ -162,6 +131,7 @@ liquidity_struct polcontract::get_liquidity_info(config2 c, dapp_tables::state d
 
   //make sure we can find the pair on alcor
   auto itr = pools_t.require_find( poolId, ("could not locate pool id " + std::to_string(poolId) ).c_str() );
+  uint128_t sqrtPriceX64 = itr->currSlot.sqrtPriceX64;
 
   //initialize default structs for the 2 sides of the pair
   token_a_or_b poolA, poolB;
@@ -173,26 +143,14 @@ liquidity_struct polcontract::get_liquidity_info(config2 c, dapp_tables::state d
   poolA = aIsWax ? token_a_or_b{itr->tokenA.quantity.amount, WAX_SYMBOL, WAX_CONTRACT, ZERO_WAX, ZERO_WAX} : token_a_or_b{itr->tokenB.quantity.amount, LSWAX_SYMBOL, TOKEN_CONTRACT, ZERO_LSWAX, ZERO_LSWAX};
   poolB = !aIsWax ? token_a_or_b{itr->tokenA.quantity.amount, WAX_SYMBOL, WAX_CONTRACT, ZERO_WAX, ZERO_WAX} : token_a_or_b{itr->tokenB.quantity.amount, LSWAX_SYMBOL, TOKEN_CONTRACT, ZERO_LSWAX, ZERO_LSWAX};
 
-  //initialize variables to store the amounts in each side of the pair,
-  //according to which token is wax and which is lswax
-  int64_t pool_wax = aIsWax ? poolA.quantity : poolB.quantity;
-  int64_t pool_lswax = !aIsWax ? poolA.quantity : poolB.quantity;
-
-  //get the scaled wax price from the dapp.fusion contract
+  //get the lswax price from the dapp.fusion contract
   //this allows us to compare against alcors price and determine if alcors price is acceptable
   //to avoid potential losses by depositing liquidity at an unreasonable price
-  uint128_t real_lswax_price = pool_ratio_1e18( ds.swax_currently_backing_lswax.amount, ds.liquified_swax.amount );
-
-  //if there is 0 tokens in each side of the pool, this is acceptable because its 1:1 ratio
-  //allowing us to deposit initial liquidity
-  //after that point, we want to make sure there is at least something in each side of the pair
-  //this also helps validate quantities before calling pool_ratio_1e18 below
-  if( (pool_wax < 10 || pool_lswax < 10) && ( pool_wax > 0 || pool_lswax > 0 ) ){
-    return { false, 0, real_lswax_price, false, poolA, poolB, poolId };
-  }
+  int64_t real_lswax_price = token_price( ds.swax_currently_backing_lswax.amount, ds.liquified_swax.amount );
 
   //get the scaled version of alcor's price, so we can compare it to the real price
-  uint128_t alcors_lswax_price = pool_ratio_1e18( pool_wax, pool_lswax );
+  std::vector<int64_t> alcor_prices = sqrt64_to_price( sqrtPriceX64 );
+  int64_t alcors_lswax_price = aIsWax ? alcor_prices[0] : alcor_prices[1];
 
   /** to determine if alcor's price is acceptable, one of the following must be true
    *  - lswax is cheaper on alcor than the real price, but the difference is <= 5%
@@ -200,15 +158,11 @@ liquidity_struct polcontract::get_liquidity_info(config2 c, dapp_tables::state d
    *  - lswax is <= 5% more than the real price
    *  if none of these are true, we will save the wax for now and check again during next revenue distribution
    *  if 1 week goes by without the price being acceptable, we will move funds into the CPU rental pool instead
-   *  
-   *  since the numbers are already scaled so high, multiplying more becomes difficult
-   *  rather than adding 5% to real_lswax_price, we'll check if our price > 95.238095% of alcors price
-   *  which is equivalent to checking if our price is < ( alcors_price * 1.05 ) 
    */
 
-  if( real_lswax_price > calculate_share_from_e18( alcors_lswax_price, 95238095 ) //real price is <= 5% higher
+  if( real_lswax_price < calculate_asset_share( alcors_lswax_price, 105000000 ) //real price is <= 5% higher
       &&
-      alcors_lswax_price > calculate_share_from_e18( real_lswax_price, 95238095 ) //real price <= 5% lower
+      alcors_lswax_price < calculate_asset_share( real_lswax_price, 105000000 ) //real price <= 5% lower
     ){
     return { true, alcors_lswax_price, real_lswax_price, aIsWax, poolA, poolB, poolId };
   } else {
@@ -281,9 +235,13 @@ void polcontract::update_votes(){
   return;
 }
 
-void polcontract::validate_allocations( const int64_t& quantity, const int64_t& lswax_alloc, const int64_t& wax_alloc, const int64_t& rental_alloc ){
-    int64_t check_1 = safeAddInt64( lswax_alloc, wax_alloc );
-    int64_t check_2 = safeAddInt64( check_1, rental_alloc );
-    check( check_2 <= quantity, "overallocation of funds" );
-    return;
+void polcontract::validate_allocations( const int64_t& quantity, const std::vector<int64_t> allocations ){
+  int64_t sum = 0;
+
+  for(int64_t a : allocations){
+    sum = safeAddInt64(sum, a);
+  }
+
+  check( sum <= quantity, "overallocation of funds" );
+  return;
 }

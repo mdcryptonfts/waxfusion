@@ -125,10 +125,7 @@ const simulate_days = async (days = 1, stake_users = false, claim_rewards = true
         
         //distribute
         await contracts.dapp_contract.actions.distribute([]).send('mike@active')
-
-        //if necessary days have passed, unstake cpu, claim refund etc
-        //current_time += 1
-        //await setTime(current_time)    
+  
         count ++
 
     }

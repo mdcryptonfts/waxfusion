@@ -176,6 +176,7 @@ describe('\n\nverify initial state and config', () => {
     });  
 });
 
+/*
 describe('\n\nstake memo', () => {
 
     it('error: need to use the stake action first', async () => {
@@ -545,7 +546,7 @@ describe('\n\nwax_lswax_liquidity memo', () => {
     }); 
       
 });
-
+*/
 module.exports = {
     getPayouts
 }

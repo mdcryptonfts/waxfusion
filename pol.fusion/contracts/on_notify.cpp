@@ -71,7 +71,7 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
         }
 
         //make sure all the numbers add up without overallocating the amount received
-        validate_allocations( quantity.amount, buy_lswax_allocation, wax_bucket_allocation, rental_pool_allocation );
+        validate_allocations( quantity.amount, {buy_lswax_allocation, wax_bucket_allocation, rental_pool_allocation} );
 
         //update the state singleton ( the rest of the transfer amount will be added when the lswax is returned )
         s.wax_available_for_rentals.amount = safeAddInt64( s.wax_available_for_rentals.amount, rental_pool_allocation );
@@ -164,7 +164,7 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
         }
 
         //make sure the numbers add up properly
-        validate_allocations( quantity.amount, buy_lswax_allocation, wax_bucket_allocation, 0 );
+        validate_allocations( quantity.amount, {buy_lswax_allocation, wax_bucket_allocation} );
 
         //update the state singleton. liquidity will be added in the lswax notification handler
         s.wax_bucket.amount = safeAddInt64( s.wax_bucket.amount, wax_bucket_allocation );

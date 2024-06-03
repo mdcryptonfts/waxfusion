@@ -22,8 +22,8 @@ struct token_a_or_b {
 
 struct liquidity_struct {
 	bool  			is_in_range;
-	uint128_t  		alcors_lswax_price;
-	uint128_t  		real_lswax_price;
+	int64_t  		alcors_lswax_price;
+	int64_t  		real_lswax_price;
 	bool  			aIsWax;
 	token_a_or_b 	poolA;
 	token_a_or_b    poolB;

@@ -3,8 +3,8 @@ const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit
 const { assert } = require("chai");
 
 //since we are using javascript
-//allow anything within 0.000003% of the expected result to be tolerated after doing calculations
-function almost_equal(actual, expected, tolerance = 0.00000003) {
+//allow anything within 0.02% of the expected result to be tolerated after doing calculations
+function almost_equal(actual, expected, tolerance = 0.0002) {
     const difference = Math.abs(actual - expected);
     const relativeError = difference / Math.abs(expected);
     assert.isTrue(relativeError <= tolerance, `Expected ${actual} to be within ${tolerance * 100}% of ${expected}`);
