@@ -35,6 +35,16 @@ ACTION fusion::addcpucntrct(const eosio::name& contract_to_add) {
 	}
 }
 
+/** claimaslswax
+ * 	allows the user to claim their claimable wax,
+ * 	convert it to swax and then liquify the swax into lswax
+ *  in a single transaction
+ *  lswax received will be based on the current ratio of wax/lswax,
+ *  not the full claimable wax balance
+ *  swax will be issued 1:1 with the claimable balance
+ *  lswax will be issued at the ratio of wax/lswax
+ */
+
 ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& expected_output, const uint64_t& max_slippage_1e6) {
 
 	require_auth(user);
@@ -163,6 +173,7 @@ ACTION fusion::claimrewards(const eosio::name& user) {
 /**
 * claimswax
 * allows a user to compound their sWAX by claiming WAX and turning it back into more sWAX
+* will result in new sWAX being minted at a 1:1 ratio with the user's claimable balance
 */
 
 ACTION fusion::claimswax(const eosio::name& user) {
@@ -302,6 +313,8 @@ ACTION fusion::createfarms() {
 /**
 * distribute action
 * anyone can call this as long as 24 hours have passed since the last reward distribution
+* new sWAX will be minted to increase the backing of lsWAX (autocompounding rewards for lsWAX holders)
+* new sWAX will be minted and then liquified (== new lsWAX being minted) for LP incentives
 */
 
 ACTION fusion::distribute() {
@@ -318,10 +331,17 @@ ACTION fusion::distribute() {
 		check( false, ("next distribution is not until " + std::to_string(s.next_distribution) ).c_str() );
 	}
 
+	//calculate the next distribution time
+    //to cover the edge case where more than 1 day has passed since the last distribution,
+	//use integer version of ceil() to calculate next distribution time instead of only adding 1 period
+	//which could result in setting next distribution to a past timepoint
+    uint64_t periods_elapsed = ( now() - s.next_distribution + c.seconds_between_distributions - 1 ) / c.seconds_between_distributions;
+    uint64_t next_distribution = s.next_distribution + ( periods_elapsed * c.seconds_between_distributions );	
+
 	//if there is nothing to distribute, create a snapshot with 0 quantities
 	if ( s.revenue_awaiting_distribution.amount == 0 ) {
 		zero_distribution( s );
-		s.next_distribution += c.seconds_between_distributions;
+		s.next_distribution = next_distribution;
 		states.set(s, _self);
 		return;
 	}
@@ -366,7 +386,7 @@ ACTION fusion::distribute() {
 
 	//modify the state with updated info
 	s.total_revenue_distributed.amount = safeAddInt64(s.total_revenue_distributed.amount, amount_to_distribute);
-	s.next_distribution += c.seconds_between_distributions;
+	s.next_distribution = next_distribution;
 	s.wax_available_for_rentals.amount = safeAddInt64(s.wax_available_for_rentals.amount, swax_amount_to_issue);
 	s.revenue_awaiting_distribution.amount = 0;
 	s.user_funds_bucket.amount = safeAddInt64( s.user_funds_bucket.amount, swax_earning_alloc_i64);
@@ -582,6 +602,7 @@ ACTION fusion::inittop21() {
  *  there is a 0.05% fee when using instaredeem. this allows the protocol to utilize
  *  funds that would normally be used for CPU rentals and staking, in a more efficient manner
  *  while also helping to maintain the LSWAX peg on the open market
+ *  the user's sWAX balance will be retired during this transaction
  */
 ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_redeem) {
 	require_auth(user);
@@ -644,6 +665,11 @@ ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_
 	transfer_tokens( user, asset( user_share, WAX_SYMBOL ), WAX_CONTRACT, std::string("your sWAX redemption from waxfusion.io - liquid staking protocol") );
 }
 
+/** liquify
+ *  used when a user wants to convert their sWAX into lsWAX
+ *  new lsWAX will be minted based on the current ratio of wax/lsWAX
+ *	the user's sWAX balance will be moved to swax_currently_backing_lswax
+ */
 
 ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity) {
 	require_auth(user);
@@ -691,6 +717,10 @@ ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity) {
 
 	debit_user_redemptions_if_necessary(user, staker.swax_balance);
 }
+
+/** liquifyexact
+ *  same as liquify, but allows the user to specify the minimum amount received
+ */
 
 ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantity,
                             const eosio::asset& expected_output, const uint64_t& max_slippage_1e6)
@@ -782,6 +812,11 @@ ACTION fusion::reallocate() {
 
 	states.set(s, _self);
 }
+
+/** redeem
+ *  a user has requested a redemption, and is now claiming it
+ *  they will get their wax back, and the sWAX they were holding will be retired
+ */
 
 ACTION fusion::redeem(const eosio::name& user) {
 	require_auth(user);
