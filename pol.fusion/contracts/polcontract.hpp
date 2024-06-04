@@ -96,6 +96,7 @@ CONTRACT polcontract : public contract {
 		void validate_allocations(const int64_t& quantity, const std::vector<int64_t> allocations);
 
 		//Safemath
+		int64_t mulDiv(uint64_t a, uint64_t b, uint128_t denominator);
 		int64_t safeAddInt64(const int64_t& a, const int64_t& b);
 		uint128_t safeAddUInt128(const uint128_t& a, const uint128_t& b);
 		int64_t safeDivInt64(const int64_t& a, const int64_t& b);

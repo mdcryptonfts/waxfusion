@@ -203,7 +203,7 @@ const getSWaxStaker = async (user, log = false) => {
 }
 
 /* Tests */
-/*
+
 describe('\n\naddadmin action', () => {
 
     it('error: missing auth of _self', async () => {
@@ -977,4 +977,3 @@ describe('\n\nupdatetop21 action', () => {
         await expectToThrow(action, `eosio_assert: attempting to vote for 1 producers but need to vote for 16`)
     });       
 });
-*/

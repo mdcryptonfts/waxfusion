@@ -84,8 +84,6 @@ ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& expecte
     //issue the wax and lswax
     issue_swax(claimable_wax_amount);
     issue_lswax(converted_lsWAX_i64, user);
-
-	return;
 	
 }
 
@@ -160,8 +158,6 @@ ACTION fusion::claimrewards(const eosio::name& user){
 
 	//send the wax rewards to the user
 	transfer_tokens( user, claimable_wax, WAX_CONTRACT, std::string("your sWAX reward claim from waxfusion.io - liquid staking protocol") );
-
-	return;
 }
 
 /** 
@@ -206,8 +202,6 @@ ACTION fusion::claimswax(const eosio::name& user){
 
     //issue the swax
 	issue_swax(swax_amount_to_claim);     	
-
-	return;
 
 }
 
@@ -362,8 +356,10 @@ ACTION fusion::distribute(){
 	int64_t lswax_amount_to_issue = internal_liquify( eco_alloc_i64, s );
 	
 	//make sure that the amounts we are distributing are not greater than the current reward pool
-	validate_distribution_amounts(user_alloc_i64, pol_alloc_i64, eco_alloc_i64, swax_autocompounding_alloc_i64,
-      swax_earning_alloc_i64, amount_to_distribute);
+	//user + pol + eco should be <= amount_to_distribute
+	//swax_autocompounding_alloc_i64 + swax_earning_alloc_i64 should be <= user_alloc_i64
+	validate_allocations( amount_to_distribute, {user_alloc_i64, pol_alloc_i64, eco_alloc_i64} );
+	validate_allocations( user_alloc_i64, {swax_autocompounding_alloc_i64, swax_earning_alloc_i64} );
 
 	//create a snapshot of this distribution
 	create_snapshot(s, swax_earning_alloc_i64, swax_autocompounding_alloc_i64, pol_alloc_i64, eco_alloc_i64, amount_to_distribute);	
@@ -389,8 +385,6 @@ ACTION fusion::distribute(){
 
 	//pol share goes to POL_CONTRACT
 	transfer_tokens( POL_CONTRACT, asset(pol_alloc_i64, WAX_SYMBOL), WAX_CONTRACT, std::string("pol allocation from waxfusion distribution") );    
-
-	return;	
 
 }
 
@@ -421,8 +415,6 @@ ACTION fusion::initconfig(){
 
 	//create the first epoch
 	create_epoch( c, INITIAL_EPOCH_START_TIMESTAMP, "cpu1.fusion"_n, ZERO_WAX );
-
-	return;
 }
 
 
@@ -649,8 +641,6 @@ ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_
     //transfer the funds to the user and retire the swax
     retire_swax(swax_to_redeem.amount);
 	transfer_tokens( user, asset( user_share, WAX_SYMBOL ), WAX_CONTRACT, std::string("your sWAX redemption from waxfusion.io - liquid staking protocol") );    
-
-	return;
 }
 
 
@@ -698,8 +688,6 @@ ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity){
 	states.set(s, _self);
 
 	debit_user_redemptions_if_necessary(user, staker.swax_balance);
-
-	return;
 }
 
 ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantity, 
@@ -763,8 +751,6 @@ ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantit
 	states.set(s, _self);
 
 	debit_user_redemptions_if_necessary(user, staker.swax_balance);
-
-	return;
 }
 
 /**
@@ -1107,8 +1093,6 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
 	}
 
 	states.set(s, _self);
-	return;
-
 }
 
 ACTION fusion::rmvcpucntrct(const eosio::name& contract_to_remove){

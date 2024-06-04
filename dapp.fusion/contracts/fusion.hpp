@@ -129,14 +129,13 @@ CONTRACT fusion : public contract {
 		void sync_tvl();
 		inline void sync_user(state& s, staker_struct& staker);
 		void transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const std::string& memo);
-		void validate_distribution_amounts(const int64_t& user_alloc_i64,	const int64_t& pol_alloc_i64, 
-			const int64_t& eco_alloc_i64, const int64_t& swax_autocompounding_alloc_i64,
-      		const int64_t& swax_earning_alloc_i64, const int64_t& amount_to_distribute_i64);
+		void validate_allocations( const int64_t& quantity, const std::vector<int64_t> allocations );
 		void upsert_rental(const uint64_t& epoch_id, const name& user, const name& receiver, const int64_t& amount);
 		void validate_token(const eosio::symbol& symbol, const eosio::name& contract);
 		void zero_distribution(const state& s);
 
 		//Safemath
+		int64_t mulDiv(uint64_t a, uint64_t b, uint128_t denominator);
 		int64_t safeAddInt64(const int64_t& a, const int64_t& b);
 		uint64_t safeAddUInt64(const uint64_t& a, const uint64_t& b);
 		uint128_t safeAddUInt128(const uint128_t& a, const uint128_t& b);

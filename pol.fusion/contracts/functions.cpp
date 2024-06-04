@@ -1,48 +1,32 @@
 #pragma once
 
-
 void polcontract::add_liquidity( state3& s, liquidity_struct& lp_details ){
 
-  //scale the wax bucket by e18
-  uint128_t wax_bucket_scaled = safeMulUInt128( uint128_t(s.wax_bucket.amount), SCALE_FACTOR_1E8 );
-  check( wax_bucket_scaled > lp_details.alcors_lswax_price, "can not safely divide the bucket" );
-
   //Maximum possible based on buckets
-  uint128_t max_wax_possible = safeDivUInt128( wax_bucket_scaled, lp_details.alcors_lswax_price );
-  uint128_t max_lswax_possible = uint128_t(s.lswax_bucket.amount);
+  int64_t max_wax_possible = mulDiv( uint64_t(s.wax_bucket.amount), safecast::safe_cast<uint64_t>(SCALE_FACTOR_1E8), uint128_t(lp_details.alcors_lswax_price) );
+  int64_t max_lswax_possible = s.lswax_bucket.amount;
 
   // Determine the limiting factor
-  uint128_t wax_to_add, lswax_to_add;
+  int64_t wax_to_add, lswax_to_add;
   if (max_wax_possible <= max_lswax_possible) {
       //WAX is the limiting factor, or the weights are equal
       //so we will add the full wax bucket to LP
-      wax_to_add = uint128_t(s.wax_bucket.amount);
-
-      //scale wax_to_add before division
-      uint128_t wax_to_add_scaled = safeMulUInt128( wax_to_add, SCALE_FACTOR_1E8 );
-
-      //make sure division is safe
-      check( wax_to_add_scaled > lp_details.alcors_lswax_price, "can not safely divide to calculate LP" );
-
-      //calculate the amount of lswax to pair with the wax bucket
-      lswax_to_add = safeDivUInt128( wax_to_add_scaled, lp_details.alcors_lswax_price );
+      wax_to_add = s.wax_bucket.amount;
+      lswax_to_add = mulDiv( uint64_t(wax_to_add), safecast::safe_cast<uint64_t>(SCALE_FACTOR_1E8), uint128_t(lp_details.alcors_lswax_price) );
 
   } else {
       // LSWAX is the limiting factor so we will add the full bucket to alcor
-      lswax_to_add = uint128_t(s.lswax_bucket.amount);
-
-
-      uint128_t wax_to_add_scaled = safeMulUInt128( lswax_to_add, lp_details.alcors_lswax_price );
-      wax_to_add = safeDivUInt128( wax_to_add_scaled, SCALE_FACTOR_1E8 );
+      lswax_to_add = s.lswax_bucket.amount;
+      wax_to_add = mulDiv( uint64_t(lswax_to_add), uint64_t(lp_details.alcors_lswax_price), SCALE_FACTOR_1E8 );
   }
 
   //determine whether tokenA or tokenB is wax, and populate the data accordingly so we can construct a transaction for alcor
-  lp_details.poolA.amountToAdd = lp_details.aIsWax ? asset( int64_t(wax_to_add), WAX_SYMBOL ) : asset( int64_t(lswax_to_add), LSWAX_SYMBOL );
-  lp_details.poolB.amountToAdd = !lp_details.aIsWax ? asset( int64_t(wax_to_add), WAX_SYMBOL ) : asset( int64_t(lswax_to_add), LSWAX_SYMBOL );
+  lp_details.poolA.amountToAdd = lp_details.aIsWax ? asset( wax_to_add, WAX_SYMBOL ) : asset( lswax_to_add, LSWAX_SYMBOL );
+  lp_details.poolB.amountToAdd = !lp_details.aIsWax ? asset( wax_to_add, WAX_SYMBOL ) : asset( lswax_to_add, LSWAX_SYMBOL );
 
   //set the minimum amounts to add for each asset at 99.5% to allow minor slippage
-  lp_details.poolA.minAsset = lp_details.aIsWax ? asset( calculate_asset_share( int64_t(wax_to_add), 99500000), WAX_SYMBOL ) : asset( calculate_asset_share( int64_t(lswax_to_add), 99500000), LSWAX_SYMBOL );
-  lp_details.poolB.minAsset = !lp_details.aIsWax ? asset( calculate_asset_share( int64_t(wax_to_add), 99500000), WAX_SYMBOL ) : asset( calculate_asset_share( int64_t(lswax_to_add), 99500000), LSWAX_SYMBOL );
+  lp_details.poolA.minAsset = lp_details.aIsWax ? asset( calculate_asset_share( wax_to_add, 99500000), WAX_SYMBOL ) : asset( calculate_asset_share( lswax_to_add, 99500000), LSWAX_SYMBOL );
+  lp_details.poolB.minAsset = !lp_details.aIsWax ? asset( calculate_asset_share( wax_to_add, 99500000), WAX_SYMBOL ) : asset( calculate_asset_share( lswax_to_add, 99500000), LSWAX_SYMBOL );
 
 
   //debit the amounts from wax bucket and lswax bucket
@@ -70,9 +54,6 @@ void polcontract::add_liquidity( state3& s, liquidity_struct& lp_details ){
 
   //make the transfers to alcor and call the `addliquid` action
   deposit_liquidity_to_alcor(lp_details);
-
-  return;
-
 }
 
 int64_t polcontract::cpu_rental_price(const uint64_t& days, const int64_t& price_per_day, const int64_t& amount){
@@ -117,12 +98,10 @@ void polcontract::deposit_liquidity_to_alcor(const liquidity_struct& lp_details)
       int32_t(443580), //highest tick, full range
       lp_details.poolA.minAsset,
       lp_details.poolB.minAsset,
-      uint32_t(0),
+      uint32_t(0), //deadline
     }
 
   ).send();
-
-  return;
 }
 
 liquidity_struct polcontract::get_liquidity_info(config2 c, dapp_tables::state ds){
@@ -148,7 +127,7 @@ liquidity_struct polcontract::get_liquidity_info(config2 c, dapp_tables::state d
   //to avoid potential losses by depositing liquidity at an unreasonable price
   int64_t real_lswax_price = token_price( ds.swax_currently_backing_lswax.amount, ds.liquified_swax.amount );
 
-  //get the scaled version of alcor's price, so we can compare it to the real price
+  //get alcor's price, so we can compare it to the real price
   std::vector<int64_t> alcor_prices = sqrt64_to_price( sqrtPriceX64 );
   int64_t alcors_lswax_price = aIsWax ? alcor_prices[0] : alcor_prices[1];
 
@@ -190,7 +169,6 @@ void polcontract::stake_wax(const name& receiver, const int64_t& cpu_amount, con
   action(permission_level{ _self, "active"_n}, SYSTEM_CONTRACT, "delegatebw"_n,
     std::tuple{ _self, receiver, asset( net_amount, WAX_SYMBOL ), asset( cpu_amount, WAX_SYMBOL ), false })
   .send();
-  return;
 }
 
 uint128_t polcontract::seconds_to_days_1e6(const uint64_t& seconds){
@@ -200,7 +178,6 @@ uint128_t polcontract::seconds_to_days_1e6(const uint64_t& seconds){
 
 void polcontract::transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const std::string& memo){
   action(permission_level{get_self(), "active"_n}, contract,"transfer"_n,std::tuple{ get_self(), user, amount_to_send, memo}).send();
-  return;
 }
 
 void polcontract::update_state(){
@@ -231,8 +208,6 @@ void polcontract::update_votes(){
     s.last_vote_time = now();
     state_s_3.set(s, _self);
   }
-
-  return;
 }
 
 void polcontract::validate_allocations( const int64_t& quantity, const std::vector<int64_t> allocations ){
@@ -243,5 +218,4 @@ void polcontract::validate_allocations( const int64_t& quantity, const std::vect
   }
 
   check( sum <= quantity, "overallocation of funds" );
-  return;
 }

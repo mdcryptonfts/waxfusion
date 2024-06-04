@@ -114,7 +114,6 @@ ACTION polcontract::deleterental(const uint64_t& rental_id){
 	require_auth( itr->renter );
 	check( itr->expires == 0, "can not delete a rental after funding it, use the clearexpired action" );
 	itr = renters_t.erase( itr );
-	return;
 }
 
 ACTION polcontract::initconfig(){

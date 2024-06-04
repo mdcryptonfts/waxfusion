@@ -176,7 +176,7 @@ describe('\n\nverify initial state and config', () => {
     });  
 });
 
-/*
+
 describe('\n\nstake memo', () => {
 
     it('error: need to use the stake action first', async () => {
@@ -197,7 +197,7 @@ describe('\n\nstake memo', () => {
 
     it('success: staked 10 wax', async () => {
         await stake('mike', 10)
-    	const dapp_state = await getDappState();
+    	const dapp_state = await getDappState(true);
     	assert(dapp_state.swax_currently_earning == swax(10), "swax_currently_earning should be 10");
         assert(dapp_state.wax_available_for_rentals == wax(initial_state.dapp_rental_pool + 10), `wax_available_for_rentals should be ${initial_state.dapp_rental_pool + 10}`);
     	const swax_supply = await getSupply(contracts.token_contract, "SWAX");
@@ -546,7 +546,7 @@ describe('\n\nwax_lswax_liquidity memo', () => {
     }); 
       
 });
-*/
+
 module.exports = {
     getPayouts
 }

@@ -4,7 +4,6 @@ void fusion::create_alcor_farm(const uint64_t& poolId, const eosio::symbol& toke
   action(permission_level{ _self , "active"_n }, ALCOR_CONTRACT, "newincentive"_n,
       std::tuple{ _self, poolId, eosio::extended_asset(ZERO_LSWAX, TOKEN_CONTRACT), (uint32_t) LP_FARM_DURATION_SECONDS }
     ).send();
-  return;
 }
 
 void fusion::create_epoch(const config3& c, const uint64_t& start_time, const name& cpu_wallet, const asset& wax_bucket){
@@ -21,7 +20,6 @@ void fusion::create_epoch(const config3& c, const uint64_t& start_time, const na
     _e.total_cpu_funds_returned = ZERO_WAX;
     _e.total_added_to_redemption_bucket = ZERO_WAX;
   }); 
-  return;  
 }
 
 void fusion::create_snapshot(const state& s, const int64_t& swax_earning_alloc_i64, const int64_t& swax_autocompounding_alloc_i64, 
@@ -36,7 +34,6 @@ void fusion::create_snapshot(const state& s, const int64_t& swax_earning_alloc_i
     _snap.total_distributed = asset(amount_to_distribute, WAX_SYMBOL);  
     _snap.total_swax_earning = s.swax_currently_earning;
   });  
-  return;
 }
 
 void fusion::credit_total_claimable_wax(const eosio::asset& amount_to_credit){
@@ -47,14 +44,12 @@ void fusion::credit_total_claimable_wax(const eosio::asset& amount_to_credit){
 
     state_s_3.set(s3, _self);
   }
-  return;
 }
 
 void fusion::debit_total_claimable_wax(state3& s3, const eosio::asset& amount_to_debit){
   if(amount_to_debit.amount > 0 && amount_to_debit.amount <= MAX_ASSET_AMOUNT_U64){
     s3.total_claimable_wax.amount = safeSubInt64( s3.total_claimable_wax.amount, amount_to_debit.amount );
   }
-  return;
 }
 
 /** debit_user_redemptions_if_necessary
@@ -164,8 +159,6 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
     } //end loop of pending requests
 
   } //end if the user is overdrawn
-
-  return;
 }
 
 std::string fusion::cpu_stake_memo(const eosio::name& cpu_receiver, const uint64_t& epoch_timestamp){
@@ -262,12 +255,10 @@ bool fusion::is_cpu_contract(const eosio::name& contract){
 
 void fusion::issue_lswax(const int64_t& amount, const eosio::name& receiver){
   action(permission_level{ _self, "active"_n }, TOKEN_CONTRACT, "issue"_n, std::tuple{ _self, receiver, asset(amount, LSWAX_SYMBOL), std::string("issuing lsWAX to liquify") }).send();
-  return;
 }
 
 void fusion::issue_swax(const int64_t& amount){
   action(permission_level{ _self, "active"_n }, TOKEN_CONTRACT, "issue"_n, std::tuple{ _self, _self, asset(amount, SWAX_SYMBOL), std::string("issuing sWAX for staking") }).send();
-  return;
 }
 
 bool fusion::memo_is_expected(const std::string& memo){
@@ -292,12 +283,10 @@ inline uint64_t fusion::now(){
 
 void fusion::retire_lswax(const int64_t& amount){
   action(permission_level{get_self(), "active"_n}, TOKEN_CONTRACT,"retire"_n,std::tuple{ eosio::asset(amount, LSWAX_SYMBOL), std::string("retiring lsWAX to unliquify")}).send();
-  return;
 }
 
 void fusion::retire_swax(const int64_t& amount){
   action(permission_level{get_self(), "active"_n}, TOKEN_CONTRACT,"retire"_n,std::tuple{ eosio::asset(amount, SWAX_SYMBOL), std::string("retiring sWAX for redemption")}).send();
-  return;
 }
 
 inline void fusion::sync_epoch(config3& c, state& s){
@@ -327,8 +316,6 @@ inline void fusion::sync_epoch(config3& c, state& s){
 
     next_epoch_start_time += c.seconds_between_epochs;
   }
-
-  return;
 }
 
 /**
@@ -485,13 +472,10 @@ inline void fusion::sync_user(state& s, staker_struct& staker){
 
   //debit the user bucket in state
   s.user_funds_bucket.amount = safeSubInt64(s.user_funds_bucket.amount, wax_owed_to_user);
-
-  return;
 }
 
 void fusion::transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const std::string& memo){
   action(permission_level{get_self(), "active"_n}, contract,"transfer"_n,std::tuple{ get_self(), user, amount_to_send, memo}).send();
-  return;
 }
 
 void fusion::upsert_rental(const uint64_t& epoch_id, const name& user, const name& receiver, const int64_t& amount){
@@ -518,23 +502,16 @@ void fusion::upsert_rental(const uint64_t& epoch_id, const name& user, const nam
         _r.amount_staked.amount = safeAddInt64( _r.amount_staked.amount, amount );
       });
     }  
-
-    return;
 }
 
-void fusion::validate_distribution_amounts(const int64_t& user_alloc_i64, const int64_t& pol_alloc_i64, 
-      const int64_t& eco_alloc_i64, const int64_t& swax_autocompounding_alloc_i64,
-      const int64_t& swax_earning_alloc_i64, const int64_t& amount_to_distribute_i64)
-{
-  //check the total sum is in range
-  int64_t alloc_check_1 = safeAddInt64(user_alloc_i64, pol_alloc_i64);
-  int64_t alloc_check_2 = safeAddInt64(alloc_check_1, eco_alloc_i64);
-  check( alloc_check_2 <= amount_to_distribute_i64, "allocation check 2 failed" );
+void fusion::validate_allocations( const int64_t& quantity, const std::vector<int64_t> allocations ){
+  int64_t sum = 0;
 
-  //check that the user sums are <= the user allocation
-  int64_t alloc_check_3 = safeAddInt64(swax_autocompounding_alloc_i64, swax_earning_alloc_i64);
-  check( alloc_check_3 <= user_alloc_i64, "allocation check 3 failed" );
-  return;  
+  for(int64_t a : allocations){
+    sum = safeAddInt64(sum, a);
+  }
+
+  check( sum <= quantity, "overallocation of funds" );
 }
 
 void fusion::validate_token(const eosio::symbol& symbol, const eosio::name& contract)
@@ -555,5 +532,4 @@ void fusion::validate_token(const eosio::symbol& symbol, const eosio::name& cont
 
 void fusion::zero_distribution(const state& s){
   create_snapshot(s, 0, 0, 0, 0, 0);  
-  return; 
 }

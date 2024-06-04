@@ -12,13 +12,8 @@ int64_t fusion::calculate_asset_share(const int64_t& quantity, const uint64_t& p
 
 	//formula is ( quantity * percentage ) / ( 100 * SCALE_FACTOR_1E6 )
 	if(quantity <= 0) return 0;
-
-	uint128_t divisor = safeMulUInt128( uint128_t(quantity), uint128_t(percentage) );
-	
-	//since 100 * 1e6 = 1e8, we will just / SCALE_FACTOR_1E8 here to avoid extra unnecessary math
-	uint128_t result_128 = safeDivUInt128( divisor, SCALE_FACTOR_1E8 );
-
-  	return safecast::safe_cast<int64_t>(result_128);
+  
+  return mulDiv( uint64_t(quantity), percentage, SCALE_FACTOR_1E8 );
 }
 
 /** internal_get_swax_allocations
@@ -35,13 +30,7 @@ int64_t fusion::internal_get_swax_allocations( const int64_t& amount, const int6
 
 	if( swax_divisor <= 0 ) return 0;
 
-	//formula is ( amount *  swax_divisor ) / swax_supply
-	//scale the swax_divisor by the amount before division
-	uint128_t divisor = safeMulUInt128( uint128_t(amount), uint128_t(swax_divisor) );
-
-	uint128_t result_128 = safeDivUInt128( divisor, uint128_t(swax_supply) );
-
-	return safecast::safe_cast<int64_t>(result_128);
+	return mulDiv( uint64_t(amount), uint64_t(swax_divisor), uint128_t(swax_supply) );
 }
 
 int64_t fusion::internal_get_wax_owed_to_user(const int64_t& user_stake, const int64_t& total_stake, const int64_t& reward_pool){
@@ -49,11 +38,7 @@ int64_t fusion::internal_get_wax_owed_to_user(const int64_t& user_stake, const i
 	//formula is ( user_stake * reward_pool ) / total_stake
 	if( user_stake <= 0 ) return 0;
 
-	uint128_t divisor = safeMulUInt128( uint128_t(user_stake), uint128_t(reward_pool) );
-
-	uint128_t result = safeDivUInt128( divisor, uint128_t(total_stake) );
-
-	return safecast::safe_cast<int64_t>(result);
+	return mulDiv( uint64_t(user_stake), uint64_t(reward_pool), uint128_t(total_stake) );
 }
 
 /** internal_liquify
@@ -68,25 +53,14 @@ int64_t fusion::internal_liquify(const int64_t& quantity, state s){
      *  also if lswax has not compounded yet, the result will be 1:1
      */
 	
-    if( (s.liquified_swax.amount == 0 && s.swax_currently_backing_lswax.amount == 0)
-    	||
-    	(s.liquified_swax.amount == s.swax_currently_backing_lswax.amount)
-     ){
+    if( s.liquified_swax.amount == s.swax_currently_backing_lswax.amount ){
       return quantity;
     } else {
-    	uint128_t divisor = safeMulUInt128( uint128_t(s.liquified_swax.amount), uint128_t(quantity) );
-
-      	uint128_t result_128 = safeDivUInt128( divisor, uint128_t(s.swax_currently_backing_lswax.amount) );
-
-      	return safecast::safe_cast<int64_t>(result_128);
+      return mulDiv( uint64_t(s.liquified_swax.amount), uint64_t(quantity), uint128_t(s.swax_currently_backing_lswax.amount) );
     }		
 }
 
 int64_t fusion::internal_unliquify(const int64_t& quantity, state s){
 	//contract should have already validated quantity before calling this
-	uint128_t divisor = safeMulUInt128( uint128_t(s.swax_currently_backing_lswax.amount), uint128_t(quantity) );
-
-  	uint128_t result_128 = safeDivUInt128( divisor, uint128_t(s.liquified_swax.amount) );
-
-  	return safecast::safe_cast<int64_t>(result_128);
+  return mulDiv( uint64_t(s.swax_currently_backing_lswax.amount), uint64_t(quantity), uint128_t(s.liquified_swax.amount) );
 }

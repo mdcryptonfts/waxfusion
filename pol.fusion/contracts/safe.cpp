@@ -1,5 +1,15 @@
 #pragma once
 
+// auto rounding down
+int64_t polcontract::mulDiv(uint64_t a, uint64_t b, uint128_t denominator){
+  eosio::check(denominator != 0, "DivideByZeroException");
+
+  uint128_t prod = uint128_t(a) * uint128_t(b);
+  uint128_t result = prod / denominator;
+
+  return safecast::safe_cast<int64_t>(result);
+}
+
 int64_t polcontract::safeAddInt64(const int64_t& a, const int64_t& b){
 	int64_t sum;
 
