@@ -146,6 +146,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		staked_balance.amount = safeAddInt64(staked_balance.amount, quantity.amount);
 
   		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+  			_s.claimable_wax = staker.claimable_wax;
   			_s.swax_balance = staked_balance;
   			_s.last_update = staker.last_update;
   		});
@@ -194,6 +195,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		staked_balance.amount = safeAddInt64(staked_balance.amount, converted_sWAX_i64);
 
   		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+  			_s.claimable_wax = staker.claimable_wax;
   			_s.swax_balance = staked_balance;
   			_s.last_update = staker.last_update;
   		});
@@ -463,6 +465,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
   		staked_balance.amount = safeAddInt64(staked_balance.amount, converted_sWAX_i64);
 
   		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+  			_s.claimable_wax = staker.claimable_wax;
   			_s.swax_balance = staked_balance;
   			_s.last_update = staker.last_update;
   		});

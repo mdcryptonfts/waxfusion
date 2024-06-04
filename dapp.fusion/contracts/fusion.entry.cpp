@@ -609,6 +609,7 @@ ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_
 
 	//debit requested amount from their staked balance
 	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+		_s.claimable_wax = staker.claimable_wax;
 		_s.swax_balance = staker.swax_balance;
 		_s.last_update = staker.last_update;
 	});
@@ -665,6 +666,7 @@ ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity){
 
 	//debit requested amount from their staked balance
 	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+		_s.claimable_wax = staker.claimable_wax;
 		_s.swax_balance = staker.swax_balance;
 		_s.last_update = staker.last_update;
 	});
@@ -723,6 +725,7 @@ ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantit
 
 	//update the user details in the stakers table
 	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+		_s.claimable_wax = staker.claimable_wax;
 		_s.swax_balance = staker.swax_balance;
 		_s.last_update = staker.last_update;
 	});
@@ -822,6 +825,7 @@ ACTION fusion::redeem(const eosio::name& user){
 	staker.swax_balance.amount = safeSubInt64(staker.swax_balance.amount, req_itr->wax_amount_requested.amount);
 
 	staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+		_s.claimable_wax = staker.claimable_wax;
 		_s.swax_balance = staker.swax_balance;
 		_s.last_update = staker.last_update;
 	});
@@ -951,6 +955,7 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
 
 	if( request_can_be_filled ){
 		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+			_s.claimable_wax = staker.claimable_wax;
 			_s.swax_balance = staker.swax_balance;
 			_s.last_update = staker.last_update;
 		});		
@@ -1085,6 +1090,7 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
 
 		//debit the swax amount from the user's balance
 		staker_t.modify(staker_itr, same_payer, [&](auto &_s){
+			_s.claimable_wax = staker.claimable_wax;
 			_s.swax_balance.amount = safeSubInt64( staker.swax_balance.amount, remaining_amount_to_fill.amount );
 			_s.last_update = staker.last_update;
 		});
