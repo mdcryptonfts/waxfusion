@@ -116,10 +116,14 @@ ACTION polcontract::deleterental(const uint64_t& rental_id){
 	itr = renters_t.erase( itr );
 }
 
-ACTION polcontract::initconfig(){
+ACTION polcontract::initconfig(const uint64_t& lswax_pool_id){
 	require_auth( _self );
 
-	eosio::check( !config_s_2.exists(), "config2 already exists" );
+	check( !config_s_2.exists(), "config2 already exists" );
+
+	//make sure pool exists on alcor and has the correct tokens
+	auto itr = pools_t.require_find( lswax_pool_id, "pool does not exist on alcor" );
+	validate_liquidity_pair( itr->tokenA, itr->tokenB );
 
 	uint64_t rental_pool_allocation_1e6 = 14285714; //14.28% or 1/7th
 	uint64_t liquidity_allocation_1e6 = ONE_HUNDRED_PERCENT_1E6 - rental_pool_allocation_1e6;
@@ -127,7 +131,7 @@ ACTION polcontract::initconfig(){
 	config2 c{};
 	c.liquidity_allocation_1e6 = liquidity_allocation_1e6;
 	c.rental_pool_allocation_1e6 = rental_pool_allocation_1e6;
-	c.lswax_wax_pool_id = TESTNET ? 2 : 9999999; //TODO change this when pair is created on mainnet
+	c.lswax_wax_pool_id = lswax_pool_id;
 	config_s_2.set(c, _self);
 }
 

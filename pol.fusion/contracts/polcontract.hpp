@@ -44,7 +44,7 @@ CONTRACT polcontract : public contract {
 		ACTION claimrefund();
 		ACTION clearexpired(const int& limit);
 		ACTION deleterental(const uint64_t& rental_id);
-		ACTION initconfig();
+		ACTION initconfig(const uint64_t& lswax_pool_id);
 		ACTION initstate3();
 		ACTION rebalance();
 		ACTION rentcpu(const eosio::name& renter, const eosio::name& cpu_receiver);
@@ -94,6 +94,7 @@ CONTRACT polcontract : public contract {
 		void update_state();
 		void update_votes();
 		void validate_allocations(const int64_t& quantity, const std::vector<int64_t> allocations);
+		void validate_liquidity_pair(const eosio::extended_asset& a, const eosio::extended_asset& b);
 
 		//Safemath
 		int64_t mulDiv(uint64_t a, uint64_t b, uint128_t denominator);

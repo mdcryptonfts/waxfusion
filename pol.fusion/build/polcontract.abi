@@ -54,7 +54,12 @@
         {
             "name": "initconfig",
             "base": "",
-            "fields": []
+            "fields": [
+                {
+                    "name": "lswax_pool_id",
+                    "type": "uint64"
+                }
+            ]
         },
         {
             "name": "initstate3",
