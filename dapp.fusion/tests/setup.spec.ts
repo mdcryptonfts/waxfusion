@@ -23,6 +23,7 @@ const contracts = {
 
 const initial_state = {
 	alcor_lswax_pool: lswax(95300),
+    alcor_pool_id: 2,
     alcor_wax_pool: wax(100000),
     chain_time: 1710460800,
     circulating_wax: `10000000.00000000 WAX`,
@@ -46,18 +47,18 @@ function incrementTime(seconds = TEN_MINUTES) {
 
 const init = async () => {
 	await setTime(initial_state.chain_time);
+    await contracts.alcor_contract.actions.initunittest([initial_state.alcor_wax_pool, initial_state.alcor_lswax_pool]).send();       
     await contracts.system_contract.actions.initproducer().send();
     await contracts.dapp_contract.actions.initconfig3().send();
     await contracts.dapp_contract.actions.initconfig().send();
     await contracts.dapp_contract.actions.initstate2().send();
     await contracts.dapp_contract.actions.initstate3().send();
     await contracts.dapp_contract.actions.inittop21().send();
-    await contracts.pol_contract.actions.initconfig().send();
+    await contracts.pol_contract.actions.initconfig([initial_state.alcor_pool_id]).send();
     await contracts.pol_contract.actions.initstate3().send();   
     await contracts.cpu1.actions.initstate().send();
     await contracts.cpu2.actions.initstate().send();
     await contracts.cpu3.actions.initstate().send();  
-    await contracts.alcor_contract.actions.initunittest([initial_state.alcor_wax_pool, initial_state.alcor_lswax_pool]).send();       
     await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 HONEY', contract: 'nfthivehoney'}, {quantity: lswax(0), contract: 'token.fusion'}]).send('eosio@active');       
     await contracts.wax_contract.actions.create(['eosio', initial_state.wax_supply]).send();
     await contracts.honey_contract.actions.create(['mike', initial_state.honey_supply]).send();

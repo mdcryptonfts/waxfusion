@@ -45,18 +45,18 @@ function incrementTime(seconds = 86400) {
 
 const init = async () => {
 	await setTime(initial_state.chain_time);
+    await contracts.alcor_contract.actions.initunittest([initial_state.alcor_wax_pool, initial_state.alcor_lswax_pool]).send();
     await contracts.system_contract.actions.initproducer().send();
     await contracts.dapp_contract.actions.initconfig3().send();
     await contracts.dapp_contract.actions.initconfig().send();
     await contracts.dapp_contract.actions.initstate2().send();
     await contracts.dapp_contract.actions.initstate3().send();
     await contracts.dapp_contract.actions.inittop21().send();
-    await contracts.pol_contract.actions.initconfig().send();
+    await contracts.pol_contract.actions.initconfig([initial_state.alcor_pool_id]).send();
     await contracts.pol_contract.actions.initstate3().send();   
     await contracts.cpu1.actions.initstate().send();
     await contracts.cpu2.actions.initstate().send();
     await contracts.cpu3.actions.initstate().send();  
-    await contracts.alcor_contract.actions.initunittest([initial_state.alcor_wax_pool, initial_state.alcor_lswax_pool]).send();       
     await contracts.wax_contract.actions.create(['eosio', initial_state.wax_supply]).send();
     await contracts.wax_contract.actions.issue(['eosio', initial_state.wax_supply, 'issuing wax']).send('eosio@active');
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.swax_supply]).send();
