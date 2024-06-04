@@ -45,7 +45,7 @@ ACTION fusion::addcpucntrct(const eosio::name& contract_to_add) {
  *  lswax will be issued at the ratio of wax/lswax
  */
 
-ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& expected_output, const uint64_t& max_slippage_1e6) {
+ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& minimum_output) {
 
 	require_auth(user);
 
@@ -62,18 +62,15 @@ ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& expecte
 	sync_user( s, staker );
 
 	//validate the action inputs and make sure they have a claimable balance
-	check( expected_output.amount > 0, "Invalid output quantity." );
-	check( expected_output.amount < MAX_ASSET_AMOUNT, "output quantity too large" );
-	check( expected_output.symbol == LSWAX_SYMBOL, "output symbol should be LSWAX" );
-	check( max_slippage_1e6 >= 0 && max_slippage_1e6 < ONE_HUNDRED_PERCENT_1E6, "max slippage is out of range" );
+	check( minimum_output.amount > 0, "Invalid output quantity." );
+	check( minimum_output.amount < MAX_ASSET_AMOUNT, "output quantity too large" );
+	check( minimum_output.symbol == LSWAX_SYMBOL, "output symbol should be LSWAX" );
 	check( staker.claimable_wax.amount > 0, "you have no wax to claim" );
 
 	//calculate how much lswax they will get, and make sure it's enough to meet what they expect
 	int64_t claimable_wax_amount = staker.claimable_wax.amount;
 	int64_t converted_lsWAX_i64 = internal_liquify( claimable_wax_amount, s );
-	uint64_t minimum_output_percentage = ONE_HUNDRED_PERCENT_1E6 - max_slippage_1e6;
-	int64_t minimum_output = calculate_asset_share( expected_output.amount, minimum_output_percentage );
-	check( converted_lsWAX_i64 >= (int64_t) minimum_output, "output would be " + asset(converted_lsWAX_i64, LSWAX_SYMBOL).to_string() + " but expected " + asset(minimum_output, LSWAX_SYMBOL).to_string() );
+	check( converted_lsWAX_i64 >= minimum_output.amount, "output would be " + asset(converted_lsWAX_i64, LSWAX_SYMBOL).to_string() + " but expected " + minimum_output.to_string() );
 
 	//update the user's row
 	staker_t.modify(staker_itr, same_payer, [&](auto & _s) {
@@ -335,7 +332,7 @@ ACTION fusion::distribute() {
     //to cover the edge case where more than 1 day has passed since the last distribution,
 	//use integer version of ceil() to calculate next distribution time instead of only adding 1 period
 	//which could result in setting next distribution to a past timepoint
-    uint64_t periods_elapsed = ( now() - s.next_distribution + c.seconds_between_distributions - 1 ) / c.seconds_between_distributions;
+    uint64_t periods_elapsed = ( now() - s.next_distribution + c.seconds_between_distributions ) / c.seconds_between_distributions;
     uint64_t next_distribution = s.next_distribution + ( periods_elapsed * c.seconds_between_distributions );	
 
 	//if there is nothing to distribute, create a snapshot with 0 quantities
@@ -723,7 +720,7 @@ ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity) {
  */
 
 ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantity,
-                            const eosio::asset& expected_output, const uint64_t& max_slippage_1e6)
+                            const eosio::asset& minimum_output)
 {
 
 	require_auth(user);
@@ -732,10 +729,9 @@ ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantit
 	check(quantity.amount > 0, "Invalid quantity.");
 	check(quantity.amount < MAX_ASSET_AMOUNT, "quantity too large");
 	check(quantity.symbol == SWAX_SYMBOL, "only SWAX can be liquified");
-	check(expected_output.amount > 0, "Invalid output quantity.");
-	check(expected_output.amount < MAX_ASSET_AMOUNT, "output quantity too large");
-	check(expected_output.symbol == LSWAX_SYMBOL, "output symbol should be LSWAX");
-	check( max_slippage_1e6 >= 0 && max_slippage_1e6 < ONE_HUNDRED_PERCENT_1E6, "max slippage is out of range" );
+	check(minimum_output.amount > 0, "Invalid output quantity.");
+	check(minimum_output.amount < MAX_ASSET_AMOUNT, "output quantity too large");
+	check(minimum_output.symbol == LSWAX_SYMBOL, "output symbol should be LSWAX");
 
 	//fetch the global state
 	state s = states.get();
@@ -761,12 +757,10 @@ ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantit
 	});
 
 	//calculate how much lsWAX the outcome will be
-	uint64_t minimum_output_percentage = ONE_HUNDRED_PERCENT_1E6 - max_slippage_1e6;
 	int64_t converted_lsWAX_i64 = internal_liquify(quantity.amount, s);
-	int64_t minimum_output = calculate_asset_share( expected_output.amount, minimum_output_percentage );
 
 	//make sure the outcome is acceptable for the user
-	check( converted_lsWAX_i64 >= minimum_output, "output would be " + asset(converted_lsWAX_i64, LSWAX_SYMBOL).to_string() + " but expected " + asset(minimum_output, LSWAX_SYMBOL).to_string() );
+	check( converted_lsWAX_i64 >= minimum_output.amount, "output would be " + asset(converted_lsWAX_i64, LSWAX_SYMBOL).to_string() + " but expected " + minimum_output.to_string() );
 
 	//subtract swax amount from swax_currently_earning
 	s.swax_currently_earning.amount = safeSubInt64(s.swax_currently_earning.amount, quantity.amount);

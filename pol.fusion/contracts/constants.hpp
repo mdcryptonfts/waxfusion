@@ -30,6 +30,7 @@ static constexpr uint64_t MINIMUM_WAX_TO_RENT = TESTNET ? 1000000000 : 500000000
 static constexpr uint64_t SECONDS_PER_DAY = 86400;
 
 //Scaling factors
+const uint128_t TWO_POW_32 = uint128_t(1) << 32;
 const uint128_t TWO_POW_64 = uint128_t(1) << 64;
 static constexpr uint128_t SCALE_FACTOR_1E1 = 10;
 static constexpr uint128_t SCALE_FACTOR_1E2 = 100;

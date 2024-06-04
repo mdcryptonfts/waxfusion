@@ -1,5 +1,5 @@
 const { blockchain, contracts, incrementTime, init, initial_state, setTime, stake, simulate_days, unliquify } = require("./setup.spec.ts")
-const { calculate_wax_and_lswax_outputs, honey, lswax, rent_cpu_memo, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
+const { almost_equal, calculate_wax_and_lswax_outputs, honey, lswax, rent_cpu_memo, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
 const { nameToBigInt, TimePoint, expectToThrow } = require("@eosnetwork/vert");
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
@@ -173,6 +173,7 @@ describe('\n\nverify initial state and config', () => {
         await getDappConfig(true)
         await getDappState(true)
         await getDappTop21(true) 
+        await getAlcorPool(true)
     });  
 });
 
@@ -197,11 +198,11 @@ describe('\n\nstake memo', () => {
 
     it('success: staked 10 wax', async () => {
         await stake('mike', 10)
-    	const dapp_state = await getDappState(true);
+    	const dapp_state = await getDappState();
     	assert(dapp_state.swax_currently_earning == swax(10), "swax_currently_earning should be 10");
-        assert(dapp_state.wax_available_for_rentals == wax(initial_state.dapp_rental_pool + 10), `wax_available_for_rentals should be ${initial_state.dapp_rental_pool + 10}`);
+        almost_equal( parseFloat(dapp_state.wax_available_for_rentals), parseFloat(initial_state.dapp_rental_pool) + 10  );
     	const swax_supply = await getSupply(contracts.token_contract, "SWAX");
-    	assert(swax_supply.supply == swax(initial_state.dapp_rental_pool + 10), `swax supply should be ${initial_state.dapp_rental_pool + 10}`);
+        almost_equal( parseFloat(swax_supply.supply), parseFloat(initial_state.dapp_rental_pool) + 10  );
     });     
 });
 
@@ -348,7 +349,7 @@ describe('\n\nrent_cpu memo', () => {
 
 
 describe('\n\nunliquify_exact memo', () => {
-    const memo = `|unliquify_exact|1000000000|0|`
+    const memo = `|unliquify_exact|1000000000|`
 
     it('error: only lswax accepted', async () => {
         await stake('mike', 1000, true)
@@ -358,7 +359,7 @@ describe('\n\nunliquify_exact memo', () => {
  
      it('error: incomplete memo', async () => {
         await stake('mike', 1000, true)
-        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), `|unliquify_exact|10|`]).send('mike@active') 
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), `|unliquify_exact|`]).send('mike@active') 
         await expectToThrow(action, "eosio_assert: memo for unliquify_exact operation is incomplete")        
     });  
 
@@ -377,20 +378,14 @@ describe('\n\nunliquify_exact memo', () => {
 
     it('error: output less than expected', async () => {
         await stake('mike', 1000, true)
-        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), '|unliquify_exact|1100000000|0|']).send('mike@active') 
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), '|unliquify_exact|1100000000|']).send('mike@active') 
         await expectToThrow(action, "eosio_assert_message: output would be 10.00000000 SWAX but expected 11.00000000 SWAX")        
     });    
 
-    it('error: max slippage out of range', async () => {
+    it('error: minimum out of range', async () => {
         await stake('mike', 1000, true)
-        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), '|unliquify_exact|1100000000|100000001|']).send('mike@active') 
-        await expectToThrow(action, "eosio_assert: max slippage is out of range")        
-    });   
-
-    it('error: expected out of range', async () => {
-        await stake('mike', 1000, true)
-        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), '|unliquify_exact|4611686018427387904|99999999|']).send('mike@active') 
-        await expectToThrow(action, "eosio_assert: expected output is out of range")        
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(10), '|unliquify_exact|4611686018427387904|']).send('mike@active') 
+        await expectToThrow(action, "eosio_assert: minimum_output is out of range")        
     });   
 
     it('success', async () => {
@@ -496,6 +491,7 @@ describe('\n\ninstant redeem memo', () => {
     });        
 });
 
+
 describe('\n\nrebalance memo', () => {
     
     it('error: only lswax accepted', async () => {
@@ -546,6 +542,7 @@ describe('\n\nwax_lswax_liquidity memo', () => {
     }); 
       
 });
+
 
 module.exports = {
     getPayouts

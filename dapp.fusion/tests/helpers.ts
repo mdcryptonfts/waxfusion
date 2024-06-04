@@ -25,11 +25,28 @@ const wax = (amount) => {
     return `${parseFloat(amount).toFixed(8)} WAX`
 }
 
+//convert the sqrtPriceX64 from alcor into actual asset prices for tokenA and tokenB
+const sqrt64_to_price = (sqrtPriceX64) => {
+
+    let sqrtPrice = (sqrtPriceX64 * 10000) / (2 ** 64)
+
+    let price = sqrtPrice * sqrtPrice;
+
+    let P_tokenA_128 = price;
+
+    let P_tokenB_128 = (10 ** 16) / P_tokenA_128;
+
+}
+
 const calculate_wax_and_lswax_outputs = (wax_amount, alcor_price, real_price) => {
+    let sqrtPrice = 18008028479818450617;
+    sqrt64_to_price(sqrtPrice)
     const sum_of_alcor_and_real_price = alcor_price + real_price;
     const intermediate_result = wax_amount / sum_of_alcor_and_real_price;
+
     const lswax_output = Number(intermediate_result * real_price).toFixed(8);
     const wax_output = Number(wax_amount - lswax_output).toFixed(8);  
+
     return [wax_output, lswax_output];
 }
 

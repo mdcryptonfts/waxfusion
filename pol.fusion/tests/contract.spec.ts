@@ -206,19 +206,19 @@ describe('\n\ndeposit for liquidity only', () => {
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', '100000.00000000 WAX', 'for liquidity only']).send('eosio@active');
         
         //verify that the state is accurate
-        const pol_state = await getPolState(true)
+        const pol_state = await getPolState()
         assert(parseFloat(pol_state.wax_bucket) <= 0.00000002, "expected empty wax bucket");
         assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'POL should have 0 LSWAX in bucket');
 
         //make sure alcor pools are within 99.99% of the expected amount
         const outputs = calculate_wax_and_lswax_outputs(100000.0, 100000.0 / 95300.0, 1.0);
-        const dapp_state = await getDappState()
-        const alcor_pool = await getAlcorPool()
+        const dapp_state = await getDappState(true)
+        const alcor_pool = await getAlcorPool(true)
         almost_equal(parseFloat(alcor_pool.tokenA.quantity), 100000.0 + outputs[0])
         almost_equal(parseFloat(alcor_pool.tokenB.quantity), 95300.0 + outputs[1])
         
     });     
-
+    
     it('when there is 0 lswax and 10,000 swax circulating', async () => {
 
         //send wax to mike
@@ -238,7 +238,7 @@ describe('\n\ndeposit for liquidity only', () => {
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', amount_to_transfer, 'for liquidity only']).send('eosio@active');
         
         //validate the POL state
-        const pol_state = await getPolState(true)
+        const pol_state = await getPolState()
         assert(parseFloat(pol_state.wax_bucket) <= 0.00000003, "expected empty wax bucket");
         assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
 
@@ -250,7 +250,7 @@ describe('\n\ndeposit for liquidity only', () => {
 
     });    
 
-
+    
     it('when there is 5,000 lswax and 6,333 swax_currently_backing_lswax', async () => {
 
         //send wax to mike
@@ -290,7 +290,7 @@ describe('\n\ndeposit for liquidity only', () => {
         almost_equal(parseFloat(alcor_pool.tokenB.quantity), 95300.0 + outputs[1])  
 
     });     
-          
+    
     it('when alcor pair has 0 assets in it', async () => {
 
         //send wax to mike
@@ -334,10 +334,8 @@ describe('\n\ndeposit for liquidity only', () => {
         alcor_pool = await getAlcorPool()
         almost_equal(parseFloat(alcor_pool.tokenA.quantity), expected_quantity)
         almost_equal(parseFloat(alcor_pool.tokenB.quantity), expected_quantity)
-        //assert.strictEqual(alcor_pool.tokenA.quantity, wax(expected_quantity), `alcor should have ${wax(expected_quantity)}`);
-        //assert.strictEqual(alcor_pool.tokenB.quantity, lswax(expected_quantity), `alcor should have ${lswax(expected_quantity)}`);
-        
     });    
+
 
     it('when alcor price is out of range, but has positive quantities of both assets', async () => {
 
@@ -384,6 +382,7 @@ describe('\n\ndeposit for liquidity only', () => {
 
     });    
 
+
     it('when alcor price is more than 5% below the real price (peg was lost)', async () => {
 
         //send wax to mike
@@ -428,7 +427,7 @@ describe('\n\ndeposit for liquidity only', () => {
         assert.strictEqual(alcor_pool.tokenB.quantity, lswax(90000), 'alcor should have 90,000 LSWAX');
 
     });         
-        
+    
 });
 
 
@@ -448,6 +447,8 @@ describe('\n\ndeposit for CPU rental pool only', () => {
     }); 
 
 });
+
+
 
 describe('\n\nrebalance memo, sending 100k wax', () => {
     //its important to note that these tests are just a safety measure
@@ -504,18 +505,18 @@ describe('\n\nrebalance memo, sending 100k wax', () => {
         //pol's wax bucket should should have ( 100k - (20k * alcors_price) )
         const wax_spent = calculate_wax_to_match_lswax(20000.0, 100000.0 / 95300.0, 1.0 );
         const expected_wax_bucket = 100000.0 - wax_spent;
-        pol_state = await getPolState();
+        pol_state = await getPolState(true);
         almost_equal(parseFloat(pol_state.wax_bucket.split(' ')[0]), expected_wax_bucket);
         assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'pol should have 0 LSWAX');
     
         //check alcor's balances
-        alcor_pool = await getAlcorPool()
+        alcor_pool = await getAlcorPool(true)
         const expected_alcor_wax_bucket = 100000.0 + parseFloat(wax_spent);
         almost_equal(parseFloat(alcor_pool.tokenA.quantity.split(' ')[0]), expected_alcor_wax_bucket);
         assert.strictEqual(alcor_pool.tokenB.quantity, lswax(115300), 'alcor should have 115300 LSWAX');        
 
     });   
-
+    
     it('when the wax bucket has 20,000 WAX and LSWAX bucket is empty', async () => {
 
         //transfer 20k wax to pol contract
@@ -641,8 +642,9 @@ describe('\n\nrebalance memo, sending 100k wax', () => {
         assert.strictEqual(alcor_pool.tokenA.quantity, wax(10000), 'alcor should have 10k WAX');
         assert.strictEqual(alcor_pool.tokenB.quantity, lswax(5000), 'alcor should have 5k LSWAX');
     }); 
-
+    
 });
+
 
 describe('\n\nPOL allocation from waxfusion distribution', () => {
 
@@ -654,7 +656,7 @@ describe('\n\nPOL allocation from waxfusion distribution', () => {
         
         //pol cpu bucket should have 1/7 of 1000 wax
         //wax and lswax buckets should be empty
-        const expected_wax = `${parseFloat(1000.0 - (1000.0 / 7.0 * 6.0)).toFixed(8)}`
+        const expected_wax = `${parseFloat(1000.0 - ( (1000.0 / 7.0) * 6.0)).toFixed(8)}`
         const pol_state = await getPolState();
         assert(parseFloat(pol_state.wax_bucket) <= 0.00000002, "expected empty wax bucket");
         assert.strictEqual(pol_state.lswax_bucket, lswax(0), 'POL should have 0 LSWAX in bucket');   

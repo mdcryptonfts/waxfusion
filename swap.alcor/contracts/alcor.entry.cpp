@@ -9,7 +9,7 @@ uint128_t alcor::calculate_sqrtPriceX64(int64_t amountA, int64_t amountB){
 		if(amountA == amountB) return SQRT_64_1_TO_1;
 		else if( (amountA == 0 && amountB != 0) || (amountB == 0 && amountA != 0) ) return 10;
 
-    double priceRatio = static_cast<double>(amountA) / static_cast<double>(amountB);
+    double priceRatio = static_cast<double>(amountB) / static_cast<double>(amountA);
     double sqrtPrice = sqrt(priceRatio);
 
     double scaled_sqrt = sqrtPrice * double(SCALE_FACTOR_1E8);

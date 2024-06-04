@@ -97,7 +97,8 @@ CONTRACT polcontract : public contract {
 		void validate_liquidity_pair(const eosio::extended_asset& a, const eosio::extended_asset& b);
 
 		//Safemath
-		int64_t mulDiv(uint64_t a, uint64_t b, uint128_t denominator);
+		int64_t mulDiv(const uint64_t& a, const uint64_t& b, const uint128_t& denominator);
+		uint128_t mulDiv128(const uint128_t& a, const uint128_t& b, const uint128_t& denominator);
 		int64_t safeAddInt64(const int64_t& a, const int64_t& b);
 		uint128_t safeAddUInt128(const uint128_t& a, const uint128_t& b);
 		int64_t safeDivInt64(const int64_t& a, const int64_t& b);

@@ -27,11 +27,9 @@ const calculate_wax_and_lswax_outputs = (wax_amount, alcor_price, real_price) =>
 const calculate_wax_to_match_lswax = (lswax_amount, alcor_price, real_price) => {
     //multiply the lswax amount by alcors price
     const lswax_cost_on_alcor = lswax_amount * alcor_price;
+    console.log(`alcor_price: ${alcor_price}, lswax_amount: ${lswax_amount}`)
 
-    //multiply that by the real price
-    const cost_of_quantity_on_dapp = lswax_cost_on_alcor * real_price;
-
-    return parseFloat(cost_of_quantity_on_dapp).toFixed(8)
+    return parseFloat(lswax_cost_on_alcor).toFixed(8)
 }
 
 const extend_rental_memo = (receiver, days) => {

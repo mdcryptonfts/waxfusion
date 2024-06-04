@@ -40,7 +40,7 @@ CONTRACT fusion : public contract {
 		//Main Actions
 		ACTION addadmin(const eosio::name& admin_to_add);
 		ACTION addcpucntrct(const eosio::name& contract_to_add);
-		ACTION claimaslswax(const eosio::name& user, const eosio::asset& expected_output, const uint64_t& max_slippage_1e6);
+		ACTION claimaslswax(const eosio::name& user, const eosio::asset& minimum_output);
 		ACTION claimgbmvote(const eosio::name& cpu_contract);
 		ACTION claimrefunds();
 		ACTION claimrewards(const eosio::name& user);
@@ -56,7 +56,7 @@ CONTRACT fusion : public contract {
 		ACTION instaredeem(const eosio::name& user, const eosio::asset& swax_to_redeem);
 		ACTION liquify(const eosio::name& user, const eosio::asset& quantity);
 		ACTION liquifyexact(const eosio::name& user, const eosio::asset& quantity, 
-			const eosio::asset& expected_output, const uint64_t& max_slippage_1e6);
+			const eosio::asset& minimum_output);
 		ACTION reallocate();
 		ACTION redeem(const eosio::name& user);
 		ACTION removeadmin(const eosio::name& admin_to_remove);

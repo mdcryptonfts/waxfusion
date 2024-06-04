@@ -255,43 +255,37 @@ describe('\n\naddcpucntrct action', () => {
 describe('\n\nclaimaslswax action', () => {
 
     it('error: missing auth of mike', async () => {
-        const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(1), 0]).send('eosio@active');
+        const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(1)]).send('eosio@active');
         await expectToThrow(action, "missing required authority mike")
     });  
 
     it('error: need to use the stake action first', async () => {
-        const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(1), 0]).send('mike@active');
+        const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(1)]).send('mike@active');
         await expectToThrow(action, "eosio_assert: you don't have anything staked here")
     });  
 
     it('error: no rewards to claim', async () => {
         await stake('mike', 100)
-        const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(1), 0]).send('mike@active');
+        const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(1)]).send('mike@active');
         await expectToThrow(action, "eosio_assert: you have no wax to claim")
     }); 
 
     it('error: output symbol mismatch', async () => {
         await stake('mike', 100)
-        const action = contracts.dapp_contract.actions.claimaslswax(['mike', wax(1), 0]).send('mike@active');
+        const action = contracts.dapp_contract.actions.claimaslswax(['mike', wax(1)]).send('mike@active');
         await expectToThrow(action, "eosio_assert: output symbol should be LSWAX")
     }); 
 
     it('error: output amount must be positive', async () => {
         await stake('mike', 100)
-        const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(0), 0]).send('mike@active');
+        const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(0)]).send('mike@active');
         await expectToThrow(action, "eosio_assert: Invalid output quantity.")
     });             
-
-    it('error: max slippage out of range', async () => {
-        await stake('mike', 100)
-        const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(1), 100000001]).send('mike@active');
-        await expectToThrow(action, "eosio_assert: max slippage is out of range")
-    });    
 
     it('success', async () => {
         await stake('bob', 1000)
         await simulate_days(10)
-        await contracts.dapp_contract.actions.claimaslswax(['bob', lswax(0.15), 0]).send('bob@active');
+        await contracts.dapp_contract.actions.claimaslswax(['bob', lswax(0.15)]).send('bob@active');
         //await getPayouts();
     });                           
 });
@@ -555,52 +549,46 @@ describe('\n\nliquify action', () => {
 describe('\n\nliquifyexact action', () => {
 
     it('error: missing auth of user', async () => {
-        const action = contracts.dapp_contract.actions.liquifyexact(['eosio', swax(10), lswax(10), 100000000]).send('mike@active');
+        const action = contracts.dapp_contract.actions.liquifyexact(['eosio', swax(10), lswax(10)]).send('mike@active');
         await expectToThrow(action, "missing required authority eosio")
     }); 
 
     it('error: must liquify positive quantity', async () => {
         await stake('mike', 10)
-        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(0), lswax(10), 100000000]).send('mike@active');
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(0), lswax(10)]).send('mike@active');
         await expectToThrow(action, "eosio_assert: Invalid quantity.")
     });     
       
     it('error: output quantity not positive', async () => {
         await stake('mike', 10)
-        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(0), 999999]).send('mike@active');
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(0)]).send('mike@active');
         await expectToThrow(action, "eosio_assert: Invalid output quantity.")
     });       
 
     it('error: input symbol mismatch', async () => {
-        const action = contracts.dapp_contract.actions.liquifyexact(['mike', lswax(10), lswax(10), 100000000]).send('mike@active');
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', lswax(10), lswax(10)]).send('mike@active');
         await expectToThrow(action, "eosio_assert: only SWAX can be liquified")
     });    
 
     it('error: output symbol mismatch', async () => {
-        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), swax(10), 100000000]).send('mike@active');
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), swax(10)]).send('mike@active');
         await expectToThrow(action, "eosio_assert: output symbol should be LSWAX")
     });      
 
     it('error: not staking anything', async () => {
-        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(10), 99000000]).send('mike@active');
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(10)]).send('mike@active');
         await expectToThrow(action, "eosio_assert: you don't have anything staked here")
     });  
-
-    it('error: max slippage out of range', async () => {
-        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(10), 100000000]).send('mike@active');
-        await expectToThrow(action, "eosio_assert: max slippage is out of range")
-    });      
-
      
     it('error: trying to liquify more than you have', async () => {
         await stake('mike', 10)
-        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(11), lswax(10), 99000000]).send('mike@active');
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(11), lswax(10)]).send('mike@active');
         await expectToThrow(action, "eosio_assert: you are trying to liquify more than you have")
     });   
   
     it('error: output less than expected', async () => {
         await stake('mike', 10)
-        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(20), 0]).send('mike@active');
+        const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(20)]).send('mike@active');
         const error_message = `eosio_assert_message: output would be ${lswax(10)} but expected ${lswax(20)}`
         await expectToThrow(action, error_message)
     });  
@@ -609,7 +597,7 @@ describe('\n\nliquifyexact action', () => {
         await stake('mike', 10)
         const bal_before = await getBalances('mike', contracts.token_contract)
         assert(bal_before.length == 0, "expected no lsWAX balance")
-        await contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(10), 0]).send('mike@active');
+        await contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), lswax(10)]).send('mike@active');
         const bal_after = await getBalances('mike', contracts.token_contract)
         assert(bal_after[0].balance == lswax(10), "expected balance after to be 10 lsWAX")        
     });  

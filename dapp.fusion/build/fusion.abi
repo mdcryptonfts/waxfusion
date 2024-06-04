@@ -32,12 +32,8 @@
                     "type": "name"
                 },
                 {
-                    "name": "expected_output",
+                    "name": "minimum_output",
                     "type": "asset"
-                },
-                {
-                    "name": "max_slippage_1e6",
-                    "type": "uint64"
                 }
             ]
         },
@@ -284,12 +280,8 @@
                     "type": "asset"
                 },
                 {
-                    "name": "expected_output",
+                    "name": "minimum_output",
                     "type": "asset"
-                },
-                {
-                    "name": "max_slippage_1e6",
-                    "type": "uint64"
                 }
             ]
         },

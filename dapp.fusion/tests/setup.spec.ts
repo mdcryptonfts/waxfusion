@@ -45,6 +45,7 @@ function incrementTime(seconds = TEN_MINUTES) {
     return blockchain.addTime(time);
 }
 
+
 const init = async () => {
 	await setTime(initial_state.chain_time);
     await contracts.alcor_contract.actions.initunittest([initial_state.alcor_wax_pool, initial_state.alcor_lswax_pool]).send();       
@@ -100,6 +101,8 @@ const simulate_days = async (days = 1, stake_users = false, claim_rewards = true
             await stake('bob', 10000, true, 5000)
             await stake('ricky', 10000, true)
         }
+
+
 
         if(rent_cpu){
             if(count < 10){

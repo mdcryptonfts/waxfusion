@@ -52,6 +52,8 @@ void polcontract::add_liquidity( state3& s, liquidity_struct& lp_details ) {
     s.lswax_bucket.amount = safeSubInt64( s.lswax_bucket.amount, lp_details.poolA.amountToAdd.amount );
   }
 
+
+
   //make the transfers to alcor and call the `addliquid` action
   deposit_liquidity_to_alcor(lp_details);
 }
@@ -129,7 +131,7 @@ liquidity_struct polcontract::get_liquidity_info(config2 c, dapp_tables::state d
 
   //get alcor's price, so we can compare it to the real price
   std::vector<int64_t> alcor_prices = sqrt64_to_price( sqrtPriceX64 );
-  int64_t alcors_lswax_price = aIsWax ? alcor_prices[0] : alcor_prices[1];
+  int64_t alcors_lswax_price = aIsWax ? alcor_prices[1] : alcor_prices[0];
 
   /** to determine if alcor's price is acceptable, one of the following must be true
    *  - lswax is cheaper on alcor than the real price, but the difference is <= 5%

@@ -431,13 +431,11 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 	if ( words[1] == "unliquify_exact" ) {
 
 		check( tkcontract == TOKEN_CONTRACT, "only LSWAX can be unliquified" );
-		check( words.size() >= 4, "memo for unliquify_exact operation is incomplete" );
+		check( words.size() >= 3, "memo for unliquify_exact operation is incomplete" );
 
-		const uint64_t expected_output = std::strtoull( words[2].c_str(), NULL, 0 );
-		const uint64_t max_slippage = std::strtoull( words[3].c_str(), NULL, 0 );
+		const uint64_t minimum_output = std::strtoull( words[2].c_str(), NULL, 0 );
 
-		check( max_slippage >= 0 && max_slippage < ONE_HUNDRED_PERCENT_1E6, "max slippage is out of range" );
-		check( expected_output > (uint64_t) 0 && expected_output <= MAX_ASSET_AMOUNT_U64, "expected output is out of range" );
+		check( minimum_output > (uint64_t) 0 && minimum_output <= MAX_ASSET_AMOUNT_U64, "minimum_output is out of range" );
 
 		//fetch the global config and state
 		config3 c = config_s_3.get();
@@ -448,13 +446,14 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 		//make sure they are trying to unliquify at least the minimum amount
 		check( quantity >= c.minimum_unliquify_amount, "minimum unliquify amount not met" );
 
-		//calculate the conversion rate (amount of sWAX to stake to this user)
+		//calculate the conversion rate (amount of sWAX to stake to this user), and make sure it's acceptable for the user
 		int64_t converted_sWAX_i64 = internal_unliquify(quantity.amount, s);
 
-		//calculate what the output will be from this transaction, and make sure its acceptable for the user
-		uint64_t minimum_output_percentage = ONE_HUNDRED_PERCENT_1E6 - max_slippage;
-		int64_t minimum_output = calculate_asset_share( expected_output, minimum_output_percentage );
-		check( converted_sWAX_i64 >= minimum_output, "output would be " + asset(converted_sWAX_i64, SWAX_SYMBOL).to_string() + " but expected " + asset(minimum_output, SWAX_SYMBOL).to_string() );
+		//save CPU overhead on parsing the dynamic string by only calling `check` if the condition is met
+		//casting to int64_t is safe since we made sure minimum_output is <= MAX_ASSET_AMOUNT
+		if( converted_sWAX_i64 < int64_t(minimum_output) ){
+			check( false, "output would be " + asset(converted_sWAX_i64, SWAX_SYMBOL).to_string() + " but expected " + asset(int64_t(minimum_output), SWAX_SYMBOL).to_string() );
+		}
 
 		//fetch the staker details and process any pending payouts
 		auto staker_itr = staker_t.require_find(from.value, "you need to use the stake action first");
