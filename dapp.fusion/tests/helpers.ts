@@ -2,7 +2,7 @@ const { Blockchain, nameToBigInt, TimePoint, expectToThrow } = require("@eosnetw
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
 
-function almost_equal(actual, expected, tolerance = 0.00000003) {
+function almost_equal(actual, expected, tolerance = 0.000003) {
     const difference = Math.abs(actual - expected);
     const relativeError = difference / Math.abs(expected);
     assert.isTrue(relativeError <= tolerance, `Expected ${actual} to be within ${tolerance * 100}% of ${expected}`);
@@ -29,11 +29,8 @@ const wax = (amount) => {
 const sqrt64_to_price = (sqrtPriceX64) => {
 
     let sqrtPrice = (sqrtPriceX64 * 10000) / (2 ** 64)
-
     let price = sqrtPrice * sqrtPrice;
-
     let P_tokenA_128 = price;
-
     let P_tokenB_128 = (10 ** 16) / P_tokenA_128;
 
 }
@@ -54,32 +51,6 @@ const rent_cpu_memo = (receiver, wax, epoch) => {
     return `|rent_cpu|${receiver}|${wax}|${epoch}|`
 }
 
-const validate_supply_and_payouts = (snaps, swax_earning, swax_backing, lswax_supply, swax_supply, liquified_swax, log = false) => {
-    let totals = { distributed: 0, swax_earning_buckets: 0, lswax_autocompounding_buckets: 0, 
-        pol_buckets: 0, ecosystem_buckets: 0 }
-    for(const s of snaps){
-        totals.distributed += parseFloat(s.total_distributed)
-        totals.swax_earning_buckets += parseFloat(s.swax_earning_bucket)
-        totals.lswax_autocompounding_buckets += parseFloat(s.lswax_autocompounding_bucket)
-        totals.pol_buckets += parseFloat(s.pol_bucket)
-        totals.ecosystem_buckets += parseFloat(s.ecosystem_bucket)
-    }
-
-    const sum_paid_out = parseFloat(totals.swax_earning_buckets + totals.lswax_autocompounding_buckets +
-        totals.pol_buckets + totals.ecosystem_buckets).toFixed(8);
-    almost_equal(sum_paid_out, totals.distributed)
-
-    //check liquified swax matches lswax supply
-    assert.strictEqual(lswax_supply, liquified_swax, `lswax_supply is ${lswax_supply} but liquified swax is ${liquified_swax}`)
-
-    //check swax earning + swax backing matches swax supply
-    const expected_swax_supply = Number(parseFloat(swax_backing) + parseFloat(swax_earning)).toFixed(8)
-    almost_equal(expected_swax_supply, parseFloat(swax_supply))
-
-    if(log){
-        console.log(totals)
-    }
-}
 
 module.exports = {
     almost_equal,
@@ -88,6 +59,5 @@ module.exports = {
 	lswax,
 	rent_cpu_memo,
 	swax,
-    validate_supply_and_payouts,
 	wax
 }

@@ -5,12 +5,10 @@
 
 
 #include <eosio/eosio.hpp>
-#include <eosio/print.hpp>
 #include <eosio/asset.hpp>
 #include <eosio/system.hpp>
 #include <eosio/symbol.hpp>
 #include <eosio/action.hpp>
-#include <string>
 #include <eosio/crypto.hpp>
 #include <eosio/transaction.hpp>
 #include <eosio/singleton.hpp>
@@ -32,7 +30,6 @@ CONTRACT polcontract : public contract {
 		polcontract(name receiver, name code, datastream<const char *> ds):
 		contract(receiver, code, ds),
 		config_s_2(receiver, receiver.value),
-		dapp_config_s(DAPP_CONTRACT, DAPP_CONTRACT.value),
 		dapp_state_s(DAPP_CONTRACT, DAPP_CONTRACT.value),
 		state_s_3(receiver, receiver.value),
 		top21_s(DAPP_CONTRACT, DAPP_CONTRACT.value)
@@ -61,8 +58,7 @@ CONTRACT polcontract : public contract {
 
 		//Singletons
 		config_singleton_2 config_s_2;
-		dapp_tables::config_singleton_3 dapp_config_s;
-		dapp_tables::state_singleton dapp_state_s;
+		dapp_tables::global_singleton dapp_state_s;
 		state_singleton_3 state_s_3;
 		top21_singleton top21_s;
 
@@ -76,13 +72,14 @@ CONTRACT polcontract : public contract {
 		int64_t calculate_asset_share(const int64_t& quantity, const uint64_t& percentage);
 		void calculate_liquidity_allocations(const liquidity_struct& lp_details, 
 			int64_t& liquidity_allocation, int64_t& wax_bucket_allocation, int64_t& buy_lswax_allocation);
+		int64_t calculate_lswax_output(const int64_t& quantity, dapp_tables::global& g);
+		int64_t calculate_swax_output(const int64_t& quantity, dapp_tables::global& g);		
 		int64_t cpu_rental_price(const uint64_t& days, const int64_t& price_per_day, const int64_t& amount);
 		int64_t cpu_rental_price_from_seconds(const uint64_t& seconds, const int64_t& price_per_day, const uint64_t& amount);
 		uint64_t days_to_seconds(const uint64_t& days);
 		void deposit_liquidity_to_alcor(const liquidity_struct& lp_details);
-		liquidity_struct get_liquidity_info(config2 c, dapp_tables::state ds);
-		int64_t internal_liquify(const int64_t& quantity, dapp_tables::state s);
-		int64_t internal_unliquify(const int64_t& quantity, dapp_tables::state s);
+		liquidity_struct get_liquidity_info(config2 c, dapp_tables::global ds);
+		void issue_refund_if_user_overpaid(const name& user, const asset& quantity, int64_t& amount_expected, int64_t& profit_made);
 		uint64_t now();
 		std::vector<std::string> parse_memo(std::string memo);
 		uint128_t seconds_to_days_1e6(const uint64_t& seconds);
@@ -98,15 +95,4 @@ CONTRACT polcontract : public contract {
 		//Safemath
 		int64_t mulDiv(const uint64_t& a, const uint64_t& b, const uint128_t& denominator);
 		uint128_t mulDiv128(const uint128_t& a, const uint128_t& b, const uint128_t& denominator);
-		int64_t safeAddInt64(const int64_t& a, const int64_t& b);
-		uint128_t safeAddUInt128(const uint128_t& a, const uint128_t& b);
-		int64_t safeDivInt64(const int64_t& a, const int64_t& b);
-		uint64_t safeDivUInt64(const uint64_t& a, const uint64_t& b);
-		uint128_t safeDivUInt128(const uint128_t& a, const uint128_t& b);
-		uint128_t safeMulUInt128(const uint128_t& a, const uint128_t& b);
-		uint64_t safeMulUInt64(const uint64_t& a, const uint64_t& b);
-		int64_t safeSubInt64(const int64_t& a, const int64_t& b);
-		uint128_t max_scale_with_room(const uint128_t& num);
-		uint128_t max_scale_without_room(const uint128_t& num);
-
 };

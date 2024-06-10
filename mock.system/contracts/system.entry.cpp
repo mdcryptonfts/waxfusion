@@ -36,12 +36,15 @@ ACTION mocksystem::claimgbmvote( const name& owner ){
 
     check( rewards >= 1.0, "you have nothing to claim" );
 
+    asset amount_to_send = asset( int64_t(rewards), WAX_SYMBOL );
+    std::string memo_to_send = "|voter pay|" + owner.to_string() + "|";    
+
     voters_t.modify(itr, same_payer, [&](auto &_row){
+        _row.payouts.push_back( amount_to_send );
         _row.last_claim = now();
     });
 
-    asset amount_to_send = asset( int64_t(rewards), WAX_SYMBOL );
-    std::string memo_to_send = "|voter pay|" + owner.to_string() + "|";
+
 
     transfer_tokens( "eosio.voters"_n, amount_to_send, WAX_CONTRACT, memo_to_send );
 }

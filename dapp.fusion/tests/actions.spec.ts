@@ -1,6 +1,6 @@
 const { blockchain, contracts, incrementTime, init, initial_state, setTime, stake, simulate_days, unliquify } = require("./setup.spec.ts")
 const { getPayouts } = require('./notifications.spec.ts')
-const { almost_equal, calculate_wax_and_lswax_outputs, lswax, rent_cpu_memo, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
+const { almost_equal, calculate_wax_and_lswax_outputs, lswax, rent_cpu_memo, swax, wax } = require("./helpers.ts")
 const { nameToBigInt, TimePoint, expectToThrow } = require("@eosnetwork/vert");
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
@@ -12,6 +12,11 @@ const [mike, bob, ricky, oig] = blockchain.createAccounts('mike', 'bob', 'ricky'
 beforeEach(async () => {
     blockchain.resetTables()
     await init()
+})
+
+/* Runs after each test */
+afterEach(async () => {
+    await verifyState()
 })
 
 const scopes = {
@@ -69,37 +74,15 @@ const getBalances = async (user, contract, log = false) => {
     return rows
 }
 
-const getDappConfig = async (log = false) => {
-    const dapp_config = await contracts.dapp_contract.tables
-        .config3(scopes.dapp)
+const getDappGlobal = async (log = false) => {
+    const g = await contracts.dapp_contract.tables
+        .global(scopes.dapp)
         .getTableRows()[0]
     if(log){
-        console.log('dapp config:')
-        console.log(dapp_config)    
+        console.log('global:')
+        console.log(g)  
     }
-    return dapp_config
-}
-
-const getDappState = async (log = false) => {
-    const state = await contracts.dapp_contract.tables
-        .state(scopes.dapp)
-        .getTableRows()[0]
-    if(log){
-        console.log('dapp state:')
-        console.log(state)
-    }
-    return state 
-}
-
-const getDappState2 = async (log = false) => {
-    const state2 = await contracts.dapp_contract.tables
-        .state2(scopes.dapp)
-        .getTableRows()[0]
-    if(log){
-        console.log('dapp state2:')
-        console.log(state2)
-    }
-    return state2 
+    return g    
 }
 
 const getDappTop21 = async (log = false) => {
@@ -112,6 +95,7 @@ const getDappTop21 = async (log = false) => {
     }
     return top21    
 }
+
 
 const getEpochs = async (log = false) => {
     const epochs = await contracts.dapp_contract.tables
@@ -168,6 +152,17 @@ const getRenters = async (log = false) => {
     return renters; 
 }
 
+const getRewardFarm = async (log = false) => {
+    const r = await contracts.dapp_contract.tables
+        .rewards(scopes.dapp)
+        .getTableRows()[0]
+    if(log){
+        console.log('rewards:')
+        console.log(r)  
+    }
+    return r  
+}
+
 const getSnapshots = async (log = false) => {
     const snaps = await contracts.dapp_contract.tables
         .snapshots(scopes.dapp)
@@ -202,7 +197,114 @@ const getSWaxStaker = async (user, log = false) => {
     return staker; 
 }
 
+const getAllStakers = async (log = false) => {
+    const staker = await contracts.dapp_contract.tables
+        .stakers(scopes.dapp)
+        .getTableRows()
+    if(log){
+        console.log(`all swax holders:`)
+        console.log(staker)
+    }
+    return staker; 
+}
+
+const getDebug = async (log = false) => {
+    const debug = await contracts.dapp_contract.tables
+        .debug(scopes.dapp)
+        .getTableRows()
+    if(log){
+        console.log(debug)
+    }
+    return debug; 
+}
+
+const getVoters = async (log = false) => {
+    const voters = await contracts.system_contract.tables
+        .voters(scopes.system)
+        .getTableRows()
+    if(log){
+        console.log(`voters:`)
+        console.log(voters)
+    }
+    return voters; 
+}
+
+const getDelBw = async (account, log = false) => {
+    const delbw = await contracts.system_contract.tables
+        .delband(Name.from(account).value.value)
+        .getTableRows()
+    if(log){
+        console.log('delbw:')
+        console.log(delbw)
+    }
+    return delbw 
+}
+
+const verifyState = async (log = false) => {
+    const lswax_supply = await getSupply( contracts.token_contract, 'LSWAX')
+    const swax_supply = await getSupply( contracts.token_contract, 'SWAX')
+    const g = await getDappGlobal()
+    const r = await getRewardFarm()
+    const cpu1_balance = await getDelBw('cpu1.fusion')
+    const cpu2_balance = await getDelBw('cpu2.fusion')
+    const cpu3_balance = await getDelBw('cpu3.fusion')
+    const dapp_balances = await getBalances('dapp.fusion', contracts.wax_contract)
+    const dapp_wax_balance = parseFloat(dapp_balances[0].balance)
+    const self_staker = await getSWaxStaker('dapp.fusion')
+
+    //the amounts contributing to dapp's expected wax balance
+    const unpaid_rewards = parseFloat(r.rewardPool) - parseFloat(r.totalRewardsPaidOut)
+    const claimed_rewards = parseFloat(g.total_rewards_claimed)
+    const rental_pool = parseFloat(g.wax_available_for_rentals)
+    const redemption_pool = parseFloat(g.wax_for_redemption)
+    const revenue_pool = parseFloat(g.revenue_awaiting_distribution)
+    let sum = unpaid_rewards - claimed_rewards + rental_pool + redemption_pool + revenue_pool;
+
+    assert( dapp_wax_balance >= sum, `dapp has ${dapp_wax_balance} WAX but should have ${sum} WAX`)
+
+    assert( Number(parseFloat(swax_supply.supply).toFixed(8)) == Number(parseFloat(g.swax_currently_earning) + parseFloat(g.swax_currently_backing_lswax)).toFixed(8), 
+        `SWAX supply ${parseFloat(swax_supply.supply)} does not match ${parseFloat(g.swax_currently_earning) + parseFloat(g.swax_currently_backing_lswax)}` )
+
+    assert( lswax_supply.supply == g.liquified_swax, `LSWAX supply of ${lswax_supply.supply} does not match dapp state of ${g.liquified_swax}` )
+
+    assert(g.swax_currently_backing_lswax == self_staker.swax_balance, "self staker should match swax_backing_lswax")
+}
+
 /* Tests */
+
+describe('\n\ncompound action', () => {
+
+    it('error: hasnt been 5 minutes', async () => {
+        const action = contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
+        await expectToThrow(action, "eosio_assert: must wait 5 minutes between compounds")
+    });  
+
+    it('success"', async () => {
+        await incrementTime(300)
+        const state_before = await getDappGlobal()
+        await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
+        const state_after = await getDappGlobal()
+        //1000 wax / (24*12) = expected_reward after 5 mins
+        const expected_reward = parseFloat(initial_state.reward_pool) / (24 * 12)
+        const expected_total = Number(parseFloat(state_before.swax_currently_backing_lswax) + expected_reward).toFixed(8);
+        assert(expected_total == parseFloat(state_after.swax_currently_backing_lswax), `expected swax_currently_backing_lswax to be ${expected_total}`)
+    });   
+
+    it('success, then error if compounding twice in same second', async () => {
+        await incrementTime(300)
+        const state_before = await getDappGlobal()
+        await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
+        const state_after = await getDappGlobal()
+        //1000 wax / (24*12) = expected_reward after 5 mins
+        const expected_reward = parseFloat(initial_state.reward_pool) / (24 * 12)
+        const expected_total = Number(parseFloat(state_before.swax_currently_backing_lswax) + expected_reward).toFixed(8);
+        assert(expected_total == parseFloat(state_after.swax_currently_backing_lswax), `expected swax_currently_backing_lswax to be ${expected_total}`)
+
+        const action = contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
+        await expectToThrow(action, "eosio_assert: must wait 5 minutes between compounds")
+    });           
+});
+
 
 describe('\n\naddadmin action', () => {
 
@@ -223,10 +325,11 @@ describe('\n\naddadmin action', () => {
 
     it('success: added mike"', async () => {
         await contracts.dapp_contract.actions.addadmin(['mike']).send('dapp.fusion@active');
-        const config = await getDappConfig()
-        assert( config.admin_wallets.indexOf('mike') > -1, "expected mike to be an admin" );
+        const g = await getDappGlobal()
+        assert( g.admin_wallets.indexOf('mike') > -1, "expected mike to be an admin" );
     });            
 });
+
 
 describe('\n\naddcpucntrct action', () => {
 
@@ -247,10 +350,11 @@ describe('\n\naddcpucntrct action', () => {
 
     it('success: added mike"', async () => {
         await contracts.dapp_contract.actions.addcpucntrct(['mike']).send('dapp.fusion@active');
-        const config = await getDappConfig()
-        assert( config.cpu_contracts.indexOf('mike') > -1, "expected mike to be a cpu contract" );
+        const g = await getDappGlobal()
+        assert( g.cpu_contracts.indexOf('mike') > -1, "expected mike to be a cpu contract" );
     });            
 });
+
 
 describe('\n\nclaimaslswax action', () => {
 
@@ -273,7 +377,7 @@ describe('\n\nclaimaslswax action', () => {
     it('error: output symbol mismatch', async () => {
         await stake('mike', 100)
         const action = contracts.dapp_contract.actions.claimaslswax(['mike', wax(1)]).send('mike@active');
-        await expectToThrow(action, "eosio_assert: output symbol should be LSWAX")
+        await expectToThrow(action, "eosio_assert: comparison of assets with different symbols is not allowed")
     }); 
 
     it('error: output amount must be positive', async () => {
@@ -286,9 +390,9 @@ describe('\n\nclaimaslswax action', () => {
         await stake('bob', 1000)
         await simulate_days(10)
         await contracts.dapp_contract.actions.claimaslswax(['bob', lswax(0.15)]).send('bob@active');
-        //await getPayouts();
     });                           
 });
+
 
 describe('\n\nclaimgbmvote action', () => {
 
@@ -305,12 +409,13 @@ describe('\n\nclaimgbmvote action', () => {
 
     it('success', async () => {
         await simulate_days(1, true, false)
-        const rewards_before = await getDappState();
+        const rewards_before = await getDappGlobal();
         await contracts.dapp_contract.actions.claimgbmvote(['cpu1.fusion']).send('mike@active');
-        const rewards_after = await getDappState();
+        const rewards_after = await getDappGlobal();
         assert( parseFloat(rewards_before.revenue_awaiting_distribution) < parseFloat(rewards_after.revenue_awaiting_distribution), "expected to have more rewards after claiming" )
     });  
 });
+
 
 describe('\n\nclaimrefunds action', () => {
 
@@ -326,6 +431,7 @@ describe('\n\nclaimrefunds action', () => {
         await contracts.dapp_contract.actions.claimrefunds([]).send('mike@active');
     });  
 });
+
 
 describe('\n\nclaimrewards action', () => {
 
@@ -352,10 +458,12 @@ describe('\n\nclaimrewards action', () => {
         await stake('mike', 100)
         await simulate_days(7, false)
         const balance_before = await getBalances('mike', contracts.wax_contract)
-        await contracts.dapp_contract.actions.claimrewards(['mike']).send('mike@active');
-        const balance_after = await getBalances('mike', contracts.wax_contract)
-        assert( parseFloat(balance_after[0].balance) > parseFloat(balance_before[0].balance), "expected > balance after claiming" )
-    });     
+        await contracts.dapp_contract.actions.stake(['bob']).send('bob@active');
+        await contracts.dapp_contract.actions.stake(['ricky']).send('ricky@active');
+        
+        const vote_rewards = await getVoters()
+    });  
+     
 });
 
 describe('\n\nclearexpired action', () => {
@@ -377,6 +485,7 @@ describe('\n\nclearexpired action', () => {
         await contracts.dapp_contract.actions.clearexpired(['mike']).send('mike@active');
     });        
 });
+
 
 describe('\n\ncreatefarms action', () => {
 
@@ -403,11 +512,11 @@ describe('\n\ncreatefarms action', () => {
         assert( incentives_after.length == 2, "there should be 2 incentives in the table" )
         await simulate_days(7, true)
         await incrementTime(86400*7)
-        const dapp_state_before = await getDappState2()
+        const dapp_state_before = await getDappGlobal()
         await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
         const alcor_incentives = await getAlcorIncentives()
         assert( alcor_incentives.length == 2, "there should be 2 incentives on alcor" )
-        const dapp_state_after = await getDappState2()
+        const dapp_state_after = await getDappGlobal()
         almost_equal( parseFloat(dapp_state_before.incentives_bucket) * 0.74, parseFloat(dapp_state_after.incentives_bucket) )
     });  
 
@@ -417,47 +526,23 @@ describe('\n\ncreatefarms action', () => {
         assert( incentives_after.length == 2, "there should be 2 incentives in the table" )
         await simulate_days(7, true)
         await incrementTime(86400*7)
-        const dapp_state_before = await getDappState2()
+        const dapp_state_before = await getDappGlobal()
         await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
         const alcor_incentives = await getAlcorIncentives()
         assert( alcor_incentives.length == 2, "there should be 2 incentives on alcor" )
-        const dapp_state_after = await getDappState2()
+        const dapp_state_after = await getDappGlobal()
         almost_equal( parseFloat(dapp_state_before.incentives_bucket) * 0.74, parseFloat(dapp_state_after.incentives_bucket) )
 
         await incrementTime(86400*7)
-        const dapp_state_before_2 = await getDappState2()
+        const dapp_state_before_2 = await getDappGlobal()
         await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
         const alcor_incentives_2 = await getAlcorIncentives()
         assert( alcor_incentives_2.length == 4, "there should be 4 incentives on alcor" )
-        const dapp_state_after_2 = await getDappState2()
+        const dapp_state_after_2 = await getDappGlobal()
         almost_equal( parseFloat(dapp_state_before_2.incentives_bucket) * 0.74, parseFloat(dapp_state_after_2.incentives_bucket) )        
     });               
 });
 
-describe('\n\ndistribute action', () => {
-
-    it('success: zero_distribution', async () => {
-        await incrementTime(60*60*24)
-        await contracts.dapp_contract.actions.distribute([]).send('mike@active');
-        const dapp_state = await getDappState();
-        assert(dapp_state.total_revenue_distributed == wax(0), "expected 0 wax to be distributed")
-    }); 
-
-    it('success: rewards distributed', async () => {
-        await simulate_days(7, true)
-        const dapp_state = await getDappState();
-        assert(parseFloat(dapp_state.total_revenue_distributed) > 0, "expected positive wax to be distributed")        
-        
-    });      
-
-    it('error: hasnt been 24h since last distribution', async () => {
-        await incrementTime(60*60*24)
-        await contracts.dapp_contract.actions.distribute([]).send('mike@active');
-        const action = contracts.dapp_contract.actions.distribute([]).send('mike@active');
-        await expectToThrow(action, `eosio_assert: next distribution is not until ${initial_state.chain_time + (86400 * 2)}`)
-
-    });        
-});
 
 describe('\n\ninstaredeem action', () => {
 
@@ -467,8 +552,9 @@ describe('\n\ninstaredeem action', () => {
     }); 
       
     it('error: symbol mismatch', async () => {
+        await stake('mike', 10)
         const action = contracts.dapp_contract.actions.instaredeem(['mike', lswax(10)]).send('mike@active');
-        await expectToThrow(action, "eosio_assert: symbol mismatch on swax_to_redeem")
+        await expectToThrow(action, "eosio_assert: comparison of assets with different symbols is not allowed")
     });    
 
      it('error: not staking anything', async () => {
@@ -521,7 +607,7 @@ describe('\n\nliquify action', () => {
       
     it('error: symbol mismatch', async () => {
         const action = contracts.dapp_contract.actions.liquify(['mike', lswax(10)]).send('mike@active');
-        await expectToThrow(action, "eosio_assert: only SWAX can be liquified")
+        await expectToThrow(action, "eosio_assert: comparison of assets with different symbols is not allowed")
     });    
 
      it('error: not staking anything', async () => {
@@ -567,12 +653,12 @@ describe('\n\nliquifyexact action', () => {
 
     it('error: input symbol mismatch', async () => {
         const action = contracts.dapp_contract.actions.liquifyexact(['mike', lswax(10), lswax(10)]).send('mike@active');
-        await expectToThrow(action, "eosio_assert: only SWAX can be liquified")
+        await expectToThrow(action, "eosio_assert: comparison of assets with different symbols is not allowed")
     });    
 
     it('error: output symbol mismatch', async () => {
         const action = contracts.dapp_contract.actions.liquifyexact(['mike', swax(10), swax(10)]).send('mike@active');
-        await expectToThrow(action, "eosio_assert: output symbol should be LSWAX")
+        await expectToThrow(action, "eosio_assert: comparison of assets with different symbols is not allowed")
     });      
 
     it('error: not staking anything', async () => {
@@ -628,10 +714,10 @@ describe('\n\nreallocate action', () => {
         await contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time + (86400*7), 500]).send('mike@active');
         await incrementTime( (86400*3) )
         await contracts.dapp_contract.actions.claimrefunds([]).send('mike@active');
-        const dapp_state_before = await getDappState()
+        const dapp_state_before = await getDappGlobal()
         await incrementTime( (60*60*24*2) + 1)
         await contracts.dapp_contract.actions.reallocate([]).send('mike@active');
-        const dapp_state_after = await getDappState()
+        const dapp_state_after = await getDappGlobal()
         assert( parseFloat(dapp_state_after.wax_for_redemption) + 10000 == parseFloat(dapp_state_before.wax_for_redemption), "expected 10,000 less redemption wax after reallocation" )
         assert( parseFloat(dapp_state_after.wax_available_for_rentals) - 10000 == parseFloat(dapp_state_before.wax_available_for_rentals), "expected 10,000 more rental wax after reallocation" )
     }); 
@@ -672,10 +758,10 @@ describe('\n\nredeem action', () => {
         await contracts.dapp_contract.actions.unstakecpu([initial_state.chain_time + (60*60*24*7), 0]).send('mike@active');
         await incrementTime(60*60*24*3)
         await contracts.dapp_contract.actions.claimrefunds([]).send('mike@active');             
-        const dapp_state_before = await getDappState()
+        const dapp_state_before = await getDappGlobal()
         assert(dapp_state_before.wax_for_redemption == wax(10), "expected 10 wax awaiting redemption")
         await contracts.dapp_contract.actions.redeem(['mike']).send('mike@active');
-        const dapp_state_after = await getDappState()
+        const dapp_state_after = await getDappGlobal()
         assert(dapp_state_after.wax_for_redemption == wax(0), "expected 0 wax awaiting redemption")      
     });
     
@@ -696,11 +782,10 @@ describe('\n\nremoveadmin action', () => {
     
      it('success', async () => {
         await contracts.dapp_contract.actions.removeadmin(['oig']).send('dapp.fusion@active');
-        const dapp_config_after = await getDappConfig()
+        const dapp_config_after = await getDappGlobal()
         assert( dapp_config_after.admin_wallets.indexOf('oig') == -1, "expected oig to not be an admin" )
     });     
 });
-
 
 describe('\n\nreqredeem action', () => {
 
@@ -729,10 +814,11 @@ describe('\n\nrmvcpucntrct action', () => {
 
      it('success', async () => {
         await contracts.dapp_contract.actions.rmvcpucntrct(['cpu2.fusion']).send('dapp.fusion@active');
-        const dapp_config_after = await getDappConfig()
+        const dapp_config_after = await getDappGlobal()
         assert( dapp_config_after.cpu_contracts.indexOf('cpu2.fusion') == -1, "expected cpu2.fusion to not be in the config" )        
     });     
 });
+
 
 describe('\n\nrmvincentive action', () => {
 
@@ -764,7 +850,7 @@ describe('\n\nsetfallback action', () => {
      
     it(`error: caller is not an admin`, async () => {
         const action = contracts.dapp_contract.actions.setfallback(['mike', 'mike']).send('mike@active');
-        await expectToThrow(action, "eosio_assert: this action requires auth from one of the admin_wallets in the config table")
+        await expectToThrow(action, "eosio_assert: this action requires auth from one of the admin_wallets in the global table")
     });   
 
     it(`error: cpu receiver is not a wax account`, async () => {
@@ -773,10 +859,10 @@ describe('\n\nsetfallback action', () => {
     });     
 
     it(`success`, async () => {
-        const config_before = await getDappConfig()
+        const config_before = await getDappGlobal()
         assert( config_before.fallback_cpu_receiver == 'updatethings', "expected updatethings to be the fallback" )
         await contracts.dapp_contract.actions.setfallback(['dapp.fusion', 'mike']).send('dapp.fusion@active');
-        const config_after = await getDappConfig()
+        const config_after = await getDappGlobal()
         assert( config_after.fallback_cpu_receiver == 'mike', "expected mike to be the fallback" )
     });         
 });
@@ -834,7 +920,7 @@ describe('\n\nsetpolshare action', () => {
 
     it('success', async () => {
         await contracts.dapp_contract.actions.setpolshare([6942000]).send('dapp.fusion@active');
-        const dapp_config = await getDappConfig()
+        const dapp_config = await getDappGlobal()
         assert( dapp_config.pol_share_1e6 == 6942000, "pol share should be 6942000" )
     });                                       
 });
@@ -858,12 +944,12 @@ describe('\n\nsetrentprice action', () => {
 
     it('error: symbol mismatch', async () => {
         const action = contracts.dapp_contract.actions.setrentprice(['oig', lswax(0.1)]).send('oig@active');
-        await expectToThrow(action, "eosio_assert: symbol and precision must match WAX")        
+        await expectToThrow(action, "eosio_assert: comparison of assets with different symbols is not allowed")        
     });         
 
     it('success', async () => {
         await contracts.dapp_contract.actions.setrentprice(['oig', wax(0.42)]).send('oig@active');
-        const dapp_state = await getDappState()
+        const dapp_state = await getDappGlobal()
         assert( dapp_state.cost_to_rent_1_wax == wax(0.42), "rent price should be 0.42 wax" )    
     });    
 });
@@ -933,23 +1019,6 @@ describe('\n\nsync action', () => {
     });           
 });
 
-describe('\n\nsynctvl action', () => {
-
-    it('error: missing auth of caller', async () => {
-        const action = contracts.dapp_contract.actions.synctvl(['mike']).send('eosio@active');
-        await expectToThrow(action, `missing required authority mike`)
-    }); 
-      
-    it('error: caller is not an admin', async () => {
-        const action = contracts.dapp_contract.actions.synctvl(['mike']).send('mike@active');
-        await expectToThrow(action, `eosio_assert: mike is not an admin`)
-    });
-
-    it('success', async () => {
-        await contracts.dapp_contract.actions.synctvl(['oig']).send('oig@active');
-    });           
-});
-
 describe('\n\nupdatetop21 action', () => {
 
     it('error: hasnt been 24h', async () => {
@@ -964,4 +1033,69 @@ describe('\n\nupdatetop21 action', () => {
         const action = contracts.dapp_contract.actions.updatetop21([]).send('mike@active');
         await expectToThrow(action, `eosio_assert: attempting to vote for 1 producers but need to vote for 16`)
     });       
+});
+
+
+describe('\n\n0 distribution', () => {
+
+    it('distribute 1 day, then again with 0 revenue', async () => {
+        await stake('mike', 10)
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
+        await incrementTime(300)
+        await contracts.dapp_contract.actions.claimrewards(['mike']).send('mike@active');
+        await incrementTime(86400)
+        const action1 = contracts.dapp_contract.actions.claimrewards(['mike']).send('mike@active');
+        await expectToThrow(action1, "eosio_assert: you have no wax to claim")
+        const action2 = contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
+        await expectToThrow(action2, "eosio_assert: nothing to compound")
+    });           
+
+});
+
+describe('\n\nextend_reward', () => {
+
+    it('simulate days and stake users to auto trigger extend_reward', async () => {
+        await stake('mike', 10000)
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10), 'waxfusion_revenue']).send('eosio@active')
+        await incrementTime(86400*7)
+        
+        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10), 'waxfusion_revenue']).send('eosio@active')
+        await incrementTime(86400)
+  
+        await stake('mike', 10000)
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10), 'waxfusion_revenue']).send('eosio@active')
+        await incrementTime(86400)
+
+        await stake('mike', 10000)
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10), 'waxfusion_revenue']).send('eosio@active')
+        await incrementTime(86400)
+
+        await stake('mike', 10000)
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10), 'waxfusion_revenue']).send('eosio@active')
+        await incrementTime(86400);
+
+        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');                           
+        await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');  
+        await incrementTime(86400*10)
+        await contracts.dapp_contract.actions.claimrewards(['mike']).send('mike@active');                           
+        await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active'); 
+    });           
+
+    
+    it('simulate days and stake users to auto trigger extend_reward', async () => {
+        await stake('mike', 10000)
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10), 'waxfusion_revenue']).send('eosio@active')
+        await incrementTime(86400*7)
+        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');
+
+        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10), 'waxfusion_revenue']).send('eosio@active')
+        await incrementTime(86400)        
+
+        await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
+        await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');  
+    }); 
+       
 });

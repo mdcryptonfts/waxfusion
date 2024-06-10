@@ -250,6 +250,10 @@
                 {
                     "name": "amount_deposited",
                     "type": "asset"
+                },
+                {
+                    "name": "payouts",
+                    "type": "asset[]"
                 }
             ]
         }

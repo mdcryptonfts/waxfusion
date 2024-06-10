@@ -11,9 +11,9 @@ const [mike, bob] = blockchain.createAccounts('mike', 'bob')
 const ERR_ALREADY_FUNDED_RENTAL = "eosio_assert: memo for increasing/extending should start with extend_rental or increase_rental"
 const ERR_MAX_AMOUNT_TO_RENT = "eosio_assert: maximum wax amount to rent is 10000000.00000000 WAX"
 const ERR_MAX_DAYS_TO_RENT = "eosio_assert: maximum days to rent is 3650"
-const ERR_MIN_AMOUNT_TO_RENT = "eosio_assert: minimum wax amount to rent is 10.00000000 WAX"
+const ERR_MIN_AMOUNT_TO_RENT = "eosio_assert: minimum wax amount to rent is 500.00000000 WAX"
 const ERR_MIN_DAYS_TO_EXTEND = "eosio_assert: extension must be at least 1 day"
-const ERR_MIN_DAYS_TO_RENT = "eosio_assert: minimum days to rent is 1"
+const ERR_MIN_DAYS_TO_RENT = "eosio_assert: minimum days to rent is 30"
 const ERR_NOT_ENOUGH_RENTAL_FUNDS = 'eosio_assert: there is not enough wax in the rental pool to cover this rental'
 const ERR_RENTAL_DOESNT_EXIST = "eosio_assert: could not locate an existing rental for this renter/receiver combo"
 const ERR_RENTAL_IS_EXPIRED = "eosio_assert: you can't extend a rental after it expired"
@@ -58,7 +58,7 @@ const getBalances = async (user, contract, log = false) => {
 
 const getDappState = async (log = false) => {
     const state = await contracts.dapp_contract.tables
-        .state(scopes.dapp)
+        .global(scopes.dapp)
         .getTableRows()[0]
     if(log){
         console.log('dapp state:')
@@ -463,7 +463,7 @@ describe('\n\nrebalance memo, sending 100k wax', () => {
 
         //validate dapp.fusion wax balance
         const dapp_wax_balance = await getBalances('dapp.fusion', contracts.wax_contract);
-        assert.strictEqual(dapp_wax_balance[0].balance, wax(100000), 'dapp should have 100000.00000000 WAX');
+        assert.strictEqual(dapp_wax_balance[0].balance, wax(101000), 'dapp should have 101000.00000000 WAX');
 
         //transfer from dapp to POL with rebalance memo
         await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', wax(100000), 'rebalance']).send('dapp.fusion@active');
@@ -495,7 +495,7 @@ describe('\n\nrebalance memo, sending 100k wax', () => {
 
         //validate dapp.fusion wax balance
         const dapp_wax_balance = await getBalances('dapp.fusion', contracts.wax_contract);
-        assert.strictEqual(dapp_wax_balance[0].balance, wax(120000), 'dapp should have 120000.00000000 WAX');
+        assert.strictEqual(dapp_wax_balance[0].balance, wax(121000), 'dapp should have 121000.00000000 WAX');
 
         //transfer from dapp to POL with rebalance memo
         await contracts.wax_contract.actions.transfer(['dapp.fusion', 'pol.fusion', wax(100000), 'rebalance']).send('dapp.fusion@active'); 
@@ -740,7 +740,7 @@ describe('\n\ndeposit LSWAX for liquidity', () => {
 describe('\n\nsend rent_cpu memo', () => {
 
     it('error: use rentcpu action first', async () => {
-        const memo = rent_cpu_memo( 'mike', 10, 1000 ); //receiver, days, wax
+        const memo = rent_cpu_memo( 'mike', 30, 1000 ); //receiver, days, wax
         const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(10), memo]).send('eosio@active'); 
         await expectToThrow(action, ERR_RENTCPU_FIRST);
     }); 
@@ -753,7 +753,7 @@ describe('\n\nsend rent_cpu memo', () => {
     });     
 
     it('error: rental pool has no wax', async () => {
-        const memo = rent_cpu_memo( 'mike', 10, 1000 ); //receiver, days, wax
+        const memo = rent_cpu_memo( 'mike', 30, 1000 ); //receiver, days, wax
         await contracts.pol_contract.actions.rentcpu(['eosio', 'mike']).send('eosio@active');  
         const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(10), memo]).send('eosio@active');  
         await expectToThrow(action, ERR_NOT_ENOUGH_RENTAL_FUNDS);
@@ -761,33 +761,33 @@ describe('\n\nsend rent_cpu memo', () => {
 
     it('user sent more wax than necessary', async () => {
         //send to mike first and have mike rent to track the wax balance
-        const memo = rent_cpu_memo( 'eosio', 10, 1000 ); //receiver, days, wax
+        const memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
-        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(20), '']).send('eosio@active');  
+        await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(44), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(44), memo]).send('mike@active');  
         const mikes_wax_balance = await getBalances('mike', contracts.wax_contract)
         assert.strictEqual(mikes_wax_balance[0].balance, wax(8), `mike should have 8 wax`);
     });     
 
     it('error: didnt send enough wax', async () => {
         //send to mike first and have mike rent to track the wax balance
-        const memo = rent_cpu_memo( 'eosio', 10, 1000 ); //receiver, days, wax
+        const memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(10), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
         const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(10), memo]).send('mike@active');  
-        await expectToThrow(action, 'eosio_assert: expected to receive 12.00000000 WAX');
+        await expectToThrow(action, 'eosio_assert: expected to receive 36.00000000 WAX');
     });  
 
     it('error: already funded rental', async () => {
         //send to mike first and have mike rent to track the wax balance
-        const memo = rent_cpu_memo( 'eosio', 10, 1000 ); //receiver, days, wax
+        const memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');  
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');  
         await expectToThrow(action, ERR_ALREADY_FUNDED_RENTAL);
     });  
 
@@ -824,7 +824,7 @@ describe('\n\nsend rent_cpu memo', () => {
 
     it('error: negative number passed for wax amount to rent', async () => {
         //send to mike first and have mike rent to track the wax balance
-        const memo = rent_cpu_memo( 'eosio', 10, -1000 ); //receiver, days, wax
+        const memo = rent_cpu_memo( 'eosio', 30, -1000 ); //receiver, days, wax
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
@@ -835,7 +835,7 @@ describe('\n\nsend rent_cpu memo', () => {
 
     it('error: minimum amount to rent', async () => {
         //send to mike first and have mike rent to track the wax balance
-        const memo = rent_cpu_memo( 'eosio', 10, 5 ); //receiver, days, wax
+        const memo = rent_cpu_memo( 'eosio', 30, 5 ); //receiver, days, wax
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
@@ -845,16 +845,15 @@ describe('\n\nsend rent_cpu memo', () => {
 
     it('exact amount was sent', async () => {
         //send to mike first and have mike rent to track the wax balance
-        const memo = rent_cpu_memo( 'eosio', 10, 1000 ); //receiver, days, wax
+        const memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
-        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active');  
+        await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');  
         const mikes_wax_balance = await getBalances('mike', contracts.wax_contract)
-        assert.strictEqual(mikes_wax_balance[0].balance, wax(188), `mike should have 188 wax`);        
+        assert.strictEqual(mikes_wax_balance[0].balance, wax(164), `mike should have 164 wax`);        
     });                     
 });
-
 
 describe('\n\nsend extend_rental memo', () => {
 
@@ -979,11 +978,12 @@ describe('\n\nsend extend_rental memo', () => {
 
 });
 
+
 describe('\n\nsend increase_rental memo', () => {
 
     it('error: rental doesnt exist', async () => {
-        const memo = increase_rental_memo( 'mike', 10 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(10), memo]).send('eosio@active'); 
+        const memo = increase_rental_memo( 'mike', 100 ); //receiver, wax
+        const action = contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100), memo]).send('eosio@active'); 
         await expectToThrow(action, ERR_RENTAL_DOESNT_EXIST);
     }); 
       
@@ -999,8 +999,8 @@ describe('\n\nsend increase_rental memo', () => {
         await setTime(initial_state.chain_time + (60 * 60 * 24 * 30) + 1 );
 
         //extend
-        memo = increase_rental_memo( 'eosio', 10 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
+        memo = increase_rental_memo( 'eosio', 100 ); //receiver, wax
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(120), memo]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: cant increase rental with < 1 day remaining");
     });   
 
@@ -1012,8 +1012,8 @@ describe('\n\nsend increase_rental memo', () => {
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');           
 
         //extend
-        memo = increase_rental_memo( 'eosio', 10 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
+        memo = increase_rental_memo( 'eosio', 100 ); //receiver, wax
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(120), memo]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: you can't increase a rental if it hasnt been funded yet");
     });   
 
@@ -1029,8 +1029,8 @@ describe('\n\nsend increase_rental memo', () => {
         await setTime(initial_state.chain_time + (60 * 60 * 24 * 31) + 1 );
 
         //extend
-        memo = increase_rental_memo( 'eosio', 10 ); //receiver, wax
-        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
+        memo = increase_rental_memo( 'eosio', 100 ); //receiver, wax
+        const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(120), memo]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: this rental has already expired");
     });    
 
@@ -1064,7 +1064,7 @@ describe('\n\nsend increase_rental memo', () => {
         //extend
         memo = increase_rental_memo( 'eosio', 1 ); //receiver, wax
         const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
-        await expectToThrow(action, "eosio_assert: minimum wax amount to increase is 5.00000000 WAX");
+        await expectToThrow(action, "eosio_assert: minimum wax amount to increase is 100.00000000 WAX");
     });     
 
     it('error: maximum amount to increase', async () => {
@@ -1109,7 +1109,6 @@ describe('\n\nsend increase_rental memo', () => {
     });                              
 });
 
-
 describe('\n\nclaimgbmvote action', () => {
 
     it('error: no rewards to claim', async () => {
@@ -1147,7 +1146,6 @@ describe('\n\nclaimgbmvote action', () => {
     });   
                              
 });
-
 
 describe('\n\nclaimrefund action', () => {
 
@@ -1365,7 +1363,7 @@ describe('\n\ndeleterental action', () => {
         await contracts.pol_contract.actions.rentcpu(['eosio', 'mike']).send('eosio@active');  
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(12000), 'for staking pool only']).send('eosio@active');
 
-        const memo = rent_cpu_memo('mike', 10, 1000);
+        const memo = rent_cpu_memo('mike', 30, 1000);
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100), memo]).send('eosio@active');
         const action = contracts.pol_contract.actions.deleterental([0]).send('eosio@active');  
         await expectToThrow(action, "eosio_assert: can not delete a rental after funding it, use the clearexpired action");

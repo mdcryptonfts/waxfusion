@@ -33,4 +33,91 @@ namespace safecast {
         return static_cast<int64_t>(value);
     }
 
+    template<typename T>
+    T add(T a, T b){
+        T sum;
+        if constexpr (std::is_signed<T>::value) {
+            //Handle signed integers
+            if ( ((b > 0) && (a > ( std::numeric_limits<T>::max() - b )) ) ||
+              ((b < 0) && (a < ( std::numeric_limits<T>::min() - b )))) {
+                eosio::check(false, "addition would result in overflow or underflow");
+            } else {
+                sum = a + b;
+            }
+
+            return sum;
+
+        } else {
+            //Handle unsigned integers
+            //precondition test
+            if ( std::numeric_limits<T>::max() - a < b ) {
+                eosio::check(false, "addition would result in wrapping");
+            } else {
+                sum = a + b;
+            }
+
+            //postcondition test
+            if (sum < a) {
+                eosio::check(false, "addition resulted in wrapping");
+            }
+
+            return sum;
+        }        
+    }
+
+    template<typename T>
+    T div(T a, T b){
+      if ((b == 0) || ((a == std::numeric_limits<T>::min()) && (b == -1))) {
+        eosio::check( false, "division would result in over/underflow" );
+      } else {
+        return a / b;
+      }     
+    }
+
+    template<typename T>
+    T mul(T a, T b){
+
+      T result;
+
+      if (a > 0) {  /* a is positive */
+        if (b > 0) {  /* a and b are positive */
+          if (a > (std::numeric_limits<T>::max() / b)) {
+            eosio::check(false, "multiplication would result in over/underflow");
+          }
+        } else { /* a positive, b nonpositive */
+          if (b < (std::numeric_limits<T>::min() / a)) {
+            eosio::check(false, "multiplication would result in over/underflow");
+          }
+        } /* a positive, b nonpositive */
+      } else { /* a is nonpositive */
+        if (b > 0) { /* a is nonpositive, b is positive */
+          if (a < (std::numeric_limits<T>::min() / b)) {
+            eosio::check(false, "multiplication would result in over/underflow");
+          }
+        } else { /* a and b are nonpositive */
+          if ( (a != 0) && (b < (std::numeric_limits<T>::max() / a))) {
+            eosio::check(false, "multiplication would result in over/underflow");
+          }
+        } /* End if a and b are nonpositive */
+      } /* End if a is nonpositive */
+
+      result = a * b;
+      return result;
+
+    }
+
+    template<typename T>
+    T sub(T a, T b){
+        T diff;
+        if ( (b > 0 && a < std::numeric_limits<T>::min() + b ) ||
+             (b < 0 && a > std::numeric_limits<T>::max() + b) ) 
+        {
+            eosio::check(false, "subtraction would result in overflow or underflow");
+        } else {
+            diff = a - b;
+        }
+
+        return diff;        
+    }    
+
 }

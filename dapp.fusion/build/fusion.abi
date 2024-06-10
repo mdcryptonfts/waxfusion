@@ -83,70 +83,9 @@
             ]
         },
         {
-            "name": "config3",
+            "name": "compound",
             "base": "",
-            "fields": [
-                {
-                    "name": "minimum_stake_amount",
-                    "type": "asset"
-                },
-                {
-                    "name": "minimum_unliquify_amount",
-                    "type": "asset"
-                },
-                {
-                    "name": "seconds_between_distributions",
-                    "type": "uint64"
-                },
-                {
-                    "name": "max_snapshots_to_process",
-                    "type": "uint64"
-                },
-                {
-                    "name": "initial_epoch_start_time",
-                    "type": "uint64"
-                },
-                {
-                    "name": "cpu_rental_epoch_length_seconds",
-                    "type": "uint64"
-                },
-                {
-                    "name": "seconds_between_epochs",
-                    "type": "uint64"
-                },
-                {
-                    "name": "user_share_1e6",
-                    "type": "uint64"
-                },
-                {
-                    "name": "pol_share_1e6",
-                    "type": "uint64"
-                },
-                {
-                    "name": "ecosystem_share_1e6",
-                    "type": "uint64"
-                },
-                {
-                    "name": "admin_wallets",
-                    "type": "name[]"
-                },
-                {
-                    "name": "cpu_contracts",
-                    "type": "name[]"
-                },
-                {
-                    "name": "redemption_period_length_seconds",
-                    "type": "uint64"
-                },
-                {
-                    "name": "seconds_between_stakeall",
-                    "type": "uint64"
-                },
-                {
-                    "name": "fallback_cpu_receiver",
-                    "type": "name"
-                }
-            ]
+            "fields": []
         },
         {
             "name": "createfarms",
@@ -166,11 +105,6 @@
                     "type": "string"
                 }
             ]
-        },
-        {
-            "name": "distribute",
-            "base": "",
-            "fields": []
         },
         {
             "name": "epochs",
@@ -215,24 +149,144 @@
             ]
         },
         {
-            "name": "initconfig",
+            "name": "global",
             "base": "",
-            "fields": []
+            "fields": [
+                {
+                    "name": "swax_currently_earning",
+                    "type": "asset"
+                },
+                {
+                    "name": "swax_currently_backing_lswax",
+                    "type": "asset"
+                },
+                {
+                    "name": "liquified_swax",
+                    "type": "asset"
+                },
+                {
+                    "name": "revenue_awaiting_distribution",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_revenue_distributed",
+                    "type": "asset"
+                },
+                {
+                    "name": "wax_for_redemption",
+                    "type": "asset"
+                },
+                {
+                    "name": "last_epoch_start_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "wax_available_for_rentals",
+                    "type": "asset"
+                },
+                {
+                    "name": "cost_to_rent_1_wax",
+                    "type": "asset"
+                },
+                {
+                    "name": "current_cpu_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "next_stakeall_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "last_incentive_distribution",
+                    "type": "uint64"
+                },
+                {
+                    "name": "incentives_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_value_locked",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_shares_allocated",
+                    "type": "uint64"
+                },
+                {
+                    "name": "last_compound_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "minimum_stake_amount",
+                    "type": "asset"
+                },
+                {
+                    "name": "minimum_unliquify_amount",
+                    "type": "asset"
+                },
+                {
+                    "name": "initial_epoch_start_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "cpu_rental_epoch_length_seconds",
+                    "type": "uint64"
+                },
+                {
+                    "name": "seconds_between_epochs",
+                    "type": "uint64"
+                },
+                {
+                    "name": "user_share_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "pol_share_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "ecosystem_share_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "admin_wallets",
+                    "type": "name[]"
+                },
+                {
+                    "name": "cpu_contracts",
+                    "type": "name[]"
+                },
+                {
+                    "name": "redemption_period_length_seconds",
+                    "type": "uint64"
+                },
+                {
+                    "name": "seconds_between_stakeall",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fallback_cpu_receiver",
+                    "type": "name"
+                },
+                {
+                    "name": "protocol_fee_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "total_rewards_claimed",
+                    "type": "asset"
+                }
+            ]
         },
         {
-            "name": "initconfig3",
+            "name": "init",
             "base": "",
-            "fields": []
-        },
-        {
-            "name": "initstate2",
-            "base": "",
-            "fields": []
-        },
-        {
-            "name": "initstate3",
-            "base": "",
-            "fields": []
+            "fields": [
+                {
+                    "name": "initial_reward_pool",
+                    "type": "asset"
+                }
+            ]
         },
         {
             "name": "inittop21",
@@ -308,24 +362,24 @@
             ]
         },
         {
-            "name": "payouts",
+            "name": "old_stakers",
             "base": "",
             "fields": [
                 {
-                    "name": "id",
-                    "type": "uint64"
-                },
-                {
-                    "name": "timestamp",
-                    "type": "uint64"
-                },
-                {
-                    "name": "user",
+                    "name": "wallet",
                     "type": "name"
                 },
                 {
-                    "name": "amount",
+                    "name": "swax_balance",
                     "type": "asset"
+                },
+                {
+                    "name": "claimable_wax",
+                    "type": "asset"
+                },
+                {
+                    "name": "last_update",
+                    "type": "uint64"
                 }
             ]
         },
@@ -405,6 +459,48 @@
                 {
                     "name": "accept_replacing_prev_requests",
                     "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "rewards",
+            "base": "",
+            "fields": [
+                {
+                    "name": "periodStart",
+                    "type": "uint64"
+                },
+                {
+                    "name": "periodFinish",
+                    "type": "uint64"
+                },
+                {
+                    "name": "rewardRate",
+                    "type": "uint128"
+                },
+                {
+                    "name": "rewardsDuration",
+                    "type": "uint64"
+                },
+                {
+                    "name": "lastUpdateTime",
+                    "type": "uint64"
+                },
+                {
+                    "name": "rewardPerTokenStored",
+                    "type": "uint128"
+                },
+                {
+                    "name": "rewardPool",
+                    "type": "asset"
+                },
+                {
+                    "name": "totalSupply",
+                    "type": "uint128"
+                },
+                {
+                    "name": "totalRewardsPaidOut",
+                    "type": "asset"
                 }
             ]
         },
@@ -489,40 +585,6 @@
             ]
         },
         {
-            "name": "snapshots",
-            "base": "",
-            "fields": [
-                {
-                    "name": "timestamp",
-                    "type": "uint64"
-                },
-                {
-                    "name": "swax_earning_bucket",
-                    "type": "asset"
-                },
-                {
-                    "name": "lswax_autocompounding_bucket",
-                    "type": "asset"
-                },
-                {
-                    "name": "pol_bucket",
-                    "type": "asset"
-                },
-                {
-                    "name": "ecosystem_bucket",
-                    "type": "asset"
-                },
-                {
-                    "name": "total_distributed",
-                    "type": "asset"
-                },
-                {
-                    "name": "total_swax_earning",
-                    "type": "asset"
-                }
-            ]
-        },
-        {
             "name": "stake",
             "base": "",
             "fields": [
@@ -550,155 +612,21 @@
                     "type": "asset"
                 },
                 {
+                    "name": "last_update",
+                    "type": "uint64"
+                },
+                {
                     "name": "claimable_wax",
                     "type": "asset"
                 },
                 {
-                    "name": "last_update",
-                    "type": "uint64"
-                }
-            ]
-        },
-        {
-            "name": "state",
-            "base": "",
-            "fields": [
-                {
-                    "name": "swax_currently_earning",
-                    "type": "asset"
-                },
-                {
-                    "name": "swax_currently_backing_lswax",
-                    "type": "asset"
-                },
-                {
-                    "name": "liquified_swax",
-                    "type": "asset"
-                },
-                {
-                    "name": "revenue_awaiting_distribution",
-                    "type": "asset"
-                },
-                {
-                    "name": "user_funds_bucket",
-                    "type": "asset"
-                },
-                {
-                    "name": "total_revenue_distributed",
-                    "type": "asset"
-                },
-                {
-                    "name": "next_distribution",
-                    "type": "uint64"
-                },
-                {
-                    "name": "wax_for_redemption",
-                    "type": "asset"
-                },
-                {
-                    "name": "redemption_period_start",
-                    "type": "uint64"
-                },
-                {
-                    "name": "redemption_period_end",
-                    "type": "uint64"
-                },
-                {
-                    "name": "last_epoch_start_time",
-                    "type": "uint64"
-                },
-                {
-                    "name": "wax_available_for_rentals",
-                    "type": "asset"
-                },
-                {
-                    "name": "cost_to_rent_1_wax",
-                    "type": "asset"
-                },
-                {
-                    "name": "current_cpu_contract",
-                    "type": "name"
-                },
-                {
-                    "name": "next_stakeall_time",
-                    "type": "uint64"
-                }
-            ]
-        },
-        {
-            "name": "state2",
-            "base": "",
-            "fields": [
-                {
-                    "name": "last_incentive_distribution",
-                    "type": "uint64"
-                },
-                {
-                    "name": "incentives_bucket",
-                    "type": "asset"
-                },
-                {
-                    "name": "total_value_locked",
-                    "type": "asset"
-                },
-                {
-                    "name": "total_shares_allocated",
-                    "type": "uint64"
-                }
-            ]
-        },
-        {
-            "name": "state3",
-            "base": "",
-            "fields": [
-                {
-                    "name": "total_claimable_wax",
-                    "type": "asset"
-                },
-                {
-                    "name": "total_wax_owed",
-                    "type": "asset"
-                },
-                {
-                    "name": "contract_wax_balance",
-                    "type": "asset"
-                },
-                {
-                    "name": "last_update",
-                    "type": "uint64"
-                }
-            ]
-        },
-        {
-            "name": "statesnaps",
-            "base": "",
-            "fields": [
-                {
-                    "name": "timestamp",
-                    "type": "uint64"
-                },
-                {
-                    "name": "total_wax_owed",
-                    "type": "asset"
-                },
-                {
-                    "name": "contract_wax_balance",
-                    "type": "asset"
+                    "name": "userRewardPerTokenPaid",
+                    "type": "uint128"
                 }
             ]
         },
         {
             "name": "sync",
-            "base": "",
-            "fields": [
-                {
-                    "name": "caller",
-                    "type": "name"
-                }
-            ]
-        },
-        {
-            "name": "synctvl",
             "base": "",
             "fields": [
                 {
@@ -783,33 +711,18 @@
             "ricardian_contract": ""
         },
         {
+            "name": "compound",
+            "type": "compound",
+            "ricardian_contract": ""
+        },
+        {
             "name": "createfarms",
             "type": "createfarms",
             "ricardian_contract": ""
         },
         {
-            "name": "distribute",
-            "type": "distribute",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "initconfig",
-            "type": "initconfig",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "initconfig3",
-            "type": "initconfig3",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "initstate2",
-            "type": "initstate2",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "initstate3",
-            "type": "initstate3",
+            "name": "init",
+            "type": "init",
             "ricardian_contract": ""
         },
         {
@@ -898,11 +811,6 @@
             "ricardian_contract": ""
         },
         {
-            "name": "synctvl",
-            "type": "synctvl",
-            "ricardian_contract": ""
-        },
-        {
             "name": "unstakecpu",
             "type": "unstakecpu",
             "ricardian_contract": ""
@@ -914,13 +822,6 @@
         }
     ],
     "tables": [
-        {
-            "name": "config3",
-            "type": "config3",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
         {
             "name": "debug",
             "type": "debug",
@@ -936,6 +837,13 @@
             "key_types": []
         },
         {
+            "name": "global",
+            "type": "global",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
             "name": "lpfarms",
             "type": "lpfarms",
             "index_type": "i64",
@@ -943,8 +851,8 @@
             "key_types": []
         },
         {
-            "name": "payouts",
-            "type": "payouts",
+            "name": "oldstakers",
+            "type": "old_stakers",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
@@ -964,8 +872,8 @@
             "key_types": []
         },
         {
-            "name": "snapshots",
-            "type": "snapshots",
+            "name": "rewards",
+            "type": "rewards",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
@@ -973,34 +881,6 @@
         {
             "name": "stakers",
             "type": "stakers",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "state",
-            "type": "state",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "state2",
-            "type": "state2",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "state3",
-            "type": "state3",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "statesnaps",
-            "type": "statesnaps",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

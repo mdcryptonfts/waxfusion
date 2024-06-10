@@ -29,6 +29,7 @@ const initial_state = {
     circulating_wax: `10000000.00000000 WAX`,
     dapp_rental_pool: Number(calculate_wax_and_lswax_outputs(100000, 100000 / 95300, 1)[1]), //48796.72299027
     honey_supply: `461168601842738.7903 HONEY`,
+    reward_pool: `1000.00000000 WAX`,
     swax_backing_lswax: Number(calculate_wax_and_lswax_outputs(100000, 100000 / 95300, 1)[1]), //48796.72299027  
     swax_supply: `46116860184.27387903 SWAX`,
     lswax_supply: `46116860184.27387903 LSWAX`,
@@ -48,12 +49,12 @@ function incrementTime(seconds = TEN_MINUTES) {
 
 const init = async () => {
 	await setTime(initial_state.chain_time);
+    await contracts.wax_contract.actions.create(['eosio', initial_state.wax_supply]).send();
+    await contracts.wax_contract.actions.issue(['eosio', initial_state.wax_supply, 'issuing wax']).send('eosio@active');
+    await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(1000), '']).send('eosio@active');
     await contracts.alcor_contract.actions.initunittest([initial_state.alcor_wax_pool, initial_state.alcor_lswax_pool]).send();       
     await contracts.system_contract.actions.initproducer().send();
-    await contracts.dapp_contract.actions.initconfig3().send();
-    await contracts.dapp_contract.actions.initconfig().send();
-    await contracts.dapp_contract.actions.initstate2().send();
-    await contracts.dapp_contract.actions.initstate3().send();
+    await contracts.dapp_contract.actions.init([initial_state.reward_pool]).send();
     await contracts.dapp_contract.actions.inittop21().send();
     await contracts.pol_contract.actions.initconfig([initial_state.alcor_pool_id]).send();
     await contracts.pol_contract.actions.initstate3().send();   
@@ -61,22 +62,17 @@ const init = async () => {
     await contracts.cpu2.actions.initstate().send();
     await contracts.cpu3.actions.initstate().send();  
     await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 HONEY', contract: 'nfthivehoney'}, {quantity: lswax(0), contract: 'token.fusion'}]).send('eosio@active');       
-    await contracts.wax_contract.actions.create(['eosio', initial_state.wax_supply]).send();
     await contracts.honey_contract.actions.create(['mike', initial_state.honey_supply]).send();
     await contracts.honey_contract.actions.issue(['mike', initial_state.honey_supply, 'issuing honey']).send('mike@active');
-    await contracts.wax_contract.actions.issue(['eosio', initial_state.wax_supply, 'issuing wax']).send('eosio@active');
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.swax_supply]).send();
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.lswax_supply]).send();
     await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(1000000), '1M wax for mike']).send('eosio@active');
     await contracts.wax_contract.actions.transfer(['eosio', 'bob', wax(1000000), '1M wax for bob']).send('eosio@active');
     await contracts.wax_contract.actions.transfer(['eosio', 'ricky', wax(1000000), '1M wax for ricky']).send('eosio@active');
-
-    //deposit initial 100k liquidity to POL, and 100k initial staking pool funds
     await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for liquidity only']).send('eosio@active');
     await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for staking pool only']).send('eosio@active');
-
-    //add incentive to incentives table
     await contracts.dapp_contract.actions.setincentive([2, '8,WAX', 'eosio.token', 25000000]).send('dapp.fusion@active')
+
 }
 
 const stake = async (user, amount, liquify = false, liquify_amount = amount) => {
@@ -114,11 +110,9 @@ const simulate_days = async (days = 1, stake_users = false, claim_rewards = true
             }
         }
 
-        //fast forward a day
         current_time += 86400
         await setTime(current_time)
 
-        //claim rewards
         if(claim_rewards){
             if(count < 10){
                 await contracts.dapp_contract.actions.claimgbmvote(['cpu1.fusion']).send('mike@active')
@@ -127,9 +121,6 @@ const simulate_days = async (days = 1, stake_users = false, claim_rewards = true
             }
         }
         
-        //distribute
-        await contracts.dapp_contract.actions.distribute([]).send('mike@active')
-  
         count ++
 
     }

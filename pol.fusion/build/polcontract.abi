@@ -52,6 +52,136 @@
             ]
         },
         {
+            "name": "global",
+            "base": "",
+            "fields": [
+                {
+                    "name": "swax_currently_earning",
+                    "type": "asset"
+                },
+                {
+                    "name": "swax_currently_backing_lswax",
+                    "type": "asset"
+                },
+                {
+                    "name": "liquified_swax",
+                    "type": "asset"
+                },
+                {
+                    "name": "revenue_awaiting_distribution",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_revenue_distributed",
+                    "type": "asset"
+                },
+                {
+                    "name": "wax_for_redemption",
+                    "type": "asset"
+                },
+                {
+                    "name": "last_epoch_start_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "wax_available_for_rentals",
+                    "type": "asset"
+                },
+                {
+                    "name": "cost_to_rent_1_wax",
+                    "type": "asset"
+                },
+                {
+                    "name": "current_cpu_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "next_stakeall_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "last_incentive_distribution",
+                    "type": "uint64"
+                },
+                {
+                    "name": "incentives_bucket",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_value_locked",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_shares_allocated",
+                    "type": "uint64"
+                },
+                {
+                    "name": "last_compound_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "minimum_stake_amount",
+                    "type": "asset"
+                },
+                {
+                    "name": "minimum_unliquify_amount",
+                    "type": "asset"
+                },
+                {
+                    "name": "initial_epoch_start_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "cpu_rental_epoch_length_seconds",
+                    "type": "uint64"
+                },
+                {
+                    "name": "seconds_between_epochs",
+                    "type": "uint64"
+                },
+                {
+                    "name": "user_share_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "pol_share_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "ecosystem_share_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "admin_wallets",
+                    "type": "name[]"
+                },
+                {
+                    "name": "cpu_contracts",
+                    "type": "name[]"
+                },
+                {
+                    "name": "redemption_period_length_seconds",
+                    "type": "uint64"
+                },
+                {
+                    "name": "seconds_between_stakeall",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fallback_cpu_receiver",
+                    "type": "name"
+                },
+                {
+                    "name": "protocol_fee_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "total_rewards_claimed",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
             "name": "initconfig",
             "base": "",
             "fields": [
@@ -234,6 +364,13 @@
         {
             "name": "config2",
             "type": "config2",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "global",
+            "type": "global",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

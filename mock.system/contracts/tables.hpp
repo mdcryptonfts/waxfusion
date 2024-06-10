@@ -114,6 +114,7 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] voters {
   uint64_t                    last_claim;
   std::vector<eosio::name>    producers;
   eosio::asset                amount_deposited;
+  std::vector<eosio::asset>   payouts;
 
   uint64_t  primary_key()const { return voter.value; }
 

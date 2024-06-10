@@ -1,17 +1,10 @@
 const { blockchain, contracts, incrementTime, init, initial_state, setTime, stake, simulate_days, unliquify } = require("./setup.spec.ts")
-const { almost_equal, calculate_wax_and_lswax_outputs, honey, lswax, rent_cpu_memo, swax, validate_supply_and_payouts, wax } = require("./helpers.ts")
+const { almost_equal, calculate_wax_and_lswax_outputs, honey, lswax, rent_cpu_memo, swax, wax } = require("./helpers.ts")
 const { nameToBigInt, TimePoint, expectToThrow } = require("@eosnetwork/vert");
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
 
 const [mike, bob, ricky] = blockchain.createAccounts('mike', 'bob', 'ricky')
-
-
-/* Runs before each test */
-beforeEach(async () => {
-    blockchain.resetTables()
-    await init()
-})
 
 const scopes = {
     alcor: contracts.alcor_contract.value,
@@ -21,15 +14,6 @@ const scopes = {
     cpu3: contracts.cpu3.value,
     pol: contracts.pol_contract.value,
     system: contracts.system_contract.value
-}
-
-const getPayouts = async () => {
-    const payouts = await contracts.dapp_contract.tables
-        .payouts(scopes.dapp)
-        .getTableRows()
-        console.log("payouts:")
-        console.log(payouts) 
-
 }
 
 const getAlcorPool = async (log = false) => {
@@ -55,38 +39,17 @@ const getBalances = async (user, contract, log = false) => {
     return rows
 }
 
-const getDappConfig = async (log = false) => {
-    const dapp_config = await contracts.dapp_contract.tables
-        .config3(scopes.dapp)
+const getDappGlobal = async (log = false) => {
+    const g = await contracts.dapp_contract.tables
+        .global(scopes.dapp)
         .getTableRows()[0]
     if(log){
-        console.log('dapp config:')
-        console.log(dapp_config)    
+        console.log('global:')
+        console.log(g)
     }
-    return dapp_config
+    return g 
 }
 
-const getDappState = async (log = false) => {
-    const state = await contracts.dapp_contract.tables
-        .state(scopes.dapp)
-        .getTableRows()[0]
-    if(log){
-        console.log('dapp state:')
-        console.log(state)
-    }
-    return state 
-}
-
-const getDappState2 = async (log = false) => {
-    const state2 = await contracts.dapp_contract.tables
-        .state2(scopes.dapp)
-        .getTableRows()[0]
-    if(log){
-        console.log('dapp state2:')
-        console.log(state2)
-    }
-    return state2 
-}
 
 const getDappTop21 = async (log = false) => {
     const top21 = await contracts.dapp_contract.tables
@@ -132,17 +95,6 @@ const getRenters = async (log = false) => {
     return renters; 
 }
 
-const getSnapshots = async (log = false) => {
-    const snaps = await contracts.dapp_contract.tables
-        .snapshots(scopes.dapp)
-        .getTableRows()
-    if(log){
-        console.log('snapshots')
-        console.log(snaps)
-    }
-    return snaps 
-}
-
 const getSupply = async (account, token, log = false) => {
     const scope = Asset.SymbolCode.from(token).value.value
     const row = await account.tables
@@ -166,23 +118,11 @@ const getSWaxStaker = async (user, log = false) => {
     return staker; 
 }
 
-/* Tests */
-describe('\n\nverify initial state and config', () => {
-    //pass `true` to log the results in the console
-    it('', async () => {
-        await getDappConfig(true)
-        await getDappState(true)
-        await getDappTop21(true) 
-        await getAlcorPool(true)
-    });  
-});
-
-
 describe('\n\nstake memo', () => {
 
     it('error: need to use the stake action first', async () => {
     	const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), 'stake']).send('mike@active');
-    	await expectToThrow(action, "eosio_assert: you need to use the stake action first")
+    	await expectToThrow(action, "eosio_assert: you don't have anything staked here")
     }); 
 
     it('error: minimum amount not met', async () => {
@@ -198,7 +138,7 @@ describe('\n\nstake memo', () => {
 
     it('success: staked 10 wax', async () => {
         await stake('mike', 10)
-    	const dapp_state = await getDappState();
+    	const dapp_state = await getDappGlobal();
     	assert(dapp_state.swax_currently_earning == swax(10), "swax_currently_earning should be 10");
         almost_equal( parseFloat(dapp_state.wax_available_for_rentals), parseFloat(initial_state.dapp_rental_pool) + 10  );
     	const swax_supply = await getSupply(contracts.token_contract, "SWAX");
@@ -213,7 +153,7 @@ describe('\n\nunliquify memo', () => {
         await stake('mike', 100, true)
         await contracts.token_contract.actions.transfer(['mike', 'ricky', lswax(10), '']).send('mike@active');
         const action = contracts.token_contract.actions.transfer(['ricky', 'dapp.fusion', lswax(10), 'unliquify']).send('ricky@active');
-        await expectToThrow(action, "eosio_assert: you need to use the stake action first")
+        await expectToThrow(action, "eosio_assert: you don't have anything staked here")
     });
 
     it('error: wrong token sent', async () => {
@@ -237,6 +177,7 @@ describe('\n\nunliquify memo', () => {
 
 });
 
+
 describe('\n\nwaxfusion_revenue memo', () => {
 
     it('error: only wax accepted', async () => {
@@ -247,23 +188,24 @@ describe('\n\nwaxfusion_revenue memo', () => {
 
     it('success, 100k wax deposited', async () => {
         await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(100000), 'waxfusion_revenue']).send('mike@active');
-        const dapp_state = await getDappState()
+        const dapp_state = await getDappGlobal()
         assert(dapp_state.revenue_awaiting_distribution == wax(100000), "dapp revenue should be 100k wax")
     }); 
 });
+
 
 describe('\n\nlp_incentives memo', () => {
 
     it('success, 100k wax deposited', async () => {
         await contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(100000), 'lp_incentives']).send('mike@active');
-        const dapp_state2 = await getDappState2()
+        const dapp_state2 = await getDappGlobal()
         assert(dapp_state2.incentives_bucket == lswax(100000), "incentives bucket should be 100k lswax")
     }); 
 
     it('success, 1k lsWAX deposited', async () => {
         await stake('mike', 1000, true)
         await contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(1000), 'lp_incentives']).send('mike@active');
-        const dapp_state2 = await getDappState2()
+        const dapp_state2 = await getDappGlobal()
         assert(dapp_state2.incentives_bucket == lswax(1000), "incentives bucket should be 1000 lswax")
     });     
 });
@@ -327,13 +269,7 @@ describe('\n\nrent_cpu memo', () => {
         const memo = rent_cpu_memo('mike', 10, initial_state.chain_time - (86400*7))
         const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active') 
         await expectToThrow(action, `eosio_assert: epoch ${initial_state.chain_time - (86400*7)} does not exist`)
-    });    
-
-    it('error: invalid epoch', async () => {
-        const memo = rent_cpu_memo('mike', 10, initial_state.chain_time - (86400*14))
-        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(10), memo]).send('mike@active') 
-        await expectToThrow(action, "eosio_assert: you are trying to rent from an invalid epoch")
-    });   
+    });      
 
     it('error: didnt send enough wax', async () => {
         const memo = rent_cpu_memo('mike', 1000, initial_state.chain_time)
@@ -373,7 +309,7 @@ describe('\n\nunliquify_exact memo', () => {
         await stake('mike', 100, true)
         await contracts.token_contract.actions.transfer(['mike', 'ricky', lswax(10), '']).send('mike@active');
         const action = contracts.token_contract.actions.transfer(['ricky', 'dapp.fusion', lswax(10), memo]).send('ricky@active');
-        await expectToThrow(action, "eosio_assert: you need to use the stake action first")
+        await expectToThrow(action, "eosio_assert: you don't have anything staked here")
     });  
 
     it('error: output less than expected', async () => {
@@ -394,30 +330,10 @@ describe('\n\nunliquify_exact memo', () => {
     });                  
 });
 
-
 describe('\n\nsimulate_days', () => {
 
     it('success', async () => {
         await simulate_days(14, true)
-
-        //check the lswax supply
-        await getSupply(contracts.token_contract, "LSWAX")
-
-        //check the swax supply
-        await getSupply(contracts.token_contract, "SWAX")
-
-        //check the dapp state
-        const dapp_state = await getDappState()
-
-        //check the lswax supply
-        const lswax_supply = await getSupply(contracts.token_contract, "LSWAX")
-
-        //check the swax supply
-        const swax_supply = await getSupply(contracts.token_contract, "SWAX")
-
-        const snaps = await getSnapshots()
-        validate_supply_and_payouts(snaps, dapp_state.swax_currently_earning, dapp_state.swax_currently_backing_lswax,
-                lswax_supply.supply, swax_supply.supply, dapp_state.liquified_swax )
 
         await incrementTime(1)
         const bobs_swax = await getSWaxStaker('bob')
@@ -429,9 +345,7 @@ describe('\n\nsimulate_days', () => {
         const bobs_wax_after = await getBalances('bob', contracts.wax_contract)
         const mikes_swax_after = await getSWaxStaker('mike')
         const mikes_wax_after = await getBalances('mike', contracts.wax_contract)        
-        validate_supply_and_payouts(snaps, dapp_state.swax_currently_earning, dapp_state.swax_currently_backing_lswax,
-                lswax_supply.supply, swax_supply.supply, dapp_state.liquified_swax )    
-        //await getPayouts()    
+
     });  
  
 });
@@ -439,6 +353,7 @@ describe('\n\nsimulate_days', () => {
 
 describe('\n\nno memo / unexpected memo', () => {
     const err = `eosio_assert: must include a memo for transfers to dapp.fusion, see docs.waxfusion.io for a list of memos`
+    
     it('honey was received', async () => {
         await contracts.honey_contract.actions.transfer(['mike', 'dapp.fusion', honey(10), '']).send('mike@active');
     });  
@@ -542,8 +457,3 @@ describe('\n\nwax_lswax_liquidity memo', () => {
     }); 
       
 });
-
-
-module.exports = {
-    getPayouts
-}
