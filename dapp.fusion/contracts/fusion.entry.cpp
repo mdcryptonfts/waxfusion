@@ -387,8 +387,8 @@ ACTION fusion::init(const asset& initial_reward_pool){
 	});
 
 	rewards r{};
-	r.periodStart = now();
-	r.periodFinish = now() + STAKING_FARM_DURATION;
+	r.periodStart = now() + (60*60*6); /* 6 hours from now */
+	r.periodFinish = now() + (60*60*6) + STAKING_FARM_DURATION;
 	r.rewardRate = mulDiv128( uint128_t(initial_reward_pool.amount), SCALE_FACTOR_1E8, uint128_t(STAKING_FARM_DURATION) );
 	r.rewardsDuration = STAKING_FARM_DURATION;
 	r.lastUpdateTime = now();
