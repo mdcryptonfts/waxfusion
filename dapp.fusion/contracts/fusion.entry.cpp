@@ -909,10 +909,25 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
 
 ACTION fusion::setpolshare(const uint64_t& pol_share_1e6) {
 	require_auth( _self );
-	check( pol_share_1e6 >= 5 * SCALE_FACTOR_1E6 && pol_share_1e6 <= 10 * SCALE_FACTOR_1E6, "acceptable range is 5-10%" );
+	check( pol_share_1e6 >= uint64_t(5 * SCALE_FACTOR_1E6) && pol_share_1e6 <= uint64_t(10 * SCALE_FACTOR_1E6), "acceptable range is 5-10%" );
 
 	global g = global_s.get();
 	g.pol_share_1e6 = pol_share_1e6;
+	global_s.set(g, _self);
+}
+
+/**
+* setredeemfee
+* Adjusts the percentage fee for instant redemptions
+* allows values between 0 and 1%
+*/
+
+ACTION fusion::setredeemfee(const uint64_t& protocol_fee_1e6) {
+	require_auth( _self );
+	check( protocol_fee_1e6 >= 0 && protocol_fee_1e6 <= uint64_t(SCALE_FACTOR_1E6), "acceptable range is 0-1%" );
+
+	global g = global_s.get();
+	g.protocol_fee_1e6 = protocol_fee_1e6;
 	global_s.set(g, _self);
 }
 

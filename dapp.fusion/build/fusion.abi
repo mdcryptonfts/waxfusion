@@ -535,6 +535,16 @@
             ]
         },
         {
+            "name": "setredeemfee",
+            "base": "",
+            "fields": [
+                {
+                    "name": "protocol_fee_1e6",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
             "name": "setrentprice",
             "base": "",
             "fields": [
@@ -752,6 +762,11 @@
         {
             "name": "setpolshare",
             "type": "setpolshare",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setredeemfee",
+            "type": "setredeemfee",
             "ricardian_contract": ""
         },
         {
