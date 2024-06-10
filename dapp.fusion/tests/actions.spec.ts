@@ -280,7 +280,7 @@ describe('\n\ncompound action', () => {
     });  
 
     it('success"', async () => {
-        await incrementTime(300)
+        await incrementTime( (60*60*6) + 300)
         const state_before = await getDappGlobal()
         await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
         const state_after = await getDappGlobal()
@@ -291,7 +291,7 @@ describe('\n\ncompound action', () => {
     });   
 
     it('success, then error if compounding twice in same second', async () => {
-        await incrementTime(300)
+        await incrementTime( (60*60*6) + 300)
         const state_before = await getDappGlobal()
         await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
         const state_after = await getDappGlobal()
@@ -1039,6 +1039,7 @@ describe('\n\nupdatetop21 action', () => {
 describe('\n\n0 distribution', () => {
 
     it('distribute 1 day, then again with 0 revenue', async () => {
+        await incrementTime(60*60*6)
         await stake('mike', 10)
         await incrementTime(86400)
         await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
@@ -1056,6 +1057,7 @@ describe('\n\n0 distribution', () => {
 describe('\n\nextend_reward', () => {
 
     it('test skipping multiple days before extend_farm is called', async () => {
+        await incrementTime(60*60*6)
         await stake('mike', 10000)
         await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10), 'waxfusion_revenue']).send('eosio@active')
         await incrementTime(86400*7)
@@ -1093,6 +1095,7 @@ describe('\n\nextend_reward', () => {
 
     
     it('simulate days and stake users to auto trigger extend_reward', async () => {
+        await incrementTime(60*60*6)
         await stake('mike', 10000)
         await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10), 'waxfusion_revenue']).send('eosio@active')
         await incrementTime(86400*7)
@@ -1109,9 +1112,9 @@ describe('\n\nextend_reward', () => {
         const r = await getRewardFarm()
         const g = await getDappGlobal()
         const expected_payouts = parseFloat(initial_state.reward_pool) + ( 10 * 0.85 )
-        assert( parseFloat(r.rewardPool) == expected_payouts, `reward pool should be ${expected_payouts}` )
+        assert( parseFloat(r.rewardPool) == expected_payouts, `reward pool should be ${expected_payouts} but is ${parseFloat(r.rewardPool)}` )
         almost_equal( parseFloat(r.totalRewardsPaidOut), expected_payouts )      
-        assert( g.revenue_awaiting_distribution == wax(10), `there should be 10 wax awaiting distribution` )     
+        assert( g.revenue_awaiting_distribution == wax(10), `there should be 0 wax awaiting distribution` )     
     }); 
        
 });

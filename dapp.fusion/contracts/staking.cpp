@@ -89,7 +89,7 @@ uint128_t fusion::reward_per_token(rewards& r)
 	//is when the extend_reward function is called
 	//which calculates pending rewards up to the previous periodFinish, 
 	//then sets a new periodFinish with new rewardRate before users call update_reward
-	uint64_t time_elapsed = std::min( now(), r.periodFinish ) - r.lastUpdateTime;
+	uint64_t time_elapsed = std::min( now(), r.periodFinish ) - std::max( r.periodStart, r.lastUpdateTime ) ;
 
 	uint128_t a = r.rewardRate;
 	uint128_t b = uint128_t(time_elapsed) * SCALE_FACTOR_1E8;
@@ -99,14 +99,14 @@ uint128_t fusion::reward_per_token(rewards& r)
 }
 
 void fusion::update_reward(staker_struct& staker, rewards& r) {
-	
-	if( r.lastUpdateTime < r.periodFinish ){
+		
+	if( r.lastUpdateTime < r.periodFinish && now() > r.periodStart ){
 		r.rewardPerTokenStored = reward_per_token(r);
 	}
 
 	r.lastUpdateTime = now();
 
-	if(staker.swax_balance.amount > 0){
+	if( staker.swax_balance.amount > 0 && now() > r.periodStart ){
 
 		int64_t pending_rewards = earned(staker, r);
 		staker.claimable_wax.amount += pending_rewards;
