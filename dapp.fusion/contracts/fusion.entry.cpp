@@ -8,7 +8,6 @@
 
 //contractName: fusion
 
-
 ACTION fusion::addadmin(const eosio::name& admin_to_add) {
 	require_auth(_self);
 	check( is_account(admin_to_add), "admin_to_add is not a wax account" );
@@ -43,7 +42,7 @@ ACTION fusion::addcpucntrct(const eosio::name& contract_to_add) {
  */
 
 ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& minimum_output) {
-	check( ACTIVE, "contract under maintenance" );
+
 	require_auth(user);
 
 	global g = global_s.get();
@@ -89,8 +88,6 @@ ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& minimum
 
 ACTION fusion::claimgbmvote(const eosio::name& cpu_contract)
 {
-	check( ACTIVE, "contract under maintenance" );
-
 	global g = global_s.get();
 	check( is_cpu_contract(g, cpu_contract), ( cpu_contract.to_string() + " is not a cpu rental contract").c_str() );
 	action(permission_level{get_self(), "active"_n}, cpu_contract, "claimgbmvote"_n, std::tuple{}).send();
@@ -130,7 +127,7 @@ ACTION fusion::claimrefunds()
  */
 
 ACTION fusion::claimrewards(const eosio::name& user) {
-	check( ACTIVE, "contract under maintenance" );
+
 	require_auth(user);
 
 	global g = global_s.get();
@@ -166,7 +163,7 @@ ACTION fusion::claimrewards(const eosio::name& user) {
 */
 
 ACTION fusion::claimswax(const eosio::name& user) {
-	check( ACTIVE, "contract under maintenance" );
+
 	require_auth(user);
 
 	global g = global_s.get();
@@ -278,7 +275,6 @@ ACTION fusion::compound(){
 */
 
 ACTION fusion::createfarms() {
-	check( ACTIVE, "contract under maintenance" );
 
 	global g = global_s.get();
 
@@ -329,7 +325,7 @@ ACTION fusion::createfarms() {
 
 ACTION fusion::init(const asset& initial_reward_pool){
 	require_auth( _self );
-	
+
 	accounts wax_table = accounts( WAX_CONTRACT, _self.value );
 	auto balance_itr = wax_table.require_find( WAX_SYMBOL.code().raw(), "no WAX balance found" );
 	check( balance_itr->balance >= initial_reward_pool, "we don't have enough WAX to cover the initial_reward_pool" );
@@ -493,7 +489,7 @@ ACTION fusion::inittop21() {
  *  the user's sWAX balance will be retired during this transaction
  */
 ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_redeem) {
-	check( ACTIVE, "contract under maintenance" );
+
 	require_auth(user);
 
 	rewards r = rewards_s.get();	
@@ -543,7 +539,7 @@ ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_
  */
 
 ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity) {
-	check( ACTIVE, "contract under maintenance" );
+
 	require_auth(user);
 	check(quantity > ZERO_SWAX, "Invalid quantity.");
 	check(quantity.amount < MAX_ASSET_AMOUNT, "quantity too large");
@@ -587,7 +583,7 @@ ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity) {
 ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantity,
                             const eosio::asset& minimum_output)
 {
-	check( ACTIVE, "contract under maintenance" );
+
 	require_auth(user);
 
 	check(quantity > ZERO_SWAX, "Invalid quantity.");
@@ -635,7 +631,6 @@ ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantit
 */
 
 ACTION fusion::reallocate() {
-	check( ACTIVE, "contract under maintenance" );
 
 	global g = global_s.get();
 
@@ -656,7 +651,7 @@ ACTION fusion::reallocate() {
  */
 
 ACTION fusion::redeem(const eosio::name& user) {
-	check( ACTIVE, "contract under maintenance" );
+
 	require_auth(user);
 
 	rewards r = rewards_s.get();
@@ -729,7 +724,7 @@ ACTION fusion::removeadmin(const eosio::name& admin_to_remove) {
 */
 
 ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_redeem, const bool& accept_replacing_prev_requests) {
-	check( ACTIVE, "contract under maintenance" );
+
 	require_auth(user);
 
 	rewards r = rewards_s.get();
@@ -947,7 +942,7 @@ ACTION fusion::setrentprice(const eosio::name& caller, const eosio::asset& cost_
 */
 
 ACTION fusion::stake(const eosio::name& user) {
-	check( ACTIVE, "contract under maintenance" );
+
 	require_auth(user);
 
 	rewards r = rewards_s.get();
@@ -991,7 +986,6 @@ ACTION fusion::stake(const eosio::name& user) {
 */
 
 ACTION fusion::stakeallcpu() {
-	check( ACTIVE, "contract under maintenance" );
 	
 	global g = global_s.get();
 
@@ -1038,7 +1032,7 @@ ACTION fusion::stakeallcpu() {
 */
 
 ACTION fusion::sync(const eosio::name& caller) {
-	check( ACTIVE, "contract under maintenance" );
+
 	require_auth( caller );
 
 	global g = global_s.get();
@@ -1051,7 +1045,6 @@ ACTION fusion::sync(const eosio::name& caller) {
 }
 
 ACTION fusion::unstakecpu(const uint64_t& epoch_id, const int& limit) {
-	check( ACTIVE, "contract under maintenance" );
 	
 	//anyone can call this
 

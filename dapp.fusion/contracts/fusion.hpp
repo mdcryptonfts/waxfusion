@@ -1,7 +1,6 @@
 #pragma once
 
 #define CONTRACT_NAME "fusion"
-#define ACTIVE true
 #define DEBUG true
 #define mix64to128(a, b) (uint128_t(a) << 64 | uint128_t(b))
 
@@ -84,7 +83,6 @@ CONTRACT fusion : public contract {
 		alcor_contract::pools_table pools_t = alcor_contract::pools_table(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
 		epochs_table epochs_t = epochs_table(get_self(), get_self().value);
 		lpfarms_table lpfarms_t = lpfarms_table(get_self(), get_self().value);
-		old_stakers_table old_staker_t = old_stakers_table(_self, _self.value);
 		producers_table _producers = producers_table(SYSTEM_CONTRACT, SYSTEM_CONTRACT.value);
 		staker_table staker_t = staker_table(get_self(), get_self().value);
 

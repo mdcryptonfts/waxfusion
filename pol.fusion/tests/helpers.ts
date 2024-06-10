@@ -2,8 +2,6 @@ const { Blockchain, nameToBigInt, TimePoint, expectToThrow } = require("@eosnetw
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
 
-//since we are using javascript
-//allow anything within 0.02% of the expected result to be tolerated after doing calculations
 function almost_equal(actual, expected, tolerance = 0.0002) {
     const difference = Math.abs(actual - expected);
     const relativeError = difference / Math.abs(expected);
@@ -25,7 +23,6 @@ const calculate_wax_and_lswax_outputs = (wax_amount, alcor_price, real_price) =>
 }
 
 const calculate_wax_to_match_lswax = (lswax_amount, alcor_price, real_price) => {
-    //multiply the lswax amount by alcors price
     const lswax_cost_on_alcor = lswax_amount * alcor_price;
     console.log(`alcor_price: ${alcor_price}, lswax_amount: ${lswax_amount}`)
 

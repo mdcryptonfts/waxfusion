@@ -1055,7 +1055,7 @@ describe('\n\n0 distribution', () => {
 
 describe('\n\nextend_reward', () => {
 
-    it('simulate days and stake users to auto trigger extend_reward', async () => {
+    it('test skipping multiple days before extend_farm is called', async () => {
         await stake('mike', 10000)
         await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(10), 'waxfusion_revenue']).send('eosio@active')
         await incrementTime(86400*7)
@@ -1081,6 +1081,14 @@ describe('\n\nextend_reward', () => {
         await incrementTime(86400*10)
         await contracts.dapp_contract.actions.claimrewards(['mike']).send('mike@active');                           
         await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active'); 
+
+        //total paid out/claimed should be initial + (50 * 0.85), 0 awaiting distribution
+        const r = await getRewardFarm()
+        const g = await getDappGlobal()   
+        const expected_payouts = parseFloat(initial_state.reward_pool) + ( 50 * 0.85 )
+        assert( parseFloat(r.rewardPool) == expected_payouts, `reward pool should be ${expected_payouts}` )
+        almost_equal( parseFloat(r.totalRewardsPaidOut), expected_payouts )     
+        assert( g.revenue_awaiting_distribution == wax(0), `there should be 0 wax awaiting distribution` )
     });           
 
     
@@ -1096,6 +1104,14 @@ describe('\n\nextend_reward', () => {
 
         await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
         await contracts.dapp_contract.actions.stake(['mike']).send('mike@active');  
+
+        //there should be 1000 + 8.5 wax paid out, and 10 wax awaiting distribution
+        const r = await getRewardFarm()
+        const g = await getDappGlobal()
+        const expected_payouts = parseFloat(initial_state.reward_pool) + ( 10 * 0.85 )
+        assert( parseFloat(r.rewardPool) == expected_payouts, `reward pool should be ${expected_payouts}` )
+        almost_equal( parseFloat(r.totalRewardsPaidOut), expected_payouts )      
+        assert( g.revenue_awaiting_distribution == wax(10), `there should be 10 wax awaiting distribution` )     
     }); 
        
 });

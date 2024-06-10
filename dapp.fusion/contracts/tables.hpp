@@ -101,16 +101,6 @@ struct [[eosio::table]] stat {
 typedef eosio::multi_index< "stat"_n, stat > stat_table;
 
 
-struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] debug {
-  uint64_t      ID;
-  std::string   message;
-
-  uint64_t primary_key() const { return ID; }
-};
-using debug_table = eosio::multi_index<"debug"_n, debug
-                    >;
-
-
 // Every user 'from' has a scope/table that uses every recipient 'to' as the primary key.
 struct [[eosio::table]] delegated_bandwidth {
   eosio::name          from;
@@ -320,16 +310,6 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] stakers {
 };
 using staker_table = eosio::multi_index< "stakers"_n, stakers >;
 
-struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] old_stakers {
-  eosio::name       wallet;
-  eosio::asset      swax_balance;
-  eosio::asset      claimable_wax;
-  uint64_t          last_update;
-
-  uint64_t primary_key() const { return wallet.value; }
-};
-using old_stakers_table = eosio::multi_index<"oldstakers"_n, old_stakers
-                          >;
 
 struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] top21 {
   std::vector<eosio::name>    block_producers;

@@ -93,20 +93,6 @@
             "fields": []
         },
         {
-            "name": "debug",
-            "base": "",
-            "fields": [
-                {
-                    "name": "ID",
-                    "type": "uint64"
-                },
-                {
-                    "name": "message",
-                    "type": "string"
-                }
-            ]
-        },
-        {
             "name": "epochs",
             "base": "",
             "fields": [
@@ -357,28 +343,6 @@
                 },
                 {
                     "name": "percent_share_1e6",
-                    "type": "uint64"
-                }
-            ]
-        },
-        {
-            "name": "old_stakers",
-            "base": "",
-            "fields": [
-                {
-                    "name": "wallet",
-                    "type": "name"
-                },
-                {
-                    "name": "swax_balance",
-                    "type": "asset"
-                },
-                {
-                    "name": "claimable_wax",
-                    "type": "asset"
-                },
-                {
-                    "name": "last_update",
                     "type": "uint64"
                 }
             ]
@@ -823,13 +787,6 @@
     ],
     "tables": [
         {
-            "name": "debug",
-            "type": "debug",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
             "name": "epochs",
             "type": "epochs",
             "index_type": "i64",
@@ -846,13 +803,6 @@
         {
             "name": "lpfarms",
             "type": "lpfarms",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "oldstakers",
-            "type": "old_stakers",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

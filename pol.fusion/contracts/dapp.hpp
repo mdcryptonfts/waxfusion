@@ -2,7 +2,7 @@
 
 namespace dapp_tables {
 
-  struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] global {
+  struct [[eosio::table]] global {
     eosio::asset                swax_currently_earning;
     eosio::asset                swax_currently_backing_lswax;
     eosio::asset                liquified_swax;
