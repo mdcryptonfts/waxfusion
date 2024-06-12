@@ -32,12 +32,12 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
 
     update_state();
 
+    state3 s = state_s_3.get();
+    config2 c = config_s_2.get();
+    dapp_tables::global ds = dapp_state_s.get();    
+
     if( memo == "pol allocation from waxfusion distribution" ){
         check( from == DAPP_CONTRACT, "invalid sender for this memo" );
-
-        state3 s = state_s_3.get();
-        config2 c = config_s_2.get();
-        dapp_tables::global ds = dapp_state_s.get();
 
         int64_t liquidity_allocation = calculate_asset_share( quantity.amount, c.liquidity_allocation_1e6 );
         int64_t rental_pool_allocation = calculate_asset_share( quantity.amount, c.rental_pool_allocation_1e6 );
@@ -73,7 +73,6 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
     if( memo == "unstake" ){
         check( from == "eosio.stake"_n, "unstakes should come from eosio.stake" );
 
-        state3 s = state_s_3.get();
         s.wax_available_for_rentals += quantity;
         s.pending_refunds -= quantity;
         state_s_3.set(s, _self);
@@ -89,10 +88,6 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
 
         check( from == DAPP_CONTRACT, ("only " + DAPP_CONTRACT.to_string() + " should send with this memo" ).c_str() );
 
-        state3 s = state_s_3.get();
-        config2 c = config_s_2.get();
-        dapp_tables::global ds = dapp_state_s.get();
-
         s.wax_bucket += quantity;
 
         liquidity_struct lp_details = get_liquidity_info( c, ds );
@@ -107,10 +102,6 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
     }
 
     if( memo == "for liquidity only" ){
-
-        state3 s = state_s_3.get();
-        config2 c = config_s_2.get();
-        dapp_tables::global ds = dapp_state_s.get();
 
         int64_t liquidity_allocation = quantity.amount;
 
@@ -136,7 +127,6 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
 
     if( memo == "for staking pool only" ){
 
-        state3 s = state_s_3.get();
         s.wax_available_for_rentals.amount = safecast::add( s.wax_available_for_rentals.amount, quantity.amount );
         state_s_3.set(s, _self);
 
@@ -150,8 +140,6 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
     if( words[1] == "rent_cpu" ){
         check( tkcontract == WAX_CONTRACT, "only WAX can be sent with this memo" );
         check( words.size() >= 5, "memo for rent_cpu operation is incomplete" );
-
-        state3 s = state_s_3.get();
 
         int64_t profit_made = quantity.amount;
 
@@ -204,8 +192,6 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
         check( tkcontract == WAX_CONTRACT, "only WAX can be sent with this memo" );
         check( words.size() >= 4, "memo for extend_rental operation is incomplete" );
 
-        state3 s = state_s_3.get();
-
         int64_t profit_made = quantity.amount;
 
         const eosio::name cpu_receiver = eosio::name( words[2] );
@@ -246,8 +232,6 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
     if( words[1] == "increase_rental" ){
         check( tkcontract == WAX_CONTRACT, "only WAX can be sent with this memo" );
         check( words.size() >= 4, "memo for increase_rental operation is incomplete" );
-
-        state3 s = state_s_3.get();
         
         int64_t profit_made = quantity.amount;
 
@@ -304,7 +288,6 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
     //need to be 100% sure that each case above has a return statement or else this will cause issues
     //anything below here should be fair game to add to the wax bucket
 
-    state3 s = state_s_3.get();
     s.wax_bucket.amount = safecast::add( s.wax_bucket.amount, quantity.amount );
     state_s_3.set(s, _self);    
 }
@@ -325,11 +308,11 @@ void polcontract::receive_lswax_transfer(const name& from, const name& to, const
 
     update_state();
 
-    if( memo == "liquidity" && ( from == DAPP_CONTRACT || DEBUG ) ){
+    state3 s = state_s_3.get();
+    config2 c = config_s_2.get();
+    dapp_tables::global ds = dapp_state_s.get();    
 
-        state3 s = state_s_3.get();
-        config2 c = config_s_2.get();
-        dapp_tables::global ds = dapp_state_s.get();
+    if( memo == "liquidity" && ( from == DAPP_CONTRACT || DEBUG ) ){
 
         s.lswax_bucket += quantity;
 
@@ -349,7 +332,6 @@ void polcontract::receive_lswax_transfer(const name& from, const name& to, const
     * with other reasons later
     */
 
-    state3 s = state_s_3.get();
     s.lswax_bucket += quantity;
     state_s_3.set(s, _self);
 
