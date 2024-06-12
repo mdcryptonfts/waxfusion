@@ -1,8 +1,8 @@
 #pragma once
 #define CONTRACT_NAME "polcontract"
+#define WIDE_INTEGER_HAS_LIMB_TYPE_UINT64
 #define DEBUG true
 #define mix64to128(a, b) (uint128_t(a) << 64 | uint128_t(b))
-
 
 #include <eosio/eosio.hpp>
 #include <eosio/asset.hpp>
@@ -19,6 +19,7 @@
 #include "dapp.hpp"
 #include "structs.hpp"
 #include "constants.hpp"
+#include "include/uintwide_t.hpp"
 #include <limits>
 
 using namespace eosio;
@@ -93,6 +94,8 @@ CONTRACT polcontract : public contract {
 		void validate_liquidity_pair(const eosio::extended_asset& a, const eosio::extended_asset& b);
 
 		//Safemath
+		using uint256_t = math::wide_integer::uint256_t;
+
 		int64_t mulDiv(const uint64_t& a, const uint64_t& b, const uint128_t& denominator);
 		uint128_t mulDiv128(const uint128_t& a, const uint128_t& b, const uint128_t& denominator);
 };

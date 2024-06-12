@@ -9,8 +9,11 @@ int64_t polcontract::mulDiv(const uint64_t& a, const uint64_t& b, const uint128_
 }
 
 uint128_t polcontract::mulDiv128(const uint128_t& a, const uint128_t& b, const uint128_t& denominator) {
-  uint128_t prod = safecast::mul(a, b);
-  uint128_t result = safecast::div(prod, denominator);
+  check(denominator != 0, "can not divide by 0");
 
-  return result;
+  uint256_t prod = uint256_t(a) * uint256_t(b);
+  uint256_t result = prod / uint256_t(denominator);
+  check(result <= std::numeric_limits<uint128_t>::max(), "mulDiv resulted in overflow");
+
+  return uint128_t(result);
 }

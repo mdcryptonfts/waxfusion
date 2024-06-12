@@ -1088,7 +1088,6 @@ ACTION fusion::unstakecpu(const uint64_t& epoch_id, const int& limit) {
 
 	global_s.set(g, _self);
 
-	//if there are any expired rentals, erase them from the table
 	renters_table renters_t = renters_table( _self, epoch_to_check );
 	if ( renters_t.begin() == renters_t.end() ) return;
 

@@ -56,23 +56,11 @@ int64_t polcontract::calculate_swax_output(const int64_t& quantity, dapp_tables:
 //convert the sqrtPriceX64 from alcor into actual asset prices for tokenA and tokenB
 std::vector<int64_t> polcontract::sqrt64_to_price(const uint128_t& sqrtPriceX64) {
 
-	//according to Alcor, the largest possible sqrtPriceX64 value is 
-	//7 9226 6735 1540 1279 9924 4757 9062 (29 digits)
-	//to safely calculate the price from sqrtPriceX64, we will scale in steps.
-	//to avoid losing precision when not necessary, we will use different scaling based on
-	//how large the number is
-
-	check( sqrtPriceX64 < SCALE_FACTOR_1E29, "sqrtPriceX64 is larger than expected" );
-	uint128_t scale_factor = sqrtPriceX64 >= SCALE_FACTOR_1E26 ? SCALE_FACTOR_1E2 : SCALE_FACTOR_1E4;
-	uint128_t denominator = safecast::mul(scale_factor, scale_factor); 
-
-	uint128_t intermediateResult = mulDiv128( sqrtPriceX64, scale_factor, TWO_POW_32 );
-    uint128_t finalResult = mulDiv128( intermediateResult, scale_factor, TWO_POW_32 );
-
-    uint128_t P_tokenA_128 = mulDiv128( finalResult, finalResult, denominator );
+    uint128_t priceX64 = mulDiv128( sqrtPriceX64, sqrtPriceX64, TWO_POW_64 );
+    uint128_t P_tokenA_128 = mulDiv128( priceX64, SCALE_FACTOR_1E8, TWO_POW_64 );
 	uint128_t P_tokenB_128 = safecast::div( SCALE_FACTOR_1E16, P_tokenA_128 );
-
 	return { safecast::safe_cast<int64_t>(P_tokenA_128), safecast::safe_cast<int64_t>(P_tokenB_128) };
+
 }
 
 //get the price of tokenA A in terms of tokenB based on pool quantities
