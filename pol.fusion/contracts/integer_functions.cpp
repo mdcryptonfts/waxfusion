@@ -21,10 +21,8 @@ void polcontract::calculate_liquidity_allocations(const liquidity_struct& lp_det
 {
 
 	uint128_t sum_of_alcor_and_real_price = safecast::add( uint128_t(lp_details.alcors_lswax_price), uint128_t(lp_details.real_lswax_price) );
-	uint128_t liquidity_allocation_scaled = safecast::mul( uint128_t(liquidity_allocation), SCALE_FACTOR_1E8 );
+	uint128_t lswax_alloc_128 = mulDiv128( uint128_t(liquidity_allocation), uint128_t(lp_details.real_lswax_price), sum_of_alcor_and_real_price );
 
-	uint128_t intermediate_result = safecast::div( liquidity_allocation_scaled, sum_of_alcor_and_real_price );
-	uint128_t lswax_alloc_128 = mulDiv128( intermediate_result, uint128_t(lp_details.real_lswax_price), SCALE_FACTOR_1E8 );
 	buy_lswax_allocation = safecast::safe_cast<int64_t>(lswax_alloc_128);
 	wax_bucket_allocation = safecast::sub( liquidity_allocation, buy_lswax_allocation );
 }
