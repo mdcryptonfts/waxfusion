@@ -1,5 +1,13 @@
 #pragma once
 
+/** 
+ * extend_reward function, but without modifying any state
+ * 
+ * @param g - global singleton
+ * @param r - rewards singleton
+ * @param self_staker - staker_struct that stores data about sWAX backing lsWAX
+ */
+
 void fusion::readonly_extend_reward(global&g, rewards& r, staker_struct& self_staker) {
 
     if ( now() <= r.periodFinish ) return;
@@ -40,6 +48,12 @@ void fusion::readonly_extend_reward(global&g, rewards& r, staker_struct& self_st
     self_staker.swax_balance += asset(eco_alloc_i64, SWAX_SYMBOL);
 }
 
+/** 
+ * sync_epoch function, but without modifying any state
+ * 
+ * @param g - global singleton
+ */
+
 inline void fusion::readonly_sync_epoch(global& g) {
 
   uint64_t next_epoch_start_time = g.last_epoch_start_time + g.seconds_between_epochs;
@@ -63,7 +77,8 @@ inline void fusion::readonly_sync_epoch(global& g) {
  * @param epoch_id - pass `0` for the current epoch. pass a valid epoch_id to check
  * a specific epoch.
  * 
- * @return - uint64_t epoch id to unstake from
+ * @return uint64_t epoch id to unstake from. if error, will return one of the `enum`
+ * values for predetermined error codes
  */
 
 [[eosio::action, eosio::read_only]] uint64_t fusion::showexpcpu(const uint64_t& epoch_id)
@@ -85,6 +100,12 @@ inline void fusion::readonly_sync_epoch(global& g) {
     return epoch_to_check;
 }
 
+/**
+ * allows front ends to see if there are any refunds to claim from system contract
+ * 
+ * @return bool, whether there are refunds to claim or not
+ */
+
 [[eosio::action, eosio::read_only]] bool fusion::showrefunds()
 {
     global g = global_s.get();
@@ -101,6 +122,14 @@ inline void fusion::readonly_sync_epoch(global& g) {
 
     return false;
 }
+
+/**
+ * allows front ends to view the claimable rewards of a `user`
+ * 
+ * @param user - the wax address of the user to view rewards for
+ * 
+ * @return asset containing the claimable wax balance for `user`
+ */
 
 [[eosio::action, eosio::read_only]] asset fusion::showreward(const name& user)
 {
