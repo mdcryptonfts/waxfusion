@@ -1,5 +1,13 @@
 #pragma once
 
+/**
+ * extends the reward period if the existing period has ended
+ * 
+ * @param g - global singleton
+ * @param r - rewards singleton
+ * @param self_staker - staker_struct that stakes the sWAX backing lsWAX
+ */
+
 void fusion::extend_reward(global&g, rewards& r, staker_struct& self_staker) {
 
 	if ( now() <= r.periodFinish ) return;
@@ -84,10 +92,10 @@ uint128_t fusion::reward_per_token(rewards& r)
 {
 	if ( r.totalSupply == 0 ) return 0;
 	
-	//the only time periodFinish should be less than now
-	//is when the extend_reward function is called
-	//which calculates pending rewards up to the previous periodFinish, 
-	//then sets a new periodFinish with new rewardRate before users call update_reward
+	// the only time periodFinish should be less than now
+	// is when the extend_reward function is called
+	// which calculates pending rewards up to the previous periodFinish, 
+	// then sets a new periodFinish with new rewardRate before users call update_reward
 	uint64_t time_elapsed = std::min( now(), r.periodFinish ) - std::max( r.periodStart, r.lastUpdateTime ) ;
 
 	uint128_t a = r.rewardRate;

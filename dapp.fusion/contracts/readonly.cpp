@@ -152,7 +152,7 @@ inline void fusion::readonly_sync_epoch(global& g) {
 /**
  * allows front ends to check if there are voting rewards to claim from system contract
  * 
- * @return vector<name> of the `cpu_contracts to claim from
+ * @return vector<name> of the `cpu_contracts` to claim from
  */
 
 [[eosio::action, eosio::read_only]] vector<name> fusion::showvoterwds()
