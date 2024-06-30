@@ -135,11 +135,6 @@
             ]
         },
         {
-            "name": "fixstate",
-            "base": "",
-            "fields": []
-        },
-        {
             "name": "global",
             "base": "",
             "fields": [
@@ -727,11 +722,6 @@
         {
             "name": "createfarms",
             "type": "createfarms",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "fixstate",
-            "type": "fixstate",
             "ricardian_contract": ""
         },
         {

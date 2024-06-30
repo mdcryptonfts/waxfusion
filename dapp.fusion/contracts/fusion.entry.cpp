@@ -9,21 +9,6 @@
 
 //contractName: fusion
 
-ACTION fusion::fixstate(){
-	require_auth( _self );
-	rewards r = rewards_s.get();
-
-	const asset amount = asset( int64_t(2000) * int64_t(SCALE_FACTOR_1E8), WAX_SYMBOL );
-	asset total_staked = ZERO_SWAX;
-
-	for(auto itr = staker_t.begin(); itr != staker_t.end(); itr++){
-		total_staked += itr->swax_balance;
-	}
-
-	r.totalSupply = total_staked.amount;
-	rewards_s.set(r, _self);
-}
-
 ACTION fusion::addadmin(const eosio::name& admin_to_add) {
 	require_auth(_self);
 	check( is_account(admin_to_add), "admin_to_add is not a wax account" );

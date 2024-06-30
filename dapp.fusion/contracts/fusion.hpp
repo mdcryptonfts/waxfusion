@@ -36,7 +36,6 @@ CONTRACT fusion : public contract {
 		{}		
 
 		//Main Actions
-		ACTION fixstate();
 		ACTION addadmin(const eosio::name& admin_to_add);
 		ACTION addcpucntrct(const eosio::name& contract_to_add);
 		ACTION claimaslswax(const eosio::name& user, const eosio::asset& minimum_output);
