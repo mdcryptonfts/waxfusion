@@ -1,7 +1,7 @@
 #pragma once
 #define CONTRACT_NAME "polcontract"
 #define WIDE_INTEGER_HAS_LIMB_TYPE_UINT64
-#define DEBUG true
+//#define DEBUG true
 #define mix64to128(a, b) (uint128_t(a) << 64 | uint128_t(b))
 
 #include <eosio/eosio.hpp>
@@ -52,8 +52,8 @@ CONTRACT polcontract : public contract {
 		[[eosio::on_notify("eosio.token::transfer")]] void receive_wax_transfer(const name& from, const name& to, const asset& quantity, const std::string& memo);
 		[[eosio::on_notify("token.fusion::transfer")]] void receive_lswax_transfer(const name& from, const name& to, const asset& quantity, const std::string& memo);
 
-		//DEBUG notification to mimic eosio contract altering balance when staking cpu
-		[[eosio::on_notify("eosio::requestwax")]] void receive_system_request(const name& payer, const asset& wax_amount);
+		// DEBUG notification to mimic eosio contract altering balance when staking cpu
+		// [[eosio::on_notify("eosio::requestwax")]] void receive_system_request(const name& payer, const asset& wax_amount);
 
 	private:
 

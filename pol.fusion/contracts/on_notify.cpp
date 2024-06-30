@@ -6,14 +6,17 @@
  *  balance when we stake CPU, I just added a require_recipient in the delegatebw action.
  *  then we get a notification requesting the payment within the same transaction
  *  and inline transfer wax to eosio, mimicing the behaviour of the real system contract
+ * 
+ *  must be commented out or removed in production
  */
-void polcontract::receive_system_request(const name& payer, const asset& wax_amount){
-    if(!DEBUG) return;
 
+/*
+void polcontract::receive_system_request(const name& payer, const asset& wax_amount){
     if(payer == _self){
         transfer_tokens( "eosio"_n, wax_amount, WAX_CONTRACT, "stake" );
     }
 }
+*/
 
 void polcontract::receive_wax_transfer(const name& from, const name& to, const asset& quantity, const std::string& memo){
     if( quantity.amount == 0 ) return;
@@ -312,7 +315,7 @@ void polcontract::receive_lswax_transfer(const name& from, const name& to, const
     config2 c = config_s_2.get();
     dapp_tables::global ds = dapp_state_s.get();    
 
-    if( memo == "liquidity" && ( from == DAPP_CONTRACT || DEBUG ) ){
+    if( memo == "liquidity" && ( from == DAPP_CONTRACT /* || DEBUG */ ) ){
 
         s.lswax_bucket += quantity;
 
