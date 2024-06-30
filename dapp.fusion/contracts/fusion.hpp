@@ -18,6 +18,7 @@
 #include "tables.hpp"
 #include "structs.hpp"
 #include "global.hpp"
+#include "voting.hpp"
 
 using namespace eosio;
 using namespace std;
@@ -35,6 +36,7 @@ CONTRACT fusion : public contract {
 		{}		
 
 		//Main Actions
+		ACTION fixstate();
 		ACTION addadmin(const eosio::name& admin_to_add);
 		ACTION addcpucntrct(const eosio::name& contract_to_add);
 		ACTION claimaslswax(const eosio::name& user, const eosio::asset& minimum_output);
@@ -68,6 +70,12 @@ CONTRACT fusion : public contract {
 		ACTION unstakecpu(const uint64_t& epoch_id, const int& limit);
 		ACTION updatetop21();
 
+		//Readonly Actions
+		[[eosio::action, eosio::read_only]] uint64_t showexpcpu(const uint64_t& epoch_id);
+		[[eosio::action, eosio::read_only]] bool showrefunds();
+		[[eosio::action, eosio::read_only]] asset showreward(const name& user);		
+		[[eosio::action, eosio::read_only]] vector<name> showvoterwds();
+
 		//Notifications
 		[[eosio::on_notify("*::transfer")]] void receive_token_transfer(name from, name to, eosio::asset quantity, std::string memo);
 
@@ -89,6 +97,7 @@ CONTRACT fusion : public contract {
 
 
 		//Functions
+		inline eosio::permission_level active_perm();
 		int64_t calculate_asset_share(const int64_t& quantity, const uint64_t& percentage);
 		int64_t calculate_lswax_output(const int64_t& quantity, global& g);
 		int64_t calculate_swax_output(const int64_t& quantity, global& g);		
@@ -107,6 +116,7 @@ CONTRACT fusion : public contract {
 		void issue_swax(const int64_t& amount);
 		bool memo_is_expected(const std::string& memo);
 		inline uint64_t now();
+		inline void readonly_sync_epoch(global& g);
 		void retire_lswax(const int64_t& amount);
 		void retire_swax(const int64_t& amount);
 		inline void sync_epoch(global& g);
@@ -123,6 +133,7 @@ CONTRACT fusion : public contract {
         void extend_reward(global&g, rewards& r, staker_struct& self_staker);
         std::pair<staker_struct, staker_struct> get_stakers(const eosio::name& user, const eosio::name& self);
         void modify_staker(staker_struct& staker);
+        void readonly_extend_reward(global&g, rewards& r, staker_struct& self_staker);
         uint128_t reward_per_token(rewards& r);
         void update_reward(staker_struct& staker, rewards& r);	
         void zero_distribution(global& g, rewards& r);	

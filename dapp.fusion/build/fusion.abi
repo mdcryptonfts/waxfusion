@@ -135,6 +135,11 @@
             ]
         },
         {
+            "name": "fixstate",
+            "base": "",
+            "fields": []
+        },
+        {
             "name": "global",
             "base": "",
             "fields": [
@@ -559,6 +564,36 @@
             ]
         },
         {
+            "name": "showexpcpu",
+            "base": "",
+            "fields": [
+                {
+                    "name": "epoch_id",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "showrefunds",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "showreward",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "showvoterwds",
+            "base": "",
+            "fields": []
+        },
+        {
             "name": "stake",
             "base": "",
             "fields": [
@@ -695,6 +730,11 @@
             "ricardian_contract": ""
         },
         {
+            "name": "fixstate",
+            "type": "fixstate",
+            "ricardian_contract": ""
+        },
+        {
             "name": "init",
             "type": "init",
             "ricardian_contract": ""
@@ -772,6 +812,26 @@
         {
             "name": "setrentprice",
             "type": "setrentprice",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "showexpcpu",
+            "type": "showexpcpu",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "showrefunds",
+            "type": "showrefunds",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "showreward",
+            "type": "showreward",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "showvoterwds",
+            "type": "showvoterwds",
             "ricardian_contract": ""
         },
         {
@@ -860,5 +920,22 @@
     ],
     "ricardian_clauses": [],
     "variants": [],
-    "action_results": []
+    "action_results": [
+        {
+            "name": "showexpcpu",
+            "result_type": "uint64"
+        },
+        {
+            "name": "showrefunds",
+            "result_type": "bool"
+        },
+        {
+            "name": "showreward",
+            "result_type": "asset"
+        },
+        {
+            "name": "showvoterwds",
+            "result_type": "name[]"
+        }
+    ]
 }

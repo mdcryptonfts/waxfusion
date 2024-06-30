@@ -5,8 +5,24 @@
 #include "on_notify.cpp"
 #include "staking.cpp"
 #include "redemptions.cpp"
+#include "readonly.cpp"
 
 //contractName: fusion
+
+ACTION fusion::fixstate(){
+	require_auth( _self );
+	rewards r = rewards_s.get();
+
+	const asset amount = asset( int64_t(2000) * int64_t(SCALE_FACTOR_1E8), WAX_SYMBOL );
+	asset total_staked = ZERO_SWAX;
+
+	for(auto itr = staker_t.begin(); itr != staker_t.end(); itr++){
+		total_staked += itr->swax_balance;
+	}
+
+	r.totalSupply = total_staked.amount;
+	rewards_s.set(r, _self);
+}
 
 ACTION fusion::addadmin(const eosio::name& admin_to_add) {
 	require_auth(_self);
@@ -90,7 +106,7 @@ ACTION fusion::claimgbmvote(const eosio::name& cpu_contract)
 {
 	global g = global_s.get();
 	check( is_cpu_contract(g, cpu_contract), ( cpu_contract.to_string() + " is not a cpu rental contract").c_str() );
-	action(permission_level{get_self(), "active"_n}, cpu_contract, "claimgbmvote"_n, std::tuple{}).send();
+	action(active_perm(), cpu_contract, "claimgbmvote"_n, std::tuple{}).send();
 }
 
 /** claimrefunds
@@ -112,7 +128,7 @@ ACTION fusion::claimrefunds()
 		auto refund_itr = refunds_t.find( ctrct.value );
 
 		if ( refund_itr != refunds_t.end() && refund_itr->request_time + seconds(REFUND_DELAY_SEC) <= current_time_point() ) {
-			action(permission_level{get_self(), "active"_n}, ctrct, "claimrefund"_n, std::tuple{}).send();
+			action(active_perm(), ctrct, "claimrefund"_n, std::tuple{}).send();
 			refund_is_available = true;
 		}
 
@@ -399,7 +415,69 @@ ACTION fusion::init(const asset& initial_reward_pool){
 	rewards_s.set(r, _self);		
 }
 
+/**
+ * initializes the top 21 singleton. 
+ * 
+ * this is the production version, the unit testing version
+ * of this action must be commented out / removed when deploying
+ * the contract on production networks.
+ */
 
+ACTION fusion::inittop21() {
+	require_auth(get_self());
+
+	check(!top21_s.exists(), "top21 already exists");
+
+	auto idx = _producers.get_index<"prototalvote"_n>();
+
+	using value_type = std::pair<eosio::producer_authority, uint16_t>;
+	std::vector< value_type > top_producers;
+	top_producers.reserve(21);
+
+	for ( auto it = idx.cbegin(); it != idx.cend() && top_producers.size() < 21 && 0 < it->total_votes && it->active(); ++it ) {
+		top_producers.emplace_back(
+		eosio::producer_authority{
+			.producer_name = it->owner,
+			.authority     = it->get_producer_authority()
+		},
+		it->location
+		);
+	}
+
+	if ( top_producers.size() < MINIMUM_PRODUCERS_TO_VOTE_FOR ) {
+		check( false, ("attempting to vote for " + std::to_string( top_producers.size() ) + " producers but need to vote for " + std::to_string( MINIMUM_PRODUCERS_TO_VOTE_FOR ) ).c_str() );
+	}
+
+	std::sort(top_producers.begin(), top_producers.end(),
+	[](const value_type & a, const value_type & b) -> bool {
+		return a.first.producer_name.to_string() < b.first.producer_name.to_string();
+	}
+	         );
+
+	std::vector<eosio::name> producers_to_vote_for {};
+
+	for (auto t : top_producers) {
+		producers_to_vote_for.push_back(t.first.producer_name);
+	}
+
+	top21 t{};
+	t.block_producers = producers_to_vote_for;
+	t.last_update = now();
+	top21_s.set(t, _self);
+
+}
+
+/**
+ * initializes the top 21 singleton
+ * 
+ * when running unit tests, this version needs to be used,
+ * and the other version needs to be commented out. This is due to 
+ * issues with the mock system contracts that are included in
+ * this repo for unit tests, since they behave differently 
+ * than the real system contracts.
+ */
+
+/*
 ACTION fusion::inittop21() {
 	require_auth(get_self());
 
@@ -411,27 +489,6 @@ ACTION fusion::inittop21() {
 	using value_type = std::pair<eosio::producer_authority, uint16_t>;
 	std::vector< value_type > top_producers;
 	top_producers.reserve(21);
-
-
-	/** my mock action to emplace producers (initproducer) on the mock
-	 *  system contract is causing some
-	 *  weird behavior with indexing by prototalvote, so am just
-	 *  looping through the whole table here and checking if each
-	 *  producer meets the criteria
-	 *
-	 *  the `updatetop21` action in this file uses the correct logic for
-	 *  using prototalvote secondary index instead of this loop below.
-	 *  when deployed on testnet/mainnet, this action below will be updated
-	 *
-	 * 	^ TODO
-	 *
-	 *  the below loop is good enough for unit testing environment
-	 *  as its not important that the mock system contract be identical
-	 *  to the core system contract
-	 *
-	 *  see here to verify that the implentation on testnet is confirmed working:
-	 *  https://testnet.waxblock.io/account/dapp.fusion?code=dapp.fusion&scope=dapp.fusion&table=top21&lower_bound=&upper_bound=&limit=10&reverse=false#contract-tables
-	 */
 
 	for ( auto it = _producers.begin(); it != _producers.end()
 	        && 0 < it->total_votes
@@ -474,6 +531,7 @@ ACTION fusion::inittop21() {
 	top21_s.set(t, _self);
 
 }
+*/
 
 /**
  *  instaredeem
@@ -947,7 +1005,7 @@ ACTION fusion::setrentprice(const eosio::name& caller, const eosio::asset& cost_
 	g.cost_to_rent_1_wax = cost_to_rent_1_wax;
 	global_s.set(g, _self);
 
-	action(permission_level{get_self(), "active"_n}, POL_CONTRACT, "setrentprice"_n, std::tuple{ cost_to_rent_1_wax }).send();
+	action(active_perm(), POL_CONTRACT, "setrentprice"_n, std::tuple{ cost_to_rent_1_wax }).send();
 }
 
 /**
@@ -965,34 +1023,30 @@ ACTION fusion::stake(const eosio::name& user) {
 
 	sync_epoch( g );
 
-	staker_struct staker;
 	auto staker_itr = staker_t.find(user.value);
+	staker_struct staker = staker_itr != staker_t.end() ? staker_struct(*staker_itr) : staker_struct();
+	auto self_staker_itr = staker_t.require_find( _self.value, ERR_STAKER_NOT_FOUND );
+	staker_struct self_staker = staker_struct(*self_staker_itr);
+
+	extend_reward(g, r, self_staker);
+	update_reward(self_staker, r);
 
 	if (staker_itr != staker_t.end()) {
-
-		staker = staker_struct(*staker_itr);	
-
-		auto self_staker_itr = staker_t.require_find( _self.value, ERR_STAKER_NOT_FOUND );
-		staker_struct self_staker = staker_struct(*self_staker_itr);	
-
-		extend_reward(g, r, self_staker);
 		update_reward(staker, r);
-		update_reward(self_staker, r);
 		modify_staker(staker);
-		modify_staker(self_staker);
-
-		rewards_s.set(r, _self);
-		global_s.set(g, _self);
-
 	} else {
 		staker_t.emplace(user, [&](auto & _s) {
 			_s.wallet = user;
 			_s.swax_balance = ZERO_SWAX;
 			_s.claimable_wax = ZERO_WAX;
 			_s.last_update = now();
-			_s.userRewardPerTokenPaid = 0;
+			_s.userRewardPerTokenPaid = r.rewardPerTokenStored;
 		});
 	}
+
+	modify_staker(self_staker);
+	rewards_s.set(r, _self);
+	global_s.set(g, _self);	
 }
 
 /**
@@ -1033,7 +1087,8 @@ ACTION fusion::stakeallcpu() {
 		g.wax_available_for_rentals = ZERO_WAX;
 	}
 
-	g.next_stakeall_time += g.seconds_between_stakeall;
+	uint64_t periods_passed = ( now() - g.next_stakeall_time + g.seconds_between_stakeall - 1 ) / g.seconds_between_stakeall;
+	g.next_stakeall_time += ( periods_passed * g.seconds_between_stakeall );
 	global_s.set(g, _self);
 }
 
@@ -1084,7 +1139,7 @@ ACTION fusion::unstakecpu(const uint64_t& epoch_id, const int& limit) {
 	//the deatult amount of rows to erase is 500, can be overridden by passing a number > 0 to the action
 	int rows_limit = limit == 0 ? 500 : limit;
 
-	action(permission_level{get_self(), "active"_n}, epoch_itr->cpu_wallet, "unstakebatch"_n, std::tuple{ rows_limit }).send();
+	action(active_perm(), epoch_itr->cpu_wallet, "unstakebatch"_n, std::tuple{ rows_limit }).send();
 
 	global_s.set(g, _self);
 

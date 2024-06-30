@@ -21,6 +21,9 @@ static const eosio::asset ZERO_LSWAX = eosio::asset(0, LSWAX_SYMBOL);
 static const eosio::asset ZERO_SWAX = eosio::asset(0, SWAX_SYMBOL);
 static const eosio::asset ZERO_WAX = eosio::asset(0, WAX_SYMBOL);
 
+//Enums
+static const enum READONLY_CPU_RETURNS { NOT_FOUND, NOT_TIME_YET, NOTHING_TO_UNSTAKE };
+
 //Other
 static constexpr uint64_t ONE_HUNDRED_PERCENT_1E6 = 100000000;
 static constexpr uint64_t LP_FARM_DURATION_SECONDS = 604800; /* 1 week */

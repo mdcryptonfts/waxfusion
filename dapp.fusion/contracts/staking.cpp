@@ -80,7 +80,6 @@ void fusion::modify_staker(staker_struct& staker){
 	});
 }
 
-
 uint128_t fusion::reward_per_token(rewards& r)
 {
 	if ( r.totalSupply == 0 ) return 0;

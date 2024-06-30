@@ -1,7 +1,11 @@
 #pragma once
 
+inline eosio::permission_level fusion::active_perm(){
+    return eosio::permission_level{ _self, "active"_n };
+}
+
 void fusion::create_alcor_farm(const uint64_t& poolId, const eosio::symbol& token_symbol, const eosio::name& token_contract) {
-  action(permission_level{ _self , "active"_n }, ALCOR_CONTRACT, "newincentive"_n,
+  action(active_perm(), ALCOR_CONTRACT, "newincentive"_n,
          std::tuple{ _self, poolId, eosio::extended_asset(ZERO_LSWAX, TOKEN_CONTRACT), (uint32_t) LP_FARM_DURATION_SECONDS }
         ).send();
 }
@@ -214,11 +218,11 @@ bool fusion::is_lswax_or_wax(const eosio::symbol& symbol, const eosio::name& con
 }
 
 void fusion::issue_lswax(const int64_t& amount, const eosio::name& receiver) {
-  action(permission_level{ _self, "active"_n }, TOKEN_CONTRACT, "issue"_n, std::tuple{ _self, receiver, asset(amount, LSWAX_SYMBOL), std::string("issuing lsWAX to liquify") }).send();
+  action(active_perm(), TOKEN_CONTRACT, "issue"_n, std::tuple{ _self, receiver, asset(amount, LSWAX_SYMBOL), std::string("issuing lsWAX to liquify") }).send();
 }
 
 void fusion::issue_swax(const int64_t& amount) {
-  action(permission_level{ _self, "active"_n }, TOKEN_CONTRACT, "issue"_n, std::tuple{ _self, _self, asset(amount, SWAX_SYMBOL), std::string("issuing sWAX for staking") }).send();
+  action(active_perm(), TOKEN_CONTRACT, "issue"_n, std::tuple{ _self, _self, asset(amount, SWAX_SYMBOL), std::string("issuing sWAX for staking") }).send();
 }
 
 bool fusion::memo_is_expected(const std::string& memo) {
@@ -242,11 +246,11 @@ inline uint64_t fusion::now() {
 }
 
 void fusion::retire_lswax(const int64_t& amount) {
-  action(permission_level{get_self(), "active"_n}, TOKEN_CONTRACT, "retire"_n, std::tuple{ eosio::asset(amount, LSWAX_SYMBOL), std::string("retiring lsWAX to unliquify")}).send();
+  action(active_perm(), TOKEN_CONTRACT, "retire"_n, std::tuple{ eosio::asset(amount, LSWAX_SYMBOL), std::string("retiring lsWAX to unliquify")}).send();
 }
 
 void fusion::retire_swax(const int64_t& amount) {
-  action(permission_level{get_self(), "active"_n}, TOKEN_CONTRACT, "retire"_n, std::tuple{ eosio::asset(amount, SWAX_SYMBOL), std::string("retiring sWAX for redemption")}).send();
+  action(active_perm(), TOKEN_CONTRACT, "retire"_n, std::tuple{ eosio::asset(amount, SWAX_SYMBOL), std::string("retiring sWAX for redemption")}).send();
 }
 
 inline void fusion::sync_epoch(global& g) {
@@ -274,7 +278,7 @@ inline void fusion::sync_epoch(global& g) {
 }
 
 void fusion::transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const std::string& memo) {
-  action(permission_level{get_self(), "active"_n}, contract, "transfer"_n, std::tuple{ get_self(), user, amount_to_send, memo}).send();
+  action(active_perm(), contract, "transfer"_n, std::tuple{ get_self(), user, amount_to_send, memo}).send();
 }
 
 void fusion::validate_allocations( const int64_t& quantity, const std::vector<int64_t> allocations ) {
