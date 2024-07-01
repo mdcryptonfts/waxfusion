@@ -12,8 +12,8 @@ Instructions can be found in the fuckyea repo linked above. Unit tests for each 
 
 e.g. `cd pol.fusion && fuckyea test build`
 
-It's important to note that at the time of this writing, only the pol.fusion contract has a full list of unit tests. The cpu.fusion and token.fusion contracts have been audited already, and the pol.fusion contract is currently undergoing audit.
+The `dapp.fusion` and `pol.fusion` contracts are the ones that contain the unit tests, as they are the only contracts that act as "managers" and directly execute actions. `token.fusion` and `cpu.fusion` are just secondary contracts that get managed by the main 2 contracts, so their test cases are covered in the `dapp.fusion` and `pol.fusion` tests.
 
-The final dapp.fusion contract is still being refactored and prepared for audit.
+It's also important to note that a couple of things are commented out for production. To run the unit tests, certain functions/actions need to be uncommented.
 
-Documentation for the WaxFusion contracts can be founds at [docs.waxfusion.io](https://docs.waxfusion.io). The dapp.fusion documentation still needs to be updated as the contract is refactored and prepared for auditing.
+Documentation for the WaxFusion contracts can be founds at [docs.waxfusion.io](https://docs.waxfusion.io).
