@@ -53,7 +53,7 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] renters {
   eosio::name   renter; 
   eosio::name   rent_to_account;
   eosio::asset  amount_staked;
-  uint64_t expires;
+  uint64_t      expires;
   
   uint64_t primary_key() const { return ID; }
   uint64_t second_key() const { return renter.value; }
