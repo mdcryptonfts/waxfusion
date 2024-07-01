@@ -2,7 +2,7 @@
 
 ---
 
-This repo contains a unit testing environment for WaxFusion's smart contracts. Since the contracts rely on certain core WAX Blockchain smart contracts (eosio.system, eosio.voters etc), "mock" versions of these contracts are also in this repo.
+This repo contains the WaxFusion smart contracts, along with a suite of unit tests. Since the contracts rely on certain core WAX Blockchain smart contracts (eosio.system, eosio.voters etc), "mock" versions of these contracts are also in this repo.
 
 The mock system contracts contain enough logic to mimic things like voting rewards, renting CPU etc.
 
