@@ -171,15 +171,15 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         update_reward(staker, r);
         update_reward(self_staker, r);
 
-        staker.swax_balance += asset(converted_sWAX_i64, SWAX_SYMBOL);
-        self_staker.swax_balance -= asset(converted_sWAX_i64, SWAX_SYMBOL); 
+        staker.swax_balance         += asset(converted_sWAX_i64, SWAX_SYMBOL);
+        self_staker.swax_balance    -= asset(converted_sWAX_i64, SWAX_SYMBOL); 
 
         modify_staker(staker);
         modify_staker(self_staker);     
 
-        g.liquified_swax -= quantity;
-        g.swax_currently_backing_lswax.amount -= converted_sWAX_i64;
-        g.swax_currently_earning.amount += converted_sWAX_i64;
+        g.liquified_swax                        -= quantity;
+        g.swax_currently_backing_lswax.amount   -= converted_sWAX_i64;
+        g.swax_currently_earning.amount         += converted_sWAX_i64;
         
         rewards_s.set(r, _self);
         global_s.set(g, _self);
@@ -223,13 +223,13 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
             issue_swax(quantity.amount);
             issue_lswax(converted_lsWAX_i64, _self);
 
-            g.incentives_bucket.amount += converted_lsWAX_i64;
-            g.wax_available_for_rentals += quantity;
-            g.swax_currently_backing_lswax.amount += quantity.amount;
-            g.liquified_swax.amount += converted_lsWAX_i64;
+            g.incentives_bucket.amount              += converted_lsWAX_i64;
+            g.wax_available_for_rentals             += quantity;
+            g.swax_currently_backing_lswax.amount   += quantity.amount;
+            g.liquified_swax.amount                 += converted_lsWAX_i64;
 
-            auto self_staker_itr = staker_t.require_find( _self.value, ERR_STAKER_NOT_FOUND );
-            staker_struct self_staker = staker_struct(*self_staker_itr);
+            auto            self_staker_itr = staker_t.require_find( _self.value, ERR_STAKER_NOT_FOUND );
+            staker_struct   self_staker     = staker_struct(*self_staker_itr);
 
             extend_reward(g, r, self_staker);
             update_reward(self_staker, r);  
@@ -277,13 +277,12 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
         check( epoch_itr->cpu_wallet == from, "sender does not match wallet linked to epoch" );
 
-        asset total_added_to_redemption_bucket = epoch_itr->total_added_to_redemption_bucket;
-        asset amount_to_send_to_rental_bucket = quantity;
+        asset total_added_to_redemption_bucket  = epoch_itr->total_added_to_redemption_bucket;
+        asset amount_to_send_to_rental_bucket   = quantity;
 
         if ( epoch_itr->total_added_to_redemption_bucket < epoch_itr->wax_to_refund ) {
             //there are still funds to add to the redemption pool so users can redeem
-            int64_t amount_added = 0;
-
+            int64_t amount_added            = 0;
             int64_t amount_remaining_to_add = safecast::sub(epoch_itr->wax_to_refund.amount, epoch_itr->total_added_to_redemption_bucket.amount);
 
             if (amount_remaining_to_add >= quantity.amount) {
@@ -293,19 +292,19 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
             }
 
             total_added_to_redemption_bucket.amount = safecast::add(total_added_to_redemption_bucket.amount, amount_added);
-            amount_to_send_to_rental_bucket.amount = safecast::sub(amount_to_send_to_rental_bucket.amount, amount_added);
-            g.wax_for_redemption.amount = safecast::add(g.wax_for_redemption.amount, amount_added);
+            amount_to_send_to_rental_bucket.amount  = safecast::sub(amount_to_send_to_rental_bucket.amount, amount_added);
+            g.wax_for_redemption.amount             = safecast::add(g.wax_for_redemption.amount, amount_added);
         }
 
         if (amount_to_send_to_rental_bucket.amount > 0) {
             g.wax_available_for_rentals += amount_to_send_to_rental_bucket;
         }
 
-        asset total_cpu_funds_returned = epoch_itr->total_cpu_funds_returned;
-        total_cpu_funds_returned += quantity;
+        asset total_cpu_funds_returned  =   epoch_itr->total_cpu_funds_returned;
+        total_cpu_funds_returned        +=  quantity;
 
         epochs_t.modify(epoch_itr, get_self(), [&](auto & _e) {
-            _e.total_cpu_funds_returned = total_cpu_funds_returned;
+            _e.total_cpu_funds_returned         = total_cpu_funds_returned;
             _e.total_added_to_redemption_bucket = total_added_to_redemption_bucket;
         });
 
@@ -324,29 +323,28 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         check( tkcontract == WAX_CONTRACT, "only WAX can be sent with this memo" );
         check( words.size() >= 5, "memo for rent_cpu operation is incomplete" );
 
-        const eosio::name cpu_receiver = eosio::name( words[2] );
-        check( is_account( cpu_receiver ), ( cpu_receiver.to_string() + " is not an account" ).c_str() );
+        const name      cpu_receiver                    = name( words[2] );
+        const uint64_t  wax_amount_to_rent              = std::strtoull( words[3].c_str(), NULL, 0 );
+        const uint64_t  amount_to_rent_with_precision   = safecast::mul( wax_amount_to_rent, uint64_t(SCALE_FACTOR_1E8) );
+        const uint64_t  epoch_id_to_rent_from           = std::strtoull( words[4].c_str(), NULL, 0 );
 
-        const uint64_t wax_amount_to_rent = std::strtoull( words[3].c_str(), NULL, 0 );
-        const uint64_t amount_to_rent_with_precision = safecast::mul( wax_amount_to_rent, uint64_t(SCALE_FACTOR_1E8) );
+        check( is_account( cpu_receiver ), ( cpu_receiver.to_string() + " is not an account" ).c_str() );
         check( wax_amount_to_rent >= MINIMUM_WAX_TO_RENT, ( "minimum wax amount to rent is " + std::to_string( MINIMUM_WAX_TO_RENT ) ).c_str() );
         check( wax_amount_to_rent <= MAXIMUM_WAX_TO_RENT, ( "maximum wax amount to rent is " + std::to_string( MAXIMUM_WAX_TO_RENT ) ).c_str() );       
 
-        const uint64_t epoch_id_to_rent_from = std::strtoull( words[4].c_str(), NULL, 0 );
-        auto epoch_itr = epochs_t.require_find( epoch_id_to_rent_from, ("epoch " + std::to_string(epoch_id_to_rent_from) + " does not exist").c_str() );
-
-        global g = global_s.get();
+        auto    epoch_itr   = epochs_t.require_find( epoch_id_to_rent_from, ("epoch " + std::to_string(epoch_id_to_rent_from) + " does not exist").c_str() );
+        global  g           = global_s.get();
 
         sync_epoch( g );
 
         check( g.wax_available_for_rentals.amount >= amount_to_rent_with_precision, "there is not enough wax in the rental pool to cover this rental" );
         g.wax_available_for_rentals.amount -= int64_t(amount_to_rent_with_precision);
 
-        uint64_t seconds_to_rent = get_seconds_to_rent_cpu(g, epoch_id_to_rent_from);
-
-        int64_t expected_amount_received = g.cost_to_rent_1_wax.amount * wax_amount_to_rent * seconds_to_rent / days_to_seconds(1);
+        uint64_t    seconds_to_rent             = get_seconds_to_rent_cpu(g, epoch_id_to_rent_from);
+        int64_t     expected_amount_received    = g.cost_to_rent_1_wax.amount * wax_amount_to_rent * seconds_to_rent / days_to_seconds(1);
 
         check( quantity.amount >= expected_amount_received, ( "expected to receive " + eosio::asset( expected_amount_received, WAX_SYMBOL ).to_string() ).c_str() );
+        
         g.revenue_awaiting_distribution.amount += expected_amount_received;
 
         if ( quantity.amount > expected_amount_received ) {
@@ -362,18 +360,17 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
             _e.wax_bucket.amount += (int64_t) amount_to_rent_with_precision;
         });
 
-        renters_table renters_t = renters_table( _self, epoch_id_to_rent_from );
-        auto renter_receiver_idx = renters_t.get_index<"fromtocombo"_n>();
-        const uint128_t renter_receiver_combo = mix64to128(from.value, cpu_receiver.value);
-
-        auto rental_itr = renter_receiver_idx.find(renter_receiver_combo);
+        renters_table   renters_t               = renters_table( _self, epoch_id_to_rent_from );
+        auto            renter_receiver_idx     = renters_t.get_index<"fromtocombo"_n>();
+        const uint128_t renter_receiver_combo   = mix64to128(from.value, cpu_receiver.value);
+        auto            rental_itr              = renter_receiver_idx.find(renter_receiver_combo);
 
         if ( rental_itr == renter_receiver_idx.end() ) {
             renters_t.emplace(_self, [&](auto & _r) {
-              _r.ID = renters_t.available_primary_key();
-              _r.renter = from;
-              _r.rent_to_account = cpu_receiver;
-              _r.amount_staked = eosio::asset( int64_t(amount_to_rent_with_precision), WAX_SYMBOL );
+              _r.ID                 = renters_t.available_primary_key();
+              _r.renter             = from;
+              _r.rent_to_account    = cpu_receiver;
+              _r.amount_staked      = asset( int64_t(amount_to_rent_with_precision), WAX_SYMBOL );
             });
         } else {
             renter_receiver_idx.modify(rental_itr, _self, [&](auto & _r) {
@@ -393,7 +390,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         const uint64_t minimum_output = std::strtoull( words[2].c_str(), NULL, 0 );
         check( minimum_output > 0 && minimum_output <= MAX_ASSET_AMOUNT_U64, "minimum_output is out of range" );
 
-        global g = global_s.get();
+        global  g = global_s.get();
         rewards r = rewards_s.get();
 
         sync_epoch( g );
@@ -412,15 +409,15 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         update_reward(staker, r);
         update_reward(self_staker, r);
 
-        staker.swax_balance += asset(converted_sWAX_i64, SWAX_SYMBOL);
-        self_staker.swax_balance -= asset(converted_sWAX_i64, SWAX_SYMBOL);
+        staker.swax_balance         += asset(converted_sWAX_i64, SWAX_SYMBOL);
+        self_staker.swax_balance    -= asset(converted_sWAX_i64, SWAX_SYMBOL);
 
         modify_staker(staker);
         modify_staker(self_staker);
 
-        g.liquified_swax -= quantity;
-        g.swax_currently_backing_lswax.amount -= converted_sWAX_i64;
-        g.swax_currently_earning.amount += converted_sWAX_i64;
+        g.liquified_swax                        -= quantity;
+        g.swax_currently_backing_lswax.amount   -= converted_sWAX_i64;
+        g.swax_currently_earning.amount         += converted_sWAX_i64;
         
         global_s.set(g, _self);
         rewards_s.set(r, _self);
