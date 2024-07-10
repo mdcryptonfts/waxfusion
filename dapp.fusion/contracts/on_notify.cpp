@@ -30,15 +30,16 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         check( tkcontract == TOKEN_CONTRACT, "only LSWAX should be sent with this memo" );
         check( from == POL_CONTRACT, ( "expected " + POL_CONTRACT.to_string() + " to be the sender" ).c_str() );
 
-        global g = global_s.get();
+        global  g = global_s.get();
         rewards r = rewards_s.get();
 
         sync_epoch( g );
 
         check( quantity >= g.minimum_unliquify_amount, "minimum unliquify amount not met" );
 
-        auto self_staker_itr = staker_t.require_find( _self.value, ERR_STAKER_NOT_FOUND );
-        staker_struct self_staker = staker_struct(*self_staker_itr);
+        auto            self_staker_itr = staker_t.require_find( _self.value, ERR_STAKER_NOT_FOUND );
+        staker_struct   self_staker     = staker_struct(*self_staker_itr);
+
         extend_reward(g, r, self_staker);
         update_reward(self_staker, r);      
 
@@ -50,14 +51,15 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
         r.totalSupply -= uint128_t(swax_to_redeem);
 
-        int64_t protocol_share = calculate_asset_share( swax_to_redeem, g.protocol_fee_1e6 );
-        int64_t user_share = swax_to_redeem - protocol_share;
+        int64_t protocol_share  = calculate_asset_share( swax_to_redeem, g.protocol_fee_1e6 );
+        int64_t user_share      = swax_to_redeem - protocol_share;
         check( safecast::add( protocol_share, user_share ) <= swax_to_redeem, "error calculating protocol fee" );
 
-        g.wax_available_for_rentals.amount -= swax_to_redeem;
-        g.revenue_awaiting_distribution.amount += protocol_share;
-        g.swax_currently_backing_lswax.amount -= swax_to_redeem;
-        g.liquified_swax.amount -= quantity.amount;
+        g.wax_available_for_rentals.amount      -= swax_to_redeem;
+        g.revenue_awaiting_distribution.amount  += protocol_share;
+        g.swax_currently_backing_lswax.amount   -= swax_to_redeem;
+        g.liquified_swax.amount                 -= quantity.amount;
+
         global_s.set(g, _self);
         rewards_s.set(r, _self);
 
@@ -75,13 +77,13 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         check( tkcontract == WAX_CONTRACT, "only WAX should be sent with this memo" );
         check( from == POL_CONTRACT, ( "expected " + POL_CONTRACT.to_string() + " to be the sender" ).c_str() );
 
-        global g = global_s.get();
+        global  g = global_s.get();
         rewards r = rewards_s.get();
 
         sync_epoch( g );
 
-        auto self_staker_itr = staker_t.require_find( _self.value, ERR_STAKER_NOT_FOUND );
-        staker_struct self_staker = staker_struct(*self_staker_itr);
+        auto            self_staker_itr = staker_t.require_find( _self.value, ERR_STAKER_NOT_FOUND );
+        staker_struct   self_staker     = staker_struct(*self_staker_itr);
 
         extend_reward(g, r, self_staker);
         update_reward(self_staker, r);          
@@ -93,9 +95,10 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
         int64_t converted_lsWAX_i64 = calculate_lswax_output(quantity.amount, g);
 
-        g.swax_currently_backing_lswax.amount += quantity.amount;
-        g.liquified_swax.amount += converted_lsWAX_i64;
-        g.wax_available_for_rentals += quantity;
+        g.swax_currently_backing_lswax.amount   += quantity.amount;
+        g.liquified_swax.amount                 += converted_lsWAX_i64;
+        g.wax_available_for_rentals             += quantity;
+
         global_s.set(g, _self);
         rewards_s.set(r, _self);
 
@@ -135,7 +138,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         modify_staker(self_staker);
 
         g.swax_currently_earning.amount += quantity.amount;
-        g.wax_available_for_rentals += quantity;
+        g.wax_available_for_rentals     += quantity;
         
         rewards_s.set(r, _self);
         global_s.set(g, _self);
@@ -152,7 +155,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
     if ( memo == "unliquify" ) {
 
-        global g = global_s.get();
+        global  g = global_s.get();
         rewards r = rewards_s.get();
 
         sync_epoch( g );

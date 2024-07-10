@@ -7,7 +7,6 @@
 #include <eosio/asset.hpp>
 #include <eosio/system.hpp>
 #include <eosio/symbol.hpp>
-#include <eosio/crypto.hpp>
 #include <eosio/transaction.hpp>
 #include <eosio/singleton.hpp>
 #include <eosio/binary_extension.hpp>
@@ -80,18 +79,18 @@ CONTRACT fusion : public contract {
     private:
 
         //Singletons
-        pol_contract::state_singleton_3 pol_state_s_3;
-        global_singleton global_s;
-        rewards_singleton rewards_s;
-        top21_singleton top21_s;
+        pol_contract::state_singleton_3     pol_state_s_3;
+        global_singleton                    global_s;
+        rewards_singleton                   rewards_s;
+        top21_singleton                     top21_s;
 
         //Multi Index Tables
-        alcor_contract::incentives_table incentives_t = alcor_contract::incentives_table(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
-        alcor_contract::pools_table pools_t = alcor_contract::pools_table(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
-        epochs_table epochs_t = epochs_table(get_self(), get_self().value);
-        lpfarms_table lpfarms_t = lpfarms_table(get_self(), get_self().value);
-        producers_table _producers = producers_table(SYSTEM_CONTRACT, SYSTEM_CONTRACT.value);
-        staker_table staker_t = staker_table(get_self(), get_self().value);
+        alcor_contract::incentives_table    incentives_t    = alcor_contract::incentives_table(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
+        alcor_contract::pools_table         pools_t         = alcor_contract::pools_table(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
+        epochs_table                        epochs_t        = epochs_table(get_self(), get_self().value);
+        lpfarms_table                       lpfarms_t       = lpfarms_table(get_self(), get_self().value);
+        producers_table                     _producers      = producers_table(SYSTEM_CONTRACT, SYSTEM_CONTRACT.value);
+        staker_table                        staker_t        = staker_table(get_self(), get_self().value);
 
 
         //Functions

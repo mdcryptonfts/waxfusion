@@ -17,35 +17,36 @@ void fusion::readonly_extend_reward(global&g, rewards& r, staker_struct& self_st
         return;
     }
 
-    int64_t amount_to_distribute = g.revenue_awaiting_distribution.amount;
-    int64_t user_alloc_i64 = calculate_asset_share( amount_to_distribute, g.user_share_1e6 );
-    int64_t pol_alloc_i64 = calculate_asset_share( amount_to_distribute, g.pol_share_1e6 );
-    int64_t eco_alloc_i64 = calculate_asset_share( amount_to_distribute, g.ecosystem_share_1e6 );
-
-    int64_t lswax_amount_to_issue = calculate_lswax_output( eco_alloc_i64, g );
+    int64_t amount_to_distribute    = g.revenue_awaiting_distribution.amount;
+    int64_t user_alloc_i64          = calculate_asset_share( amount_to_distribute, g.user_share_1e6 );
+    int64_t pol_alloc_i64           = calculate_asset_share( amount_to_distribute, g.pol_share_1e6 );
+    int64_t eco_alloc_i64           = calculate_asset_share( amount_to_distribute, g.ecosystem_share_1e6 );
+    int64_t lswax_amount_to_issue   = calculate_lswax_output( eco_alloc_i64, g );
 
     //if rounding resulted in any leftover waxtoshis, add them to the reward farm
-    const int64_t sum = user_alloc_i64 + pol_alloc_i64 + eco_alloc_i64;
-    const int64_t difference = safecast::sub( amount_to_distribute, sum );
+    const int64_t   sum         = user_alloc_i64 + pol_alloc_i64 + eco_alloc_i64;
+    const int64_t   difference  = safecast::sub( amount_to_distribute, sum );
+
     if ( difference > 0 ) user_alloc_i64 += difference;
 
     validate_allocations( amount_to_distribute, {user_alloc_i64, pol_alloc_i64, eco_alloc_i64} );
 
     if( r.lastUpdateTime < r.periodFinish ){
-        r.rewardPerTokenStored = reward_per_token(r);
-        r.lastUpdateTime = r.periodFinish;
+        r.rewardPerTokenStored  = reward_per_token(r);
+        r.lastUpdateTime        = r.periodFinish;
     }
 
     next_farm nf(r);
 
-    r.lastUpdateTime = nf.lastUpdateTime;
-    r.periodFinish = nf.periodFinish;
-    r.rewardRate = mulDiv128( uint128_t(user_alloc_i64), SCALE_FACTOR_1E8, uint128_t(STAKING_FARM_DURATION) );
-    r.rewardPool += asset(user_alloc_i64, WAX_SYMBOL);
+    r.lastUpdateTime    =   nf.lastUpdateTime;
+    r.periodFinish      =   nf.periodFinish;
+    r.rewardRate        =   mulDiv128( uint128_t(user_alloc_i64), SCALE_FACTOR_1E8, uint128_t(STAKING_FARM_DURATION) );
+    r.rewardPool        +=  asset(user_alloc_i64, WAX_SYMBOL);
 
     update_reward(self_staker, r);
-    r.totalSupply += uint128_t(eco_alloc_i64);
-    self_staker.swax_balance += asset(eco_alloc_i64, SWAX_SYMBOL);
+
+    r.totalSupply               += uint128_t(eco_alloc_i64);
+    self_staker.swax_balance    += asset(eco_alloc_i64, SWAX_SYMBOL);
 }
 
 /** 
@@ -63,7 +64,7 @@ inline void fusion::readonly_sync_epoch(global& g) {
     eosio::name next_cpu_contract = get_next_cpu_contract( g );
 
     g.last_epoch_start_time = next_epoch_start_time;
-    g.current_cpu_contract = next_cpu_contract;
+    g.current_cpu_contract  = next_cpu_contract;
 
     auto epoch_itr = epochs_t.find(next_epoch_start_time);
 

@@ -12,16 +12,14 @@ void fusion::create_alcor_farm(const uint64_t& poolId, const eosio::symbol& toke
 
 void fusion::create_epoch(const global& g, const uint64_t& start_time, const name& cpu_wallet, const asset& wax_bucket) {
   epochs_t.emplace(_self, [&](auto & _e) {
-    _e.start_time = start_time;
-    /* unstake 3 days before epoch ends */
-    _e.time_to_unstake = start_time + g.cpu_rental_epoch_length_seconds - days_to_seconds(3);
-    _e.cpu_wallet = cpu_wallet;
-    _e.wax_bucket = wax_bucket;
-    _e.wax_to_refund = ZERO_WAX;
-    /* redemption starts at the end of the epoch, ends 48h later */
-    _e.redemption_period_start_time = start_time + g.cpu_rental_epoch_length_seconds;
-    _e.redemption_period_end_time = start_time + g.cpu_rental_epoch_length_seconds + days_to_seconds(2);
-    _e.total_cpu_funds_returned = ZERO_WAX;
+    _e.start_time                       = start_time;
+    _e.time_to_unstake                  = start_time + g.cpu_rental_epoch_length_seconds - days_to_seconds(3);
+    _e.cpu_wallet                       = cpu_wallet;
+    _e.wax_bucket                       = wax_bucket;
+    _e.wax_to_refund                    = ZERO_WAX;
+    _e.redemption_period_start_time     = start_time + g.cpu_rental_epoch_length_seconds;
+    _e.redemption_period_end_time       = start_time + g.cpu_rental_epoch_length_seconds + days_to_seconds(2);
+    _e.total_cpu_funds_returned         = ZERO_WAX;
     _e.total_added_to_redemption_bucket = ZERO_WAX;
   });
 }
@@ -72,8 +70,8 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
     int64_t amount_overdrawn_i64 = safecast::sub( total_amount_awaiting_redemption.amount, swax_balance.amount );
 
     for (uint64_t& pending : pending_requests) {
-      auto epoch_itr = epochs_t.require_find(pending, "error locating epoch");
-      auto req_itr = requests_t.require_find(pending, "error locating redemption request");
+      auto epoch_itr  = epochs_t.require_find(pending, "error locating epoch");
+      auto req_itr    = requests_t.require_find(pending, "error locating redemption request");
 
       //if the amount requested is > amount_overdrawn_i64
       if ( req_itr->wax_amount_requested.amount > amount_overdrawn_i64 ) {
@@ -129,8 +127,8 @@ eosio::name fusion::get_next_cpu_contract(global& g) {
   auto itr = std::find( g.cpu_contracts.begin(), g.cpu_contracts.end(), g.current_cpu_contract );
   check( itr != g.cpu_contracts.end(), "error locating cpu contract" );
 
-  auto next_cpu_index = ( std::distance(g.cpu_contracts.begin(), itr) + 1 ) % g.cpu_contracts.size();
-  eosio::name next_cpu_contract = g.cpu_contracts[next_cpu_index];
+  auto next_cpu_index     = ( std::distance(g.cpu_contracts.begin(), itr) + 1 ) % g.cpu_contracts.size();
+  name next_cpu_contract  = g.cpu_contracts[next_cpu_index];
 
   check(next_cpu_contract != g.current_cpu_contract, "next cpu contract cant be the same as the current contract");
 
@@ -262,10 +260,10 @@ inline void fusion::sync_epoch(global& g) {
   //using a while loop to create any missing epochs if they got skipped
   while ( now() >= next_epoch_start_time ) {
 
-    eosio::name next_cpu_contract = get_next_cpu_contract( g );
+    name next_cpu_contract = get_next_cpu_contract( g );
 
     g.last_epoch_start_time = next_epoch_start_time;
-    g.current_cpu_contract = next_cpu_contract;
+    g.current_cpu_contract  = next_cpu_contract;
 
     auto epoch_itr = epochs_t.find(next_epoch_start_time);
 
