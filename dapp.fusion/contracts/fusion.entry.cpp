@@ -214,9 +214,9 @@ ACTION fusion::clearexpired(const eosio::name& user) {
     requests_tbl requests_t = requests_tbl(get_self(), user.value);
     check( requests_t.begin() != requests_t.end(), "there are no requests to clear" );
 
-    uint64_t upper_bound = g.last_epoch_start_time - g.seconds_between_epochs - 1;
+    uint64_t    upper_bound = g.last_epoch_start_time - g.seconds_between_epochs - 1;
+    auto        itr         = requests_t.begin();
 
-    auto itr = requests_t.begin();
     while (itr != requests_t.end()) {
         if (itr->epoch_id >= upper_bound) break;
 
@@ -243,8 +243,8 @@ ACTION fusion::compound(){
 
     sync_epoch( g );    
 
-    auto self_staker_itr = staker_t.require_find( _self.value, ERR_STAKER_NOT_FOUND );
-    staker_struct self_staker = staker_struct(*self_staker_itr);    
+    auto            self_staker_itr = staker_t.require_find( _self.value, ERR_STAKER_NOT_FOUND );
+    staker_struct   self_staker     = staker_struct(*self_staker_itr);    
 
     extend_reward(g, r, self_staker);
     update_reward(self_staker, r);  
@@ -258,9 +258,9 @@ ACTION fusion::compound(){
 
     r.totalSupply += uint128_t(amount_to_compound);
 
-    g.swax_currently_backing_lswax.amount += amount_to_compound;
-    g.total_rewards_claimed.amount += amount_to_compound;
-    g.last_compound_time = now();
+    g.swax_currently_backing_lswax.amount   +=  amount_to_compound;
+    g.total_rewards_claimed.amount          +=  amount_to_compound;
+    g.last_compound_time                    =   now();
 
     issue_swax( amount_to_compound );
 
@@ -565,9 +565,9 @@ ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_
 
     check( safecast::add( protocol_share, user_share ) <= swax_to_redeem.amount, "error calculating protocol fee" );
 
-    g.wax_available_for_rentals.amount      = safecast::sub(g.wax_available_for_rentals.amount, swax_to_redeem.amount);
-    g.revenue_awaiting_distribution.amount  = safecast::add( g.revenue_awaiting_distribution.amount, protocol_share );
-    g.swax_currently_earning.amount         = safecast::sub( g.swax_currently_earning.amount, swax_to_redeem.amount );
+    g.wax_available_for_rentals.amount      -=  swax_to_redeem.amount;
+    g.revenue_awaiting_distribution.amount  -=  protocol_share;
+    g.swax_currently_earning.amount         -=  swax_to_redeem.amount;
 
     rewards_s.set(r, _self);
     global_s.set(g, _self);
@@ -747,9 +747,8 @@ ACTION fusion::redeem(const eosio::name& user) {
 ACTION fusion::removeadmin(const eosio::name& admin_to_remove) {
     require_auth(_self);
 
-    global g = global_s.get();
-
-    auto itr = std::remove(g.admin_wallets.begin(), g.admin_wallets.end(), admin_to_remove);
+    global  g   = global_s.get();
+    auto    itr = std::remove(g.admin_wallets.begin(), g.admin_wallets.end(), admin_to_remove);
 
     check( itr != g.admin_wallets.end(), (admin_to_remove.to_string() + " is not an admin").c_str() );
     
@@ -835,9 +834,8 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
 ACTION fusion::rmvcpucntrct(const eosio::name& contract_to_remove) {
     require_auth(_self);
 
-    global g = global_s.get();
-
-    auto itr = std::remove(g.cpu_contracts.begin(), g.cpu_contracts.end(), contract_to_remove);
+    global  g   = global_s.get();
+    auto    itr = std::remove(g.cpu_contracts.begin(), g.cpu_contracts.end(), contract_to_remove);
 
     check( itr != g.cpu_contracts.end(), (contract_to_remove.to_string() + " is not a cpu contract").c_str() );
 
@@ -884,9 +882,8 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
     require_auth( _self );
     check(percent_share_1e6 > 0, "percent_share_1e6 must be positive");
 
-    global g = global_s.get();
-
-    auto itr = pools_t.require_find(poolId, "this poolId does not exist");
+    global  g   = global_s.get();
+    auto    itr = pools_t.require_find(poolId, "this poolId does not exist");
 
     if ( (itr->tokenA.quantity.symbol != symbol_to_incentivize && itr->tokenA.contract != contract_to_incentivize)
             &&
