@@ -408,6 +408,7 @@ ACTION fusion::init(const asset& initial_reward_pool){
  * the contract on production networks.
  */
 
+/*
 ACTION fusion::inittop21() {
     require_auth(get_self());
 
@@ -451,6 +452,7 @@ ACTION fusion::inittop21() {
     top21_s.set(t, _self);
 
 }
+*/
 
 /**
  * initializes the top 21 singleton
@@ -462,7 +464,7 @@ ACTION fusion::inittop21() {
  * than the real system contracts.
  */
 
-/*
+
 ACTION fusion::inittop21() {
     require_auth(get_self());
 
@@ -516,7 +518,7 @@ ACTION fusion::inittop21() {
     top21_s.set(t, _self);
 
 }
-*/
+
 
 /**
  *  instaredeem

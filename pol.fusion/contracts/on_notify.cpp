@@ -10,13 +10,13 @@
  *  must be commented out or removed in production
  */
 
-/*
+
 void polcontract::receive_system_request(const name& payer, const asset& wax_amount){
     if(payer == _self){
         transfer_tokens( "eosio"_n, wax_amount, WAX_CONTRACT, "stake" );
     }
 }
-*/
+
 
 void polcontract::receive_wax_transfer(const name& from, const name& to, const asset& quantity, const std::string& memo){
     if( quantity.amount == 0 ) return;
@@ -35,18 +35,17 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
 
     update_state();
 
-    state3 s = state_s_3.get();
-    config2 c = config_s_2.get();
-    dapp_tables::global ds = dapp_state_s.get();    
+    state3 s                = state_s_3.get();
+    config2 c               = config_s_2.get();
+    dapp_tables::global ds  = dapp_state_s.get();    
 
     if( memo == "pol allocation from waxfusion distribution" ){
         check( from == DAPP_CONTRACT, "invalid sender for this memo" );
 
-        int64_t liquidity_allocation = calculate_asset_share( quantity.amount, c.liquidity_allocation_1e6 );
-        int64_t rental_pool_allocation = calculate_asset_share( quantity.amount, c.rental_pool_allocation_1e6 );
-
-        int64_t wax_bucket_allocation = 0;
-        int64_t buy_lswax_allocation = 0;        
+        int64_t liquidity_allocation    = calculate_asset_share( quantity.amount, c.liquidity_allocation_1e6 );
+        int64_t rental_pool_allocation  = calculate_asset_share( quantity.amount, c.rental_pool_allocation_1e6 );
+        int64_t wax_bucket_allocation   = 0;
+        int64_t buy_lswax_allocation    = 0;        
 
         liquidity_struct lp_details = get_liquidity_info( c, ds );
 
@@ -59,8 +58,8 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
 
         validate_allocations( quantity.amount, {buy_lswax_allocation, wax_bucket_allocation, rental_pool_allocation} );
 
-        s.wax_available_for_rentals.amount = safecast::add( s.wax_available_for_rentals.amount, rental_pool_allocation );
-        s.wax_bucket.amount = safecast::add( s.wax_bucket.amount, wax_bucket_allocation );
+        s.wax_available_for_rentals.amount  = safecast::add( s.wax_available_for_rentals.amount, rental_pool_allocation );
+        s.wax_bucket.amount                 = safecast::add( s.wax_bucket.amount, wax_bucket_allocation );
         state_s_3.set(s, _self);
 
         return;
@@ -77,7 +76,7 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
         check( from == "eosio.stake"_n, "unstakes should come from eosio.stake" );
 
         s.wax_available_for_rentals += quantity;
-        s.pending_refunds -= quantity;
+        s.pending_refunds           -= quantity;
         state_s_3.set(s, _self);
 
         return;     
@@ -106,10 +105,9 @@ void polcontract::receive_wax_transfer(const name& from, const name& to, const a
 
     if( memo == "for liquidity only" ){
 
-        int64_t liquidity_allocation = quantity.amount;
-
-        int64_t wax_bucket_allocation = 0;
-        int64_t buy_lswax_allocation = 0;        
+        int64_t liquidity_allocation    = quantity.amount;
+        int64_t wax_bucket_allocation   = 0;
+        int64_t buy_lswax_allocation    = 0;        
 
         liquidity_struct lp_details = get_liquidity_info( c, ds );
 
@@ -315,7 +313,7 @@ void polcontract::receive_lswax_transfer(const name& from, const name& to, const
     config2 c = config_s_2.get();
     dapp_tables::global ds = dapp_state_s.get();    
 
-    if( memo == "liquidity" && ( from == DAPP_CONTRACT /* || DEBUG */ ) ){
+    if( memo == "liquidity" && ( from == DAPP_CONTRACT  || DEBUG  ) ){
 
         s.lswax_bucket += quantity;
 

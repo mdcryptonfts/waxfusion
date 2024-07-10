@@ -1,4 +1,4 @@
-## WaxFusion Smart Contracts
+# WaxFusion Smart Contracts
 
 ---
 
@@ -15,5 +15,29 @@ e.g. `cd pol.fusion && fuckyea test build`
 The `dapp.fusion` and `pol.fusion` contracts are the ones that contain the unit tests, as they are the only contracts that act as "managers" and directly execute actions. `token.fusion` and `cpu.fusion` are just secondary contracts that get managed by the main 2 contracts, so their test cases are covered in the `dapp.fusion` and `pol.fusion` tests.
 
 It's also important to note that a couple of things are commented out for production. To run the unit tests, certain functions/actions need to be uncommented.
+
+---
+
+## Unit Test Instructions
+
+---
+
+### dapp.fusion
+
+- `inittop21` action in `dapp.fusion/fusion.entry.cpp` needs the production version commented out, and the unit testing version uncommented.
+
+---
+
+### pol.fusion
+
+- `#define DEBUG true` needs to be uncommented in `pol.fusion/polcontract.hpp`
+
+- `eosio::requestwax` notification handler needs to be uncommented in `pol.fusion/polcontract.hpp`
+
+- `receive_system_request` needs to be uncommented in `pol.fusion/on_notify.cpp`
+
+- search for `DEBUG` in `pol.fusion/on_nofify.cpp` and uncomment the line where it's found
+
+---
 
 Documentation for the WaxFusion contracts can be founds at [docs.waxfusion.io](https://docs.waxfusion.io).

@@ -83,8 +83,8 @@ ACTION polcontract::clearexpired(const int& limit)
         if( count == limit ) break;
         if( itr->expires < now() && itr->expires != 0 ){
 
-            s.wax_allocated_to_rentals -= itr->amount_staked;
-            s.pending_refunds += itr->amount_staked;
+            s.wax_allocated_to_rentals  -= itr->amount_staked;
+            s.pending_refunds           += itr->amount_staked;
 
             action(permission_level{get_self(), "active"_n}, SYSTEM_CONTRACT,"undelegatebw"_n,std::tuple{ get_self(), itr->rent_to_account, ZERO_WAX, itr->amount_staked}).send();
             itr = expires_idx.erase( itr );
@@ -121,9 +121,9 @@ ACTION polcontract::initconfig(const uint64_t& lswax_pool_id){
     uint64_t liquidity_allocation_1e6 = ONE_HUNDRED_PERCENT_1E6 - rental_pool_allocation_1e6;
 
     config2 c{};
-    c.liquidity_allocation_1e6 = liquidity_allocation_1e6;
-    c.rental_pool_allocation_1e6 = rental_pool_allocation_1e6;
-    c.lswax_wax_pool_id = lswax_pool_id;
+    c.liquidity_allocation_1e6      = liquidity_allocation_1e6;
+    c.rental_pool_allocation_1e6    = rental_pool_allocation_1e6;
+    c.lswax_wax_pool_id             = lswax_pool_id;
     config_s_2.set(c, _self);
 }
 
@@ -133,16 +133,16 @@ ACTION polcontract::initstate3(){
     eosio::check(!state_s_3.exists(), "state3 already exists");
 
     state3 s{};
-    s.wax_available_for_rentals = ZERO_WAX;
-    s.next_day_end_time = now() + SECONDS_PER_DAY;
-    s.cost_to_rent_1_wax = asset(120000, WAX_SYMBOL); // 0.0012 WAX per day
-    s.last_vote_time = 0;
-    s.wax_bucket = ZERO_WAX;
-    s.lswax_bucket = ZERO_LSWAX;
-    s.last_liquidity_addition_time = now();
-    s.wax_allocated_to_rentals = ZERO_WAX;
-    s.pending_refunds = ZERO_WAX;
-    s.last_rebalance_time = 0;
+    s.wax_available_for_rentals     = ZERO_WAX;
+    s.next_day_end_time             = now() + SECONDS_PER_DAY;
+    s.cost_to_rent_1_wax            = asset(120000, WAX_SYMBOL); // 0.0012 WAX per day
+    s.last_vote_time                = 0;
+    s.wax_bucket                    = ZERO_WAX;
+    s.lswax_bucket                  = ZERO_LSWAX;
+    s.last_liquidity_addition_time  = now();
+    s.wax_allocated_to_rentals      = ZERO_WAX;
+    s.pending_refunds               = ZERO_WAX;
+    s.last_rebalance_time           = 0;
     state_s_3.set(s, _self);
 }
 
@@ -158,9 +158,10 @@ ACTION polcontract::initstate3(){
 
 ACTION polcontract::rebalance(){
     update_state();
-    state3 s = state_s_3.get();
-    config2 c = config_s_2.get();
-    dapp_tables::global ds = dapp_state_s.get();    
+
+    state3 s                = state_s_3.get();
+    config2 c               = config_s_2.get();
+    dapp_tables::global ds  = dapp_state_s.get();    
 
     if( s.wax_bucket == ZERO_WAX && s.lswax_bucket == ZERO_LSWAX ){
         check(false, "there are no assets to rebalance");
@@ -175,9 +176,9 @@ ACTION polcontract::rebalance(){
         bool can_rebalance = false;
 
         if( s.wax_bucket > ZERO_WAX ){
-            s.wax_available_for_rentals += s.wax_bucket;
-            s.wax_bucket = ZERO_WAX;
-            can_rebalance = true;
+            s.wax_available_for_rentals +=  s.wax_bucket;
+            s.wax_bucket                =   ZERO_WAX;
+            can_rebalance               =   true;
         }
 
         if( s.lswax_bucket.amount > 0 && s.lswax_bucket >= ds.minimum_unliquify_amount && ds.wax_available_for_rentals.amount > 0 ){
@@ -210,11 +211,11 @@ ACTION polcontract::rebalance(){
 
             int64_t amount_to_transfer = calculate_asset_share( s.wax_bucket.amount, 50000000 );
 
-            transfer_tokens( DAPP_CONTRACT, asset( amount_to_transfer, WAX_SYMBOL), WAX_CONTRACT, std::string("wax_lswax_liquidity") );
-
-            s.wax_bucket.amount -= amount_to_transfer;
-            s.last_rebalance_time = now();
+            s.wax_bucket.amount     -=  amount_to_transfer;
+            s.last_rebalance_time   =   now();
             state_s_3.set(s, _self);
+
+            transfer_tokens( DAPP_CONTRACT, asset( amount_to_transfer, WAX_SYMBOL), WAX_CONTRACT, std::string("wax_lswax_liquidity") );
             return; 
 
         } else if( s.lswax_bucket > ZERO_LSWAX && s.wax_bucket == ZERO_WAX ){
@@ -227,50 +228,44 @@ ACTION polcontract::rebalance(){
                 ( DAPP_CONTRACT.to_string() + " doesn't have enough wax in the instant redemption pool to rebalance " )
                 .c_str() );                 
 
-            int64_t max_output_amount = s.lswax_bucket.amount > 0 ? calculate_swax_output( s.lswax_bucket.amount, ds ) : 0;
-
-            int64_t max_weight = std::min( max_output_amount, max_redeemable );
+            int64_t max_output_amount   = s.lswax_bucket.amount > 0 ? calculate_swax_output( s.lswax_bucket.amount, ds ) : 0;
+            int64_t max_weight          = std::min( max_output_amount, max_redeemable );
 
             check( max_weight > 1, "division would result in a nonpositive quantity" );
 
             int64_t weighted_amount_to_transfer = safecast::div( max_weight, int64_t(2) );
-
-            int64_t amount_to_transfer = calculate_lswax_output( weighted_amount_to_transfer, ds );
+            int64_t amount_to_transfer          = calculate_lswax_output( weighted_amount_to_transfer, ds );
 
             check( amount_to_transfer > 0, "can not transfer this amount" );                
 
-            s.lswax_bucket.amount -= amount_to_transfer;
+            s.lswax_bucket.amount -=    amount_to_transfer;
+            s.last_rebalance_time =     now();
+            state_s_3.set(s, _self);
 
             transfer_tokens( DAPP_CONTRACT, asset( amount_to_transfer, LSWAX_SYMBOL), TOKEN_CONTRACT, std::string("rebalance") );
-
-            s.last_rebalance_time = now();
-            state_s_3.set(s, _self);
             return;             
 
         } else {
 
-            int64_t weighted_lswax_bucket = calculate_swax_output( s.lswax_bucket.amount, ds );
-
-            int64_t total_weight = safecast::add( weighted_lswax_bucket, s.wax_bucket.amount );
-
-            int64_t half_weight = safecast::div( total_weight, int64_t(2) );
+            int64_t weighted_lswax_bucket   = calculate_swax_output( s.lswax_bucket.amount, ds );
+            int64_t total_weight            = safecast::add( weighted_lswax_bucket, s.wax_bucket.amount );
+            int64_t half_weight             = safecast::div( total_weight, int64_t(2) );
 
             if( half_weight > weighted_lswax_bucket ){
 
                 int64_t amount_to_transfer = safecast::sub( half_weight, weighted_lswax_bucket );
                 check( amount_to_transfer >= 500000000, "amount to rebalance is too small" );
 
-                s.wax_bucket.amount -= amount_to_transfer;
+                s.wax_bucket.amount     -= amount_to_transfer;
+                s.last_rebalance_time   = now();
+                state_s_3.set(s, _self);
 
                 transfer_tokens( DAPP_CONTRACT, asset( amount_to_transfer, WAX_SYMBOL), WAX_CONTRACT, std::string("wax_lswax_liquidity") );
-
-                s.last_rebalance_time = now();
-                state_s_3.set(s, _self);
                 return;                                 
 
             } else if( half_weight > s.wax_bucket.amount ){
 
-                int64_t weight_difference = safecast::sub( half_weight, s.wax_bucket.amount );
+                int64_t weight_difference   = safecast::sub( half_weight, s.wax_bucket.amount );
                 int64_t difference_adjusted = calculate_lswax_output( weight_difference, ds );
 
                 int64_t max_redeemable = 
@@ -281,12 +276,11 @@ ACTION polcontract::rebalance(){
                 int64_t amount_to_transfer = std::min( difference_adjusted, max_redeemable );
                 check( amount_to_transfer >= 500000000, "amount to rebalance is too small" );
 
-                s.lswax_bucket.amount -= amount_to_transfer;
+                s.lswax_bucket.amount -=    amount_to_transfer;
+                s.last_rebalance_time =     now();
+                state_s_3.set(s, _self);
 
                 transfer_tokens( DAPP_CONTRACT, asset( amount_to_transfer, LSWAX_SYMBOL), TOKEN_CONTRACT, std::string("rebalance") );
-
-                s.last_rebalance_time = now();
-                state_s_3.set(s, _self);
                 return;    
 
             }
@@ -316,11 +310,11 @@ ACTION polcontract::rentcpu(const eosio::name& renter, const eosio::name& cpu_re
 
     if(itr == renter_receiver_idx.end()){
         renters_t.emplace(renter, [&](auto &_r){
-            _r.ID = renters_t.available_primary_key();
-            _r.renter = renter;
-            _r.rent_to_account = cpu_receiver;
-            _r.amount_staked = ZERO_WAX;
-            _r.expires = 0;         
+            _r.ID               = renters_t.available_primary_key();
+            _r.renter           = renter;
+            _r.rent_to_account  = cpu_receiver;
+            _r.amount_staked    = ZERO_WAX;
+            _r.expires          = 0;         
         });
     }
 }
@@ -339,10 +333,9 @@ ACTION polcontract::setallocs(const uint64_t& liquidity_allocation_percent_1e6){
     //allow 1-100%
     check( liquidity_allocation_percent_1e6 >= 1000000 && liquidity_allocation_percent_1e6 <= ONE_HUNDRED_PERCENT_1E6, "percent must be between > 1e6 && <= 100 * 1e6" );
 
-
     config2 c = config_s_2.get();
-    c.liquidity_allocation_1e6 = liquidity_allocation_percent_1e6;
-    c.rental_pool_allocation_1e6 = ONE_HUNDRED_PERCENT_1E6 - liquidity_allocation_percent_1e6;
+    c.liquidity_allocation_1e6      = liquidity_allocation_percent_1e6;
+    c.rental_pool_allocation_1e6    = ONE_HUNDRED_PERCENT_1E6 - liquidity_allocation_percent_1e6;
     config_s_2.set(c, _self);
 }
 

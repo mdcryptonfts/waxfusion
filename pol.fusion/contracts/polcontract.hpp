@@ -1,7 +1,7 @@
 #pragma once
 #define CONTRACT_NAME "polcontract"
 #define WIDE_INTEGER_HAS_LIMB_TYPE_UINT64
-//#define DEBUG true
+#define DEBUG true
 #define mix64to128(a, b) (uint128_t(a) << 64 | uint128_t(b))
 
 #include <eosio/eosio.hpp>
@@ -9,7 +9,6 @@
 #include <eosio/system.hpp>
 #include <eosio/symbol.hpp>
 #include <eosio/action.hpp>
-#include <eosio/crypto.hpp>
 #include <eosio/transaction.hpp>
 #include <eosio/singleton.hpp>
 #include <cmath>
@@ -53,20 +52,20 @@ CONTRACT polcontract : public contract {
         [[eosio::on_notify("token.fusion::transfer")]] void receive_lswax_transfer(const name& from, const name& to, const asset& quantity, const std::string& memo);
 
         // DEBUG notification to mimic eosio contract altering balance when staking cpu
-        // [[eosio::on_notify("eosio::requestwax")]] void receive_system_request(const name& payer, const asset& wax_amount);
+        [[eosio::on_notify("eosio::requestwax")]] void receive_system_request(const name& payer, const asset& wax_amount);
 
     private:
 
         //Singletons
-        config_singleton_2 config_s_2;
-        dapp_tables::global_singleton dapp_state_s;
-        state_singleton_3 state_s_3;
-        top21_singleton top21_s;
+        config_singleton_2              config_s_2;
+        dapp_tables::global_singleton   dapp_state_s;
+        state_singleton_3               state_s_3;
+        top21_singleton                 top21_s;
 
         //Multi Index Tables
-        alcor_contract::pools_table pools_t = alcor_contract::pools_table(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
-        refunds_table refunds_t = refunds_table(SYSTEM_CONTRACT, get_self().value);
-        renters_table renters_t = renters_table(get_self(), get_self().value);
+        alcor_contract::pools_table pools_t     = alcor_contract::pools_table(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
+        refunds_table               refunds_t   = refunds_table(SYSTEM_CONTRACT, get_self().value);
+        renters_table               renters_t   = renters_table(get_self(), get_self().value);
 
         //Functions
         void add_liquidity( state3& s, liquidity_struct& lp_details );
