@@ -9,18 +9,17 @@ void fusion::handle_available_request(global& g, bool& request_can_be_filled, st
      *  need to redeem
      */
 
-    requests_tbl requests_t = requests_tbl(get_self(), staker.wallet.value);
-
-    uint64_t redemption_start_time = g.last_epoch_start_time;
-    uint64_t redemption_end_time = g.last_epoch_start_time + g.redemption_period_length_seconds;
-    uint64_t epoch_to_claim_from = g.last_epoch_start_time - g.seconds_between_epochs;
+    requests_tbl    requests_t              = requests_tbl(get_self(), staker.wallet.value);
+    uint64_t        redemption_start_time   = g.last_epoch_start_time;
+    uint64_t        redemption_end_time     = g.last_epoch_start_time + g.redemption_period_length_seconds;
+    uint64_t        epoch_to_claim_from     = g.last_epoch_start_time - g.seconds_between_epochs;
 
     if ( now() < redemption_end_time ) {
         //there is currently a redemption window open
         //if this user has a request in that window, handle it before proceeding
 
-        auto epoch_itr = epochs_t.find( epoch_to_claim_from );
-        auto req_itr = requests_t.find( epoch_to_claim_from );
+        auto epoch_itr  = epochs_t.find( epoch_to_claim_from );
+        auto req_itr    = requests_t.find( epoch_to_claim_from );
 
         if ( epoch_itr != epochs_t.end() && req_itr != requests_t.end() ) {
 

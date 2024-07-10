@@ -34,13 +34,10 @@ void fusion::create_epoch(const global& g, const uint64_t& start_time, const nam
 
 void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& swax_balance) {
 
-  global g = global_s.get();
-
-  requests_tbl requests_t = requests_tbl(get_self(), user.value);
-
-  asset total_amount_awaiting_redemption = ZERO_WAX;
-
-  const uint64_t first_epoch_to_check = g.last_epoch_start_time - g.seconds_between_epochs;
+  global          g                                 = global_s.get();
+  requests_tbl    requests_t                        = requests_tbl(get_self(), user.value);
+  asset           total_amount_awaiting_redemption  = ZERO_WAX;
+  const uint64_t  first_epoch_to_check              = g.last_epoch_start_time - g.seconds_between_epochs;
 
   //we only need to check the 3 active epochs
   //the vector will start in reverse order, so if the user has multiple requests,
@@ -55,8 +52,8 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
   std::vector<uint64_t> pending_requests {};
 
   for (uint64_t ep : epochs_to_check) {
-    auto epoch_itr = epochs_t.find(ep);
-    auto req_itr = requests_t.find(ep);
+    auto epoch_itr  = epochs_t.find(ep);
+    auto req_itr    = requests_t.find(ep);
 
     if ( epoch_itr != epochs_t.end() && req_itr != requests_t.end() ) {
         pending_requests.push_back({ep});
@@ -76,11 +73,11 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
       //if the amount requested is > amount_overdrawn_i64
       if ( req_itr->wax_amount_requested.amount > amount_overdrawn_i64 ) {
         requests_t.modify(req_itr, same_payer, [&](auto & _r) {
-          _r.wax_amount_requested.amount = safecast::sub( _r.wax_amount_requested.amount, amount_overdrawn_i64 );
+          _r.wax_amount_requested.amount -= amount_overdrawn_i64;
         });
 
         epochs_t.modify(epoch_itr, _self, [&](auto & _e) {
-          _e.wax_to_refund.amount = safecast::sub( _e.wax_to_refund.amount, amount_overdrawn_i64 );
+          _e.wax_to_refund.amount -= amount_overdrawn_i64;
         });
 
         break;
@@ -90,7 +87,7 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
       else if ( req_itr->wax_amount_requested.amount == amount_overdrawn_i64 ) {
 
         epochs_t.modify(epoch_itr, _self, [&](auto & _e) {
-          _e.wax_to_refund.amount = safecast::sub( _e.wax_to_refund.amount, amount_overdrawn_i64 );
+          _e.wax_to_refund.amount -= amount_overdrawn_i64;
         });
 
         requests_t.erase( req_itr );
@@ -119,7 +116,7 @@ std::string fusion::cpu_stake_memo(const eosio::name& cpu_receiver, const uint64
 }
 
 uint64_t fusion::days_to_seconds(const uint64_t& days) {
-  return (uint64_t) SECONDS_PER_DAY * days;
+  return uint64_t(SECONDS_PER_DAY) * days;
 }
 
 eosio::name fusion::get_next_cpu_contract(global& g) {
@@ -136,8 +133,8 @@ eosio::name fusion::get_next_cpu_contract(global& g) {
 }
 
 uint64_t fusion::get_seconds_to_rent_cpu( global& g, const uint64_t& epoch_id_to_rent_from ) {
+  
   uint64_t seconds_into_current_epoch = now() - g.last_epoch_start_time;
-
   uint64_t seconds_to_rent;
 
   if ( epoch_id_to_rent_from == g.last_epoch_start_time + g.seconds_between_epochs ) {
@@ -185,34 +182,16 @@ std::vector<std::string> fusion::get_words(std::string memo) {
 */
 
 bool fusion::is_an_admin(global& g, const eosio::name& user) {
-
-  if ( std::find(g.admin_wallets.begin(), g.admin_wallets.end(), user) != g.admin_wallets.end() ) {
-    return true;
-  }
-
-  return false;
+  return std::find(g.admin_wallets.begin(), g.admin_wallets.end(), user) != g.admin_wallets.end();
 }
 
 bool fusion::is_cpu_contract(global& g, const eosio::name& contract) {
-
-  if ( std::find( g.cpu_contracts.begin(), g.cpu_contracts.end(), contract) != g.cpu_contracts.end() ) {
-    return true;
-  }
-
-  return false;
+  return std::find( g.cpu_contracts.begin(), g.cpu_contracts.end(), contract) != g.cpu_contracts.end();
 }
 
 bool fusion::is_lswax_or_wax(const eosio::symbol& symbol, const eosio::name& contract)
 {
-  if (symbol == WAX_SYMBOL && contract == WAX_CONTRACT) {
-    return true;
-  }
-
-  if (symbol == LSWAX_SYMBOL && contract == TOKEN_CONTRACT) {
-    return true;
-  }
-
-  return false;
+  return (symbol == LSWAX_SYMBOL && contract == TOKEN_CONTRACT) || (symbol == WAX_SYMBOL && contract == WAX_CONTRACT);
 }
 
 void fusion::issue_lswax(const int64_t& amount, const eosio::name& receiver) {
@@ -229,14 +208,10 @@ bool fusion::memo_is_expected(const std::string& memo) {
     return true;
   }
 
-  std::string memo_copy = memo;
-  std::vector<std::string> words = get_words(memo_copy);
+  std::string               memo_copy   = memo;
+  std::vector<std::string>  words       = get_words(memo_copy);
 
-  if ( words[1] == "rent_cpu" || words[1] == "unliquify_exact" ) {
-    return true;
-  }
-
-  return false;
+  return ( words[1] == "rent_cpu" || words[1] == "unliquify_exact" );
 }
 
 inline uint64_t fusion::now() {
