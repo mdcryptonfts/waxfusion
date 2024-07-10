@@ -31,12 +31,12 @@ void fusion::extend_reward(global&g, rewards& r, staker_struct& self_staker) {
 
     validate_allocations( amount_to_distribute, {user_alloc_i64, pol_alloc_i64, eco_alloc_i64} );
 
-    g.total_revenue_distributed.amount      = safecast::add(g.total_revenue_distributed.amount, amount_to_distribute);
-    g.wax_available_for_rentals.amount      = safecast::add(g.wax_available_for_rentals.amount, eco_alloc_i64);
-    g.revenue_awaiting_distribution.amount  = 0;
-    g.incentives_bucket.amount              = safecast::add( g.incentives_bucket.amount, lswax_amount_to_issue );
-    g.swax_currently_backing_lswax.amount   = safecast::add( g.swax_currently_backing_lswax.amount, eco_alloc_i64 );
-    g.liquified_swax.amount                 = safecast::add( g.liquified_swax.amount, lswax_amount_to_issue );
+    g.total_revenue_distributed.amount      +=  amount_to_distribute;
+    g.wax_available_for_rentals.amount      +=  eco_alloc_i64;
+    g.revenue_awaiting_distribution.amount  =   0;
+    g.incentives_bucket.amount              +=  lswax_amount_to_issue;
+    g.swax_currently_backing_lswax.amount   +=  eco_alloc_i64;
+    g.liquified_swax.amount                 +=  lswax_amount_to_issue;
 
     issue_lswax( lswax_amount_to_issue, _self );
     issue_swax( eco_alloc_i64 );
