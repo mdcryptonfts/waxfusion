@@ -7,14 +7,13 @@
 #include <eosio/asset.hpp>
 #include <eosio/system.hpp>
 #include <eosio/symbol.hpp>
-#include <eosio/transaction.hpp>
 #include <eosio/singleton.hpp>
 #include <eosio/binary_extension.hpp>
 #include <eosio/producer_schedule.hpp>
 #include <constants.hpp>
 #include <safecast.hpp>
-#include "tables.hpp"
-#include "structs.hpp"
+#include <tables.hpp>
+#include <structs.hpp>
 #include <global.hpp>
 #include <voting.hpp>
 
