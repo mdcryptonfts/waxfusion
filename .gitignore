@@ -3,3 +3,6 @@ deployments/
 .env
 *.md
 !README.md
+*.fuckyea_id
+*.DS_STORE
+*fuckyea.config.js

@@ -39,10 +39,7 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
   asset           total_amount_awaiting_redemption  = ZERO_WAX;
   const uint64_t  first_epoch_to_check              = g.last_epoch_start_time - g.seconds_between_epochs;
 
-  //we only need to check the 3 active epochs
-  //the vector will start in reverse order, so if the user has multiple requests,
-  //we will debit from the one that is farthest away first. this way they dont
-  //have to wait a long time to get their redemption
+  // We only need to check the 3 active epochs
   const std::vector<uint64_t> epochs_to_check = {
     first_epoch_to_check + ( g.seconds_between_epochs * 2 ),
     first_epoch_to_check + g.seconds_between_epochs,
@@ -70,7 +67,6 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
       auto epoch_itr  = epochs_t.require_find(pending, "error locating epoch");
       auto req_itr    = requests_t.require_find(pending, "error locating redemption request");
 
-      //if the amount requested is > amount_overdrawn_i64
       if ( req_itr->wax_amount_requested.amount > amount_overdrawn_i64 ) {
         requests_t.modify(req_itr, same_payer, [&](auto & _r) {
           _r.wax_amount_requested.amount -= amount_overdrawn_i64;
@@ -83,15 +79,12 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
         break;
       }
 
-      //if the amount requested is exactly the same as their overdrawn amount
       else if ( req_itr->wax_amount_requested.amount == amount_overdrawn_i64 ) {
-
         epochs_t.modify(epoch_itr, _self, [&](auto & _e) {
           _e.wax_to_refund.amount -= amount_overdrawn_i64;
         });
 
         requests_t.erase( req_itr );
-
         break;
       }
 
@@ -105,10 +98,8 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
 
         requests_t.erase( req_itr );
       }
-
-    } //end loop of pending requests
-
-  } //end if the user is overdrawn
+    }
+  }
 }
 
 std::string fusion::cpu_stake_memo(const eosio::name& cpu_receiver, const uint64_t& epoch_timestamp) {
@@ -138,18 +129,18 @@ uint64_t fusion::get_seconds_to_rent_cpu( global& g, const uint64_t& epoch_id_to
   uint64_t seconds_to_rent;
 
   if ( epoch_id_to_rent_from == g.last_epoch_start_time + g.seconds_between_epochs ) {
-    //renting from epoch 3 (hasnt started yet)
+    // renting from epoch 3 (hasnt started yet)
     seconds_to_rent = days_to_seconds(18) - seconds_into_current_epoch;
 
   } else if ( epoch_id_to_rent_from == g.last_epoch_start_time ) {
-    //renting from epoch 2 (started most recently)
+    // renting from epoch 2 (started most recently)
     seconds_to_rent = days_to_seconds(11) - seconds_into_current_epoch;
 
   } else if ( epoch_id_to_rent_from == g.last_epoch_start_time - g.seconds_between_epochs ) {
-    //renting from epoch 1 (oldest) and we need to make sure it's less than 11 days old
+    // renting from epoch 1 (oldest) and we need to make sure it's less than 11 days old
     check( seconds_into_current_epoch < days_to_seconds(4), "it is too late to rent from this epoch, please rent from the next one" );
 
-    //if we reached here, minimum PAYMENT is 1 full day payment (even if rental is less than 1 day)
+    // if we reached here, minimum PAYMENT is 1 full day payment (even if rental is less than 1 day)
     seconds_to_rent = days_to_seconds(4) - seconds_into_current_epoch < days_to_seconds(1) ? days_to_seconds(1) : days_to_seconds(4) - seconds_into_current_epoch;
 
   } else {
@@ -230,9 +221,9 @@ inline void fusion::sync_epoch(global& g) {
 
   uint64_t next_epoch_start_time = g.last_epoch_start_time + g.seconds_between_epochs;
 
-  //there is an edge case possible where if the contract has no interactions over the course
-  //of an entire epoch, then the epoch would never get created. this is solved by
-  //using a while loop to create any missing epochs if they got skipped
+  // there is an edge case possible where if the contract has no interactions over the course
+  // of an entire epoch, then the epoch would never get created. this is solved by
+  // using a while loop to create any missing epochs if they got skipped
   while ( now() >= next_epoch_start_time ) {
 
     name next_cpu_contract = get_next_cpu_contract( g );
@@ -240,9 +231,7 @@ inline void fusion::sync_epoch(global& g) {
     g.last_epoch_start_time = next_epoch_start_time;
     g.current_cpu_contract  = next_cpu_contract;
 
-    auto epoch_itr = epochs_t.find(next_epoch_start_time);
-
-    if (epoch_itr == epochs_t.end()) {
+    if ( epochs_t.find(next_epoch_start_time) == epochs_t.end() ) {
       create_epoch( g, next_epoch_start_time, next_cpu_contract, ZERO_WAX );
     }
 

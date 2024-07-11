@@ -2,28 +2,20 @@
 
 void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, std::string memo) {
 
+    const name tkcontract = get_first_receiver();
+
     if ( quantity.amount == 0 || from == get_self() || to != get_self() ) return;
+    if ( tkcontract != WAX_CONTRACT && tkcontract != TOKEN_CONTRACT ) return;
 
     check( quantity.amount > 0, "must send a positive quantity" );
     check( quantity.amount < MAX_ASSET_AMOUNT, "quantity too large" );
-
-    const name tkcontract = get_first_receiver();
-    if ( tkcontract != WAX_CONTRACT && tkcontract != TOKEN_CONTRACT ) return;
     check( is_lswax_or_wax( quantity.symbol, tkcontract ), "only WAX and lsWAX are accepted" );
 
     if ( !memo_is_expected( memo ) && from != "eosio"_n ) {
-        //if we reached here, the token is either wax or lswax, but the memo is not expected
-        //allow transfers from eosio with unexpected memos during testing       
+        // if we reached here, the token is either wax or lswax, but the memo is not expected
+        // allow transfers from eosio with unexpected memos during testing
         check( false, "must include a memo for transfers to dapp.fusion, see docs.waxfusion.io for a list of memos" );
     }
-
-    /** instant redeem and rebalance memos
-     *  there are 2 cases where the POL contract will need to send LSWAX with these memos
-     *  - if alcor price is out of range and it's been 1 week since last liquidity addition,
-     *      in which case the returned wax will go to the CPU rental pool
-     *  - if alcor price is in range and POL needs to rebalance its assets before depositing
-     *      liquidity, in which case the returned funds will be used for liquidity instead
-     */
 
     if ( memo == "instant redeem" || memo == "rebalance" ) {
 
@@ -72,7 +64,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         return;
     }
 
-    if ( memo == "wax_lswax_liquidity" ) {
+    else if ( memo == "wax_lswax_liquidity" ) {
 
         check( tkcontract == WAX_CONTRACT, "only WAX should be sent with this memo" );
         check( from == POL_CONTRACT, ( "expected " + POL_CONTRACT.to_string() + " to be the sender" ).c_str() );
@@ -109,13 +101,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         return;
     }
 
-    /** stake memo
-     *  used for creating new sWAX tokens at 1:1 ratio
-     *  these sWAX will be staked initially, (added to the wax_available_for_rentals balance)
-     *  they can be converted to liquid sWAX (lsWAX) afterwards
-     */
-
-    if ( memo == "stake" ) {
+    else if ( memo == "stake" ) {
         check( tkcontract == WAX_CONTRACT, "only WAX is used for staking" );
 
         global g = global_s.get();
@@ -148,12 +134,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         return;
     }
 
-    /** unliquify memo
-     *  used for converting lsWAX back to sWAX
-     *  rate is not 1:1, needs to be fetched from state table
-     */
-
-    if ( memo == "unliquify" ) {
+    else if ( memo == "unliquify" ) {
 
         global  g = global_s.get();
         rewards r = rewards_s.get();
@@ -190,11 +171,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
     }
 
-    /** waxfusion_revenue
-     *  used for receiving revenue from helper contracts, like CPU rentals, wax staking, etc
-     */
-
-    if ( memo == "waxfusion_revenue" ) {
+    else if ( memo == "waxfusion_revenue" ) {
         check( tkcontract == WAX_CONTRACT, "only WAX is accepted with waxfusion_revenue memo" );
 
         global g = global_s.get();
@@ -204,12 +181,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         return;
     }
 
-    /** lp_incentives
-     *  to be used as rewards for creating farms on alcor
-     *  accepts wax deposits and lsWAX deposits
-     */
-
-    if ( memo == "lp_incentives" ) {
+    else if ( memo == "lp_incentives" ) {
 
         global g = global_s.get();
         rewards r = rewards_s.get();
@@ -248,11 +220,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         return;
     }
 
-    /** cpu rental return
-     *  these are funds coming back from one of the CPU rental contracts after being staked/rented
-     */
-
-    if ( memo == "cpu rental return" ) {
+    else if ( memo == "cpu rental return" ) {
 
         global g = global_s.get();
 
@@ -261,15 +229,8 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
         sync_epoch( g );
 
-        /**
-        * this SHOULD always belong to last epoch - 2 epochs
-        * i.e. by the time this arrives from epoch 1,
-        * it should now be epoch 3
-        */
-
-        uint64_t relevant_epoch = g.last_epoch_start_time - g.cpu_rental_epoch_length_seconds;
-
-        auto epoch_itr = epochs_t.require_find(relevant_epoch, "could not locate relevant epoch");
+        uint64_t    relevant_epoch  = g.last_epoch_start_time - g.cpu_rental_epoch_length_seconds;
+        auto        epoch_itr       = epochs_t.require_find(relevant_epoch, "could not locate relevant epoch");
 
         while ( epoch_itr->cpu_wallet != from && epoch_itr != epochs_t.begin() ) {
             epoch_itr --;
@@ -281,7 +242,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         asset amount_to_send_to_rental_bucket   = quantity;
 
         if ( epoch_itr->total_added_to_redemption_bucket < epoch_itr->wax_to_refund ) {
-            //there are still funds to add to the redemption pool so users can redeem
+            // there are still funds to add to the redemption pool so users can redeem
             int64_t amount_added            = 0;
             int64_t amount_remaining_to_add = safecast::sub(epoch_itr->wax_to_refund.amount, epoch_itr->total_added_to_redemption_bucket.amount);
 
@@ -311,11 +272,6 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         global_s.set(g, _self);
         return;
     }
-
-    /**
-    * @get_words
-    * anything below here should be a dynamic memo with multiple words to parse
-    */
 
     std::vector<std::string> words = get_words( memo );
 
@@ -382,7 +338,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         return;
     }
 
-    if ( words[1] == "unliquify_exact" ) {
+    else if ( words[1] == "unliquify_exact" ) {
 
         check( tkcontract == TOKEN_CONTRACT, "only LSWAX can be unliquified" );
         check( words.size() >= 3, "memo for unliquify_exact operation is incomplete" );
