@@ -11,12 +11,12 @@
 #include <eosio/singleton.hpp>
 #include <eosio/binary_extension.hpp>
 #include <eosio/producer_schedule.hpp>
-#include "constants.hpp"
-#include "safecast.hpp"
+#include <constants.hpp>
+#include <safecast.hpp>
 #include "tables.hpp"
 #include "structs.hpp"
-#include "global.hpp"
-#include "voting.hpp"
+#include <global.hpp>
+#include <voting.hpp>
 
 using namespace eosio;
 using namespace std;
