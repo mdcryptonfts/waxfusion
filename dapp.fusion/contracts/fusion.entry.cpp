@@ -739,10 +739,13 @@ ACTION fusion::liquifyexact(const name& user, const asset& quantity, const asset
 }
 
 /**
-* reallocate
-* used for taking any funds that were requested to be redeemed, but werent redeemed in time.
-* moves the funds back into the rental pool where they can be used for CPU rentals again
-*/
+ * Allows any to move unredeemed funds from redemption pool to rental pool
+ * 
+ * NOTE: There is a 48 hour window where redemptions take place during each epoch.
+ * If any funds were requested before that window, but not actually redeemed by the
+ * end of that window, then these funds will go back into the rotation where they
+ * can be used for CPU rentals, instant redemptions, etc
+ */
 
 ACTION fusion::reallocate() {
 
@@ -759,12 +762,15 @@ ACTION fusion::reallocate() {
     global_s.set(g, _self);
 }
 
-/** redeem
- *  a user has requested a redemption, and is now claiming it
- *  they will get their wax back, and the sWAX they were holding will be retired
+/**
+ * Allows a `user` to claim the redemption funds they requested
+ * 
+ * @param user - wallet address of the user claiming their funds
+ * 
+ * @required_auth - user
  */
 
-ACTION fusion::redeem(const eosio::name& user) {
+ACTION fusion::redeem(const name& user) {
 
     require_auth(user);
 
@@ -791,8 +797,7 @@ ACTION fusion::redeem(const eosio::name& user) {
     requests_tbl requests_t = requests_tbl(get_self(), user.value);
     auto req_itr = requests_t.require_find(epoch_to_claim_from, "you don't have a redemption request for the current redemption period");
 
-    //this should never happen because the amounts were validated when the redemption requests were created
-    //this is just a safety check
+    // Sanity check, this should never happen because the amounts were validated when the request was created
     check( req_itr->wax_amount_requested.amount <= staker.swax_balance.amount, "you are trying to redeem more than you have" );
     check( g.wax_for_redemption >= req_itr->wax_amount_requested, "not enough wax in the redemption pool" );
 
@@ -812,8 +817,15 @@ ACTION fusion::redeem(const eosio::name& user) {
     requests_t.erase(req_itr);
 }
 
+/**
+ * Removes an admin_wallet from the global singleton
+ * 
+ * @param admin_to_remove - the wallet to remove from the global state
+ * 
+ * @required_auth - this contract
+ */
 
-ACTION fusion::removeadmin(const eosio::name& admin_to_remove) {
+ACTION fusion::removeadmin(const name& admin_to_remove) {
     require_auth(_self);
 
     global  g   = global_s.get();
@@ -827,16 +839,21 @@ ACTION fusion::removeadmin(const eosio::name& admin_to_remove) {
 }
 
 /**
-* reqredeem (request redeem)
-* initiates a redemption request
-* the contract will automatically figure out which epoch(s) have enough wax available
-* the user must claim (redeem) their wax within 2 days of it becoming available, or it will be restaked
-* 
-* helper functions can be found in redemptions.cpp
-*
-*/
+ * Allows a `user` to request an sWAX redemption
+ * 
+ * NOTE: Since new requests overwrite previous requests, the user has to 
+ * pass `true` to `accept_replacing_prev_requests` if they have any existing requests.
+ * Throws if there is an existing request and they passed `false`.
+ * Helper functions for handling requests are found in `redemptions.cpp`
+ * 
+ * @param user - wax address of the user requesting a redemption
+ * @param swax_to_redeem - the amount of sWAX they want to redeem for WAX
+ * @param accept_replacing_prev_requests - `bool`, whether or not they are ok with replacing existing requests
+ * 
+ * @required_auth - user
+ */
 
-ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_redeem, const bool& accept_replacing_prev_requests) {
+ACTION fusion::reqredeem(const name& user, const asset& swax_to_redeem, const bool& accept_replacing_prev_requests) {
 
     require_auth(user);
 
@@ -858,7 +875,6 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
     bool    request_can_be_filled       = false;
     asset   remaining_amount_to_fill    = swax_to_redeem;
 
-    // In redemptions.cpp
     handle_available_request( g, request_can_be_filled, staker, remaining_amount_to_fill );
 
     if ( request_can_be_filled ) {
@@ -876,18 +892,13 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
         g.last_epoch_start_time + g.seconds_between_epochs
     };
 
-    // In redemptions.cpp
     remove_existing_requests( epochs_to_check, staker, accept_replacing_prev_requests );
     handle_new_request( epochs_to_check, request_can_be_filled, staker, remaining_amount_to_fill );
 
     if ( !request_can_be_filled ) {
-        /** make sure there is enough wax in available_for_rentals pool to cover the remainder
-         *  there should be 0 cases where this this check fails
-         *  if epochs cant cover it, there should always be enough in available for rentals to
-         *  cover the remainder. because if the funds aren't staked in epochs, the only other
-         *  place they can be is in the rental pool.
-         */
 
+        // Sanity check, this should never happen
+        // If epochs can't cover the request, the only other place the WAX should be is in `wax_available_for_rentals`
         check( g.wax_available_for_rentals.amount >= remaining_amount_to_fill.amount, "Request amount is greater than amount in epochs and rental pool" );
 
         g.wax_available_for_rentals.amount  -= remaining_amount_to_fill.amount;
@@ -900,7 +911,15 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
     global_s.set(g, _self);
 }
 
-ACTION fusion::rmvcpucntrct(const eosio::name& contract_to_remove) {
+/**
+ * Removes a CPU contract from the global singleton
+ * 
+ * @param contract_to_remove - the CPU contract to remove from the global state
+ * 
+ * @required_auth - this contract
+ */
+
+ACTION fusion::rmvcpucntrct(const name& contract_to_remove) {
     require_auth(_self);
 
     global  g   = global_s.get();
@@ -931,7 +950,7 @@ ACTION fusion::rmvincentive(const uint64_t& poolId) {
  *  get the CPU
  */
 
-ACTION fusion::setfallback(const eosio::name& caller, const eosio::name& receiver) {
+ACTION fusion::setfallback(const name& caller, const name& receiver) {
     require_auth(caller);
 
     global g = global_s.get();
@@ -954,13 +973,12 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
     global  g   = global_s.get();
     auto    itr = pools_t.require_find(poolId, "this poolId does not exist");
 
-    if ( (itr->tokenA.quantity.symbol != symbol_to_incentivize && itr->tokenA.contract != contract_to_incentivize)
-            &&
-            (itr->tokenB.quantity.symbol != symbol_to_incentivize && itr->tokenB.contract != contract_to_incentivize)
-
-       ) {
-        check(false, "this poolId does not contain the symbol/contract combo you entered");
-    }
+    check(  
+        (itr->tokenA.quantity.symbol == symbol_to_incentivize && itr->tokenA.contract == contract_to_incentivize)
+        ||
+        (itr->tokenB.quantity.symbol == symbol_to_incentivize && itr->tokenB.contract == contract_to_incentivize),
+        "this poolId does not contain the symbol/contract combo you entered"
+    );
 
     if (symbol_to_incentivize == LSWAX_SYMBOL && contract_to_incentivize == TOKEN_CONTRACT) {
         check(false, "LSWAX cannot be paired against itself");
@@ -1154,16 +1172,25 @@ ACTION fusion::sync(const eosio::name& caller) {
     global_s.set(g, _self);
 }
 
+/**
+ * Unstakes WAX from accounts that are being rented to
+ * 
+ * NOTE: We are not unstaking WAX staked by this contract directly.
+ * We are notifying one of our CPU contracts about the need to unstake.
+ * 
+ * @param epoch_id - which epoch to unstake from. Pass `0` for default value
+ * @param limit - max amount of accounts to unstake from. Pass `0` for default (500)
+ */
+
 ACTION fusion::unstakecpu(const uint64_t& epoch_id, const int& limit) {
     
     global g = global_s.get();
 
     sync_epoch( g );
 
-    // The only epoch that should ever need unstaking is the one that started prior to current epoch
-    // This can be overridden by specifying an epoch_id in the action instead of passing 0
     uint64_t    epoch_to_check  = epoch_id == 0 ? g.last_epoch_start_time - g.seconds_between_epochs : epoch_id;
     auto        epoch_itr       = epochs_t.require_find( epoch_to_check, ("could not find epoch " + std::to_string( epoch_to_check ) ).c_str() );
+    int         rows_limit      = limit == 0 ? 500 : limit;
 
     check( epoch_itr->time_to_unstake <= now(), ("can not unstake until another " + std::to_string( epoch_itr-> time_to_unstake - now() ) + " seconds has passed").c_str() );
 
@@ -1173,18 +1200,16 @@ ACTION fusion::unstakecpu(const uint64_t& epoch_id, const int& limit) {
         check( false, ( epoch_itr->cpu_wallet.to_string() + " has nothing to unstake" ).c_str() );
     }
 
-    // The deatult amount of rows to erase is 500, can be overridden by passing a number > 0 to the action
-    int rows_limit = limit == 0 ? 500 : limit;
-
     action(active_perm(), epoch_itr->cpu_wallet, "unstakebatch"_n, std::tuple{ rows_limit }).send();
 
     global_s.set(g, _self);
 
-    renters_table renters_t = renters_table( _self, epoch_to_check );
+    renters_table   renters_t   = renters_table( _self, epoch_to_check );
+    auto            rental_itr  = renters_t.begin();
+    int             count       = 0;
+
     if ( renters_t.begin() == renters_t.end() ) return;
 
-    int count = 0;
-    auto rental_itr = renters_t.begin();
     while (rental_itr != renters_t.end()) {
         if (count == rows_limit) return;
         rental_itr = renters_t.erase( rental_itr );

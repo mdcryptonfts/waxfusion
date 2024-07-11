@@ -50,12 +50,12 @@ CONTRACT fusion : public contract {
         ACTION liquify(const name& user, const asset& quantity);
         ACTION liquifyexact(const name& user, const asset& quantity, const asset& minimum_output);
         ACTION reallocate();
-        ACTION redeem(const eosio::name& user);
-        ACTION removeadmin(const eosio::name& admin_to_remove);
-        ACTION reqredeem(const eosio::name& user, const eosio::asset& swax_to_redeem, const bool& accept_replacing_prev_requests);
-        ACTION rmvcpucntrct(const eosio::name& contract_to_remove);
+        ACTION redeem(const name& user);
+        ACTION removeadmin(const name& admin_to_remove);
+        ACTION reqredeem(const name& user, const asset& swax_to_redeem, const bool& accept_replacing_prev_requests);
+        ACTION rmvcpucntrct(const name& contract_to_remove);
         ACTION rmvincentive(const uint64_t& poolId);
-        ACTION setfallback(const eosio::name& caller, const eosio::name& receiver);
+        ACTION setfallback(const name& caller, const name& receiver);
         ACTION setincentive(const uint64_t& poolId, const eosio::symbol& symbol_to_incentivize, const eosio::name& contract_to_incentivize, const uint64_t& percent_share_1e6);
         ACTION setpolshare(const uint64_t& pol_share_1e6);
         ACTION setredeemfee(const uint64_t& protocol_fee_1e6);
