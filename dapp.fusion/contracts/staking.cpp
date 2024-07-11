@@ -23,7 +23,7 @@ void fusion::extend_reward(global&g, rewards& r, staker_struct& self_staker) {
     int64_t eco_alloc_i64           = calculate_asset_share( amount_to_distribute, g.ecosystem_share_1e6 );
     int64_t lswax_amount_to_issue   = calculate_lswax_output( eco_alloc_i64, g );
 
-    //if rounding resulted in any leftover waxtoshis, add them to the reward farm
+    // If rounding resulted in any leftover waxtoshis, add them to the reward farm
     const int64_t sum           = user_alloc_i64 + pol_alloc_i64 + eco_alloc_i64;
     const int64_t difference    = safecast::sub( amount_to_distribute, sum );
 
@@ -93,15 +93,10 @@ uint128_t fusion::reward_per_token(rewards& r)
 {
     if ( r.totalSupply == 0 ) return 0;
     
-    // the only time periodFinish should be less than now
-    // is when the extend_reward function is called
-    // which calculates pending rewards up to the previous periodFinish, 
-    // then sets a new periodFinish with new rewardRate before users call update_reward
-    uint64_t time_elapsed = std::min( now(), r.periodFinish ) - std::max( r.periodStart, r.lastUpdateTime ) ;
-
-    uint128_t a = r.rewardRate;
-    uint128_t b = uint128_t(time_elapsed) * SCALE_FACTOR_1E8;
-    uint128_t c = r.totalSupply;
+    uint64_t    time_elapsed    = std::min( now(), r.periodFinish ) - std::max( r.periodStart, r.lastUpdateTime ) ;
+    uint128_t   a               = r.rewardRate;
+    uint128_t   b               = uint128_t(time_elapsed) * SCALE_FACTOR_1E8;
+    uint128_t   c               = r.totalSupply;
 
     return r.rewardPerTokenStored + mulDiv128( a, b, c );
 }
