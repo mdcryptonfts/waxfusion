@@ -46,10 +46,9 @@ CONTRACT fusion : public contract {
         ACTION createfarms();
         ACTION init(const asset& initial_reward_pool);
         ACTION inittop21();
-        ACTION instaredeem(const eosio::name& user, const eosio::asset& swax_to_redeem);
-        ACTION liquify(const eosio::name& user, const eosio::asset& quantity);
-        ACTION liquifyexact(const eosio::name& user, const eosio::asset& quantity, 
-            const eosio::asset& minimum_output);
+        ACTION instaredeem(const name& user, const asset& swax_to_redeem);
+        ACTION liquify(const name& user, const asset& quantity);
+        ACTION liquifyexact(const name& user, const asset& quantity, const asset& minimum_output);
         ACTION reallocate();
         ACTION redeem(const eosio::name& user);
         ACTION removeadmin(const eosio::name& admin_to_remove);

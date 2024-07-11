@@ -517,7 +517,6 @@ ACTION fusion::inittop21() {
  * than the real system contracts.
  */
 
-
 ACTION fusion::inittop21() {
     require_auth(get_self());
 
@@ -586,7 +585,7 @@ ACTION fusion::inittop21() {
  * @required_auth - user
  */
 
-ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_redeem) {
+ACTION fusion::instaredeem(const name& user, const asset& swax_to_redeem) {
 
     require_auth(user);
 
@@ -630,13 +629,20 @@ ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_
     transfer_tokens( user, asset( user_share, WAX_SYMBOL ), WAX_CONTRACT, std::string("your sWAX redemption from waxfusion.io - liquid staking protocol") );
 }
 
-/** liquify
- *  used when a user wants to convert their sWAX into lsWAX
- *  new lsWAX will be minted based on the current ratio of wax/lsWAX
- *  the user's sWAX balance will be moved to swax_currently_backing_lswax
+/**
+ * Allows a `user` to convert their sWAX into lsWAX
+ * 
+ * NOTE: New lsWAX will be minted according to the current ratio
+ * of sWAX/lsWAX. The user's sWAX balance will be moved to `swax_currently_backing_lswax`,
+ * where it will become a part of the allocation that gets compounded.
+ * 
+ * @param user - the WAX address of the user who is liquifying
+ * @param quantity - the amount of sWAX they want to liquify
+ * 
+ * @required_auth - user
  */
 
-ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity) {
+ACTION fusion::liquify(const name& user, const asset& quantity) {
 
     require_auth(user);
     check(quantity > ZERO_SWAX, "Invalid quantity.");
@@ -674,12 +680,22 @@ ACTION fusion::liquify(const eosio::name& user, const eosio::asset& quantity) {
     global_s.set(g, _self);
 }
 
-/** liquifyexact
- *  same as liquify, but allows the user to specify the minimum amount received
+/**
+ * Allows a `user` to convert their sWAX into lsWAX
+ * 
+ * NOTE: New lsWAX will be minted according to the current ratio
+ * of sWAX/lsWAX. The user's sWAX balance will be moved to `swax_currently_backing_lswax`,
+ * where it will become a part of the allocation that gets compounded.
+ * Throws if the output amount is less than `minimum_output`
+ * 
+ * @param user - the WAX address of the user who is liquifying
+ * @param quantity - the amount of sWAX they want to liquify
+ * @param minimum_output - the amount of lsWAX the `user` expects to receive
+ * 
+ * @required_auth - user
  */
 
-ACTION fusion::liquifyexact(const eosio::name& user, const eosio::asset& quantity,
-                            const eosio::asset& minimum_output)
+ACTION fusion::liquifyexact(const name& user, const asset& quantity, const asset& minimum_output)
 {
 
     require_auth(user);
@@ -842,7 +858,7 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
     bool    request_can_be_filled       = false;
     asset   remaining_amount_to_fill    = swax_to_redeem;
 
-    //in redemptions.cpp
+    // In redemptions.cpp
     handle_available_request( g, request_can_be_filled, staker, remaining_amount_to_fill );
 
     if ( request_can_be_filled ) {
@@ -860,7 +876,7 @@ ACTION fusion::reqredeem(const eosio::name& user, const eosio::asset& swax_to_re
         g.last_epoch_start_time + g.seconds_between_epochs
     };
 
-    //in redemptions.cpp
+    // In redemptions.cpp
     remove_existing_requests( epochs_to_check, staker, accept_replacing_prev_requests );
     handle_new_request( epochs_to_check, request_can_be_filled, staker, remaining_amount_to_fill );
 
@@ -967,17 +983,12 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
 
         check( lp_itr->percent_share_1e6 != percent_share_1e6, "the share you entered is the same as the existing share" );
 
-        //calculate the difference in global shares
         if ( lp_itr->percent_share_1e6 > percent_share_1e6 ) {
-
             uint64_t difference         = safecast::sub( lp_itr->percent_share_1e6, percent_share_1e6 );
             g.total_shares_allocated    = safecast::sub( g.total_shares_allocated, difference );
-
         } else {
-
             uint64_t difference         = safecast::sub( percent_share_1e6, lp_itr->percent_share_1e6 );
             g.total_shares_allocated    = safecast::add( g.total_shares_allocated, difference );
-
         }
 
         lpfarms_t.modify(lp_itr, _self, [&](auto & _lp) {
@@ -1101,21 +1112,16 @@ ACTION fusion::stakeallcpu() {
 
         name        next_cpu_contract       = get_next_cpu_contract( g );
         uint64_t    next_epoch_start_time   = g.last_epoch_start_time + g.seconds_between_epochs;
+        auto        next_epoch_itr          = epochs_t.find(next_epoch_start_time);
 
         transfer_tokens( next_cpu_contract, g.wax_available_for_rentals, WAX_CONTRACT, cpu_stake_memo(g.fallback_cpu_receiver, next_epoch_start_time) );
-
-        auto next_epoch_itr = epochs_t.find(next_epoch_start_time);
 
         if (next_epoch_itr == epochs_t.end()) {
             create_epoch( g, next_epoch_start_time, next_cpu_contract, g.wax_available_for_rentals );
         } else {
-
-            asset current_wax_bucket = next_epoch_itr->wax_bucket;
-            current_wax_bucket += g.wax_available_for_rentals;
             epochs_t.modify(next_epoch_itr, get_self(), [&](auto & _e) {
-                _e.wax_bucket = current_wax_bucket;
+                _e.wax_bucket += g.wax_available_for_rentals;
             });
-
         }
 
         g.wax_available_for_rentals = ZERO_WAX;
@@ -1150,15 +1156,12 @@ ACTION fusion::sync(const eosio::name& caller) {
 
 ACTION fusion::unstakecpu(const uint64_t& epoch_id, const int& limit) {
     
-    //anyone can call this
-
     global g = global_s.get();
 
     sync_epoch( g );
 
-    //the only epoch that should ever need unstaking is the one that started prior to current epoch
-    //calculate the epoch prior to the most recently started one
-    //this can be overridden by specifying an epoch_id in the action instead of passing 0
+    // The only epoch that should ever need unstaking is the one that started prior to current epoch
+    // This can be overridden by specifying an epoch_id in the action instead of passing 0
     uint64_t    epoch_to_check  = epoch_id == 0 ? g.last_epoch_start_time - g.seconds_between_epochs : epoch_id;
     auto        epoch_itr       = epochs_t.require_find( epoch_to_check, ("could not find epoch " + std::to_string( epoch_to_check ) ).c_str() );
 
@@ -1170,7 +1173,7 @@ ACTION fusion::unstakecpu(const uint64_t& epoch_id, const int& limit) {
         check( false, ( epoch_itr->cpu_wallet.to_string() + " has nothing to unstake" ).c_str() );
     }
 
-    //the deatult amount of rows to erase is 500, can be overridden by passing a number > 0 to the action
+    // The deatult amount of rows to erase is 500, can be overridden by passing a number > 0 to the action
     int rows_limit = limit == 0 ? 500 : limit;
 
     action(active_perm(), epoch_itr->cpu_wallet, "unstakebatch"_n, std::tuple{ rows_limit }).send();
