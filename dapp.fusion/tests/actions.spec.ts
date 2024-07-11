@@ -889,9 +889,9 @@ describe('\n\nsetincentive action', () => {
         await expectToThrow(action, `eosio_assert: this poolId does not contain the symbol/contract combo you entered`)        
     });   
 
-    it('error: lsWAX can not be paired against itself', async () => {
+    it('error: tokenA should be lsWAX', async () => {
         const action = contracts.dapp_contract.actions.setincentive([2, '8,LSWAX', 'token.fusion', 1000000]).send('dapp.fusion@active');
-        await expectToThrow(action, `eosio_assert: LSWAX cannot be paired against itself`)        
+        await expectToThrow(action, `eosio_assert: tokenA should be lsWAX`)        
     });  
 
     it('success', async () => {

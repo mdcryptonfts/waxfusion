@@ -739,7 +739,7 @@ ACTION fusion::liquifyexact(const name& user, const asset& quantity, const asset
 }
 
 /**
- * Allows any to move unredeemed funds from redemption pool to rental pool
+ * Allows anyone to move unredeemed funds from redemption pool to rental pool
  * 
  * NOTE: There is a 48 hour window where redemptions take place during each epoch.
  * If any funds were requested before that window, but not actually redeemed by the
@@ -943,11 +943,16 @@ ACTION fusion::rmvincentive(const uint64_t& poolId) {
     global_s.set(g, _self);
 }
 
-/** setfallback
- *  every 24 hours, unrented CPU funds are automatically staked to an epoch, in order
- *  to generate rewards and maximize APR. since they are not rented, the CPU needs to
- *  be staked to an account. the fallback_cpu_receiver is the account that will
- *  get the CPU
+/**
+ * Changes the `fallback_cpu_receiver` in the global singleton
+ * 
+ * NOTE: Every 24 hours, unrented WAX is staked to the fallback receiver
+ * in order to maximize APR for sWAX and lsWAX
+ * 
+ * @param caller - the wallet that is submitting this transaction
+ * @param receiver - the new `fallback_cpu_receiver`
+ * 
+ * @required_auth - any admin in the global singleton
  */
 
 ACTION fusion::setfallback(const name& caller, const name& receiver) {
@@ -962,8 +967,19 @@ ACTION fusion::setfallback(const name& caller, const name& receiver) {
     global_s.set(g, _self);
 }
 
-/** setincentive
- *  adds/modifies an LP pair to receive rewards on alcor, from the lp_incentives bucket
+/**
+ * Adds or modifies an LP pair to the `lp_farms` table
+ * 
+ * NOTE: Our ecosystem fund allocates a portion of protocol revenue to 
+ * creating Alcor incentives for certain lsWAX pairs. This action allows
+ * us to specify which pairs get those incentives.
+ * 
+ * @param poolId - the poolID of the pair to incentivize, in Alcor's `pools` table
+ * @param symbol_to_incentivize - the `symbol` of the token that is paired against lsWAX
+ * @param contract_to_incentivize - the `contract` of the token that is paired against lsWAX
+ * @param percent_share_1e6 - the percent of the ecosystem fund to allocate to this pair, scaled by 1e6
+ * 
+ * @required_auth - this contract
  */
 
 ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_to_incentivize, const eosio::name& contract_to_incentivize, const uint64_t& percent_share_1e6) {
@@ -973,15 +989,12 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
     global  g   = global_s.get();
     auto    itr = pools_t.require_find(poolId, "this poolId does not exist");
 
-    check(  
-        (itr->tokenA.quantity.symbol == symbol_to_incentivize && itr->tokenA.contract == contract_to_incentivize)
-        ||
-        (itr->tokenB.quantity.symbol == symbol_to_incentivize && itr->tokenB.contract == contract_to_incentivize),
-        "this poolId does not contain the symbol/contract combo you entered"
-    );
-
-    if (symbol_to_incentivize == LSWAX_SYMBOL && contract_to_incentivize == TOKEN_CONTRACT) {
-        check(false, "LSWAX cannot be paired against itself");
+    if( itr->tokenA.quantity.symbol == symbol_to_incentivize && itr->tokenA.contract == contract_to_incentivize ){
+        check( itr->tokenB.quantity.symbol == LSWAX_SYMBOL && itr->tokenB.contract == TOKEN_CONTRACT, "tokenB should be lsWAX" );
+    } else if( itr->tokenB.quantity.symbol == symbol_to_incentivize && itr->tokenB.contract == contract_to_incentivize ){
+        check( itr->tokenA.quantity.symbol == LSWAX_SYMBOL && itr->tokenA.contract == TOKEN_CONTRACT, "tokenA should be lsWAX" );
+    } else {
+        check( false, "this poolId does not contain the symbol/contract combo you entered" );
     }
 
     auto lp_itr = lpfarms_t.find( poolId );
