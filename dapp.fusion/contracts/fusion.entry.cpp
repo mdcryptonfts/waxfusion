@@ -9,7 +9,15 @@
 
 //contractName: fusion
 
-ACTION fusion::addadmin(const eosio::name& admin_to_add) {
+/** 
+ * Adds a new admin wallet to the `global` singleton
+ * 
+ * @param admin_to_add - the wallet address of the new admin
+ * 
+ * @required_auth - this contract
+ */
+
+ACTION fusion::addadmin(const name& admin_to_add) {
     require_auth(_self);
     check( is_account(admin_to_add), "admin_to_add is not a wax account" );
 
@@ -21,7 +29,15 @@ ACTION fusion::addadmin(const eosio::name& admin_to_add) {
     global_s.set(g, _self);
 }
 
-ACTION fusion::addcpucntrct(const eosio::name& contract_to_add) {
+/** 
+ * Adds a new cpu contract to the `global` singleton
+ * 
+ * @param contract_to_add - the wallet address of the new cpu contract
+ * 
+ * @required_auth - this contract
+ */
+
+ACTION fusion::addcpucntrct(const name& contract_to_add) {
     require_auth(_self);
     check( is_account(contract_to_add), "contract_to_add is not a wax account" );
 
@@ -32,17 +48,21 @@ ACTION fusion::addcpucntrct(const eosio::name& contract_to_add) {
     global_s.set(g, _self);
 }
 
-/** claimaslswax
- *  allows the user to claim their claimable wax,
- *  convert it to swax and then liquify the swax into lswax
- *  in a single transaction
- *  lswax received will be based on the current ratio of wax/lswax,
- *  not the full claimable wax balance
- *  swax will be issued 1:1 with the claimable balance
- *  lswax will be issued at the ratio of wax/lswax
+/** 
+ * Allows `user` to claim their rewards
+ * 
+ * NOTE: This action converts the claimable WAX into sWAX,
+ * then liquifies the sWAX and sends lsWAX to the user.
+ * Results in new sWAX and lsWAX being minted.
+ * Throws if the lsWAX output is less than `minimum_output`
+ * 
+ * @param user - wax address of the user claiming rewards
+ * @param minimum_output - expected lsWAX amount to receive
+ * 
+ * @required_auth - `user`
  */
 
-ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& minimum_output) {
+ACTION fusion::claimaslswax(const name& user, const asset& minimum_output) {
 
     require_auth(user);
 
@@ -86,30 +106,42 @@ ACTION fusion::claimaslswax(const eosio::name& user, const eosio::asset& minimum
 
 }
 
-ACTION fusion::claimgbmvote(const eosio::name& cpu_contract)
+/**
+ * Claims voting rewards from the system contract
+ * 
+ * NOTE: We are not claiming rewards that are owed directly to this contract.
+ * We are claiming rewards owed to one of our CPU contracts, by using an 
+ * inline action to tell the CPU contract to claim rewards from the system.
+ * 
+ * @param cpu_contract - the contract that rewards are owed to
+ */
+
+ACTION fusion::claimgbmvote(const name& cpu_contract)
 {
     global g = global_s.get();
     check( is_cpu_contract(g, cpu_contract), ( cpu_contract.to_string() + " is not a cpu rental contract").c_str() );
     action(active_perm(), cpu_contract, "claimgbmvote"_n, std::tuple{}).send();
 }
 
-/** claimrefunds
- *  checks the system contract to see if we have any refunds to claim from unstaked CPU
- *  allowing funds to come back into the main contract so user's can redeem in a timely fashion
+/**
+ * Claims refunds from the system contract
+ * 
+ * NOTE: These refunds are not owed to this contract directly.
+ * They are owed to 1 or more of our CPU contracts, and we use
+ * an inline action to tell our CPU contract(s) to claim their
+ * refunds.
+ * 
+ * Throws if there are no refunds available.
  */
 
 ACTION fusion::claimrefunds()
 {
-    //anyone can call this
-
-    global g = global_s.get();
-
-    bool refund_is_available = false;
+    global  g                   = global_s.get();
+    bool    refund_is_available = false;
 
     for (name ctrct : g.cpu_contracts) {
-        refunds_table refunds_t = refunds_table( SYSTEM_CONTRACT, ctrct.value );
-
-        auto refund_itr = refunds_t.find( ctrct.value );
+        refunds_table   refunds_t   = refunds_table( SYSTEM_CONTRACT, ctrct.value );
+        auto            refund_itr  = refunds_t.find( ctrct.value );
 
         if ( refund_itr != refunds_t.end() && refund_itr->request_time + seconds(REFUND_DELAY_SEC) <= current_time_point() ) {
             action(active_perm(), ctrct, "claimrefund"_n, std::tuple{}).send();
@@ -121,12 +153,15 @@ ACTION fusion::claimrefunds()
     check( refund_is_available, "there are no refunds to claim" );
 }
 
-/** claimrewards
- *  if a user has sWAX staked, and has earned wax rewards,
- *  this will allow them to claim their wax
+/**
+ * Allows a `user` to claim their staking rewards
+ * 
+ * @param user - wallet address of the user who is claiming.
+ * 
+ * @required_auth - user
  */
 
-ACTION fusion::claimrewards(const eosio::name& user) {
+ACTION fusion::claimrewards(const name& user) {
 
     require_auth(user);
 
@@ -158,12 +193,17 @@ ACTION fusion::claimrewards(const eosio::name& user) {
 }
 
 /**
-* claimswax
-* allows a user to compound their sWAX by claiming WAX and turning it back into more sWAX
-* will result in new sWAX being minted at a 1:1 ratio with the user's claimable balance
-*/
+ * Allows a `user` to claim their staking rewards.
+ * 
+ * NOTE: The WAX rewards will be converted to sWAX at a 1:1 ratio,
+ * resulting in new sWAX being minted.
+ * 
+ * @param user - the wallet address of the user who is claiming
+ * 
+ * @required_auth - user
+ */
 
-ACTION fusion::claimswax(const eosio::name& user) {
+ACTION fusion::claimswax(const name& user) {
 
     require_auth(user);
 
@@ -200,11 +240,14 @@ ACTION fusion::claimswax(const eosio::name& user) {
 }
 
 /**
-* clearexpired
-* allows a user to erase their expired redemption requests from the redemptions table
-*/
+ * Allows a `user` to erase expired redemption requests.
+ * 
+ * @param user - wallet address of the user who is erasing requests
+ * 
+ * @required_auth - user
+ */
 
-ACTION fusion::clearexpired(const eosio::name& user) {
+ACTION fusion::clearexpired(const name& user) {
     require_auth(user);
 
     global g = global_s.get();
@@ -226,12 +269,14 @@ ACTION fusion::clearexpired(const eosio::name& user) {
     global_s.set(g, _self);
 }
 
-/** compound action
- *  can be called by anyone, once every 5 mins
- *  claims any rewards accrued by self_staker
- *  uses them to buy more sWAX and increase the self_stake
- *  also increases swax_currently_backing_lswax,
- *  which is essentially autocompounding of lsWAX value
+/**
+ * Allows anyone to compound accrued rewards for `self_staker`
+ * 
+ * NOTE: lsWAX earns rewards by having this contract "stake"
+ * any sWAX that currently backing lsWAX. Compounding takes place
+ * by claiming rewards for this underlying sWAX, and then
+ * converting the WAX rewards into new sWAX, increasing the amount
+ * of sWAX that backs lsWAX. New sWAX is minted in this action.
  */
 
 ACTION fusion::compound(){
@@ -269,11 +314,7 @@ ACTION fusion::compound(){
 
 }
 
-/**
-* createfarms
-* can be called by anyone
-* distributes incentives from the incentives_bucket into new alcor farms
-*/
+/** Allows anyone to use the `incentives_bucket` to create Alcor farms */
 
 ACTION fusion::createfarms() {
 
@@ -284,18 +325,17 @@ ACTION fusion::createfarms() {
     check( g.last_incentive_distribution + LP_FARM_DURATION_SECONDS <= now(), "hasn't been 1 week since last farms were created");
     check( g.incentives_bucket > ZERO_LSWAX, "no lswax in the incentives_bucket" );
 
-    //we have to know what the ID of each incentive will be on alcor's contract before submitting
-    //the transaction. we can do this by fetching the last row from alcor's incentives table,
-    //and then incementing its ID by 1. this is what "next_key" is for
-    uint64_t next_key = 0;
-    auto it = incentives_t.end();
+    // we have to know what the ID of each incentive will be on alcor's contract before submitting
+    // the transaction. we can do this by fetching the last row from alcor's incentives table,
+    // and then incementing its ID by 1. this is what "next_key" is for
+    uint64_t    next_key                = 0;
+    auto        it                      = incentives_t.end();
+    int64_t     total_lswax_allocated   = 0;
 
     if ( incentives_t.begin() != incentives_t.end() ) {
         it --;
         next_key = it->id + 1;
     }
-
-    int64_t total_lswax_allocated = 0;
 
     for (auto lp_itr = lpfarms_t.begin(); lp_itr != lpfarms_t.end(); lp_itr++) {
 
@@ -305,6 +345,9 @@ ACTION fusion::createfarms() {
 
         create_alcor_farm(lp_itr->poolId, lp_itr->symbol_to_incentivize, lp_itr->contract_to_incentivize);
 
+        // Only the incentive creator can deposit rewards to an Alcor farm,
+        // so we can assume this is safe and someone didn't inject an inline action
+        // to get these rewards added to their own farm
         const std::string memo = "incentreward#" + std::to_string( next_key );
         transfer_tokens( ALCOR_CONTRACT, asset(lswax_allocation_i64, LSWAX_SYMBOL), TOKEN_CONTRACT, memo );
 
@@ -313,15 +356,25 @@ ACTION fusion::createfarms() {
 
     check(total_lswax_allocated <= g.incentives_bucket.amount, "overallocation of incentives_bucket");
 
-    g.incentives_bucket.amount      = safecast::sub( g.incentives_bucket.amount, total_lswax_allocated );
-    g.last_incentive_distribution   = now();
+    g.incentives_bucket.amount      -=  total_lswax_allocated;
+    g.last_incentive_distribution   =   now();
     global_s.set(g, _self);
 
 }
 
-/** init
- *  initializes the global and rewards singletons
- *  also emplaces the self_staker which holds all swax_backing_lswax
+/**
+ * Initializes the contract state.
+ * 
+ * NOTE: The `global` singleton, `rewards` singleton, 
+ * initial epoch, and `self_staker` will all be initialized.
+ * Throws if `initial_reward_pool` is less than our WAX balance.
+ * The initial reward distribution is set to begin 6 hours from initialization,
+ * this is to allow some users to stake and avoid lsWAX compounding too quickly.
+ * It would not be ideal if 1 lsWAX was worth multiple WAX as soon as we launch.
+ * 
+ * @param initial_reward_pool - amount of WAX we want to give to stakers for the first 24 hours.
+ * 
+ * @required_auth - this contract
  */
 
 ACTION fusion::init(const asset& initial_reward_pool){
@@ -401,9 +454,9 @@ ACTION fusion::init(const asset& initial_reward_pool){
 }
 
 /**
- * initializes the top 21 singleton. 
+ * Initializes the top 21 singleton. 
  * 
- * this is the production version, the unit testing version
+ * NOTE: This is the production version, the unit testing version
  * of this action must be commented out / removed when deploying
  * the contract on production networks.
  */
@@ -455,9 +508,9 @@ ACTION fusion::inittop21() {
 */
 
 /**
- * initializes the top 21 singleton
+ * Initializes the top 21 singleton
  * 
- * when running unit tests, this version needs to be used,
+ * NOTE: When running unit tests, this version needs to be used,
  * and the other version needs to be commented out. This is due to 
  * issues with the mock system contracts that are included in
  * this repo for unit tests, since they behave differently 
@@ -519,20 +572,20 @@ ACTION fusion::inittop21() {
 
 }
 
-
 /**
- *  instaredeem
- *  by default, when users request redemptions, they get added to the queue
- *  depending on which epochs have the wax available for redemption
- *  there is 0 fee
- *  the instaredeem action allows users to redeem instantly using funds that
- *  are inside the dapp contract (avaiable_for_rentals pool), assuming there are
- *  enough funds to cover their redemption
- *  there is a 0.05% fee when using instaredeem. this allows the protocol to utilize
- *  funds that would normally be used for CPU rentals and staking, in a more efficient manner
- *  while also helping to maintain the LSWAX peg on the open market
- *  the user's sWAX balance will be retired during this transaction
+ * Allows a `user` to instantly redeem their sWAX
+ * 
+ * NOTE: By default, sWAX redemptions are subject to the standard redemption process.
+ * They are free, and subject to a waiting period. We allow users to skip this process
+ * by paying a 0.05% fee on the redemption. This instant redemption process is limited
+ * by the amount of WAX that is currently available for CPU rentals.
+ * 
+ * @param user - the WAX address of the user who is redeeming
+ * @param swax_to_redeem - the amount of sWAX the user is trying to redeem
+ * 
+ * @required_auth - user
  */
+
 ACTION fusion::instaredeem(const eosio::name& user, const eosio::asset& swax_to_redeem) {
 
     require_auth(user);

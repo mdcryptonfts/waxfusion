@@ -34,15 +34,15 @@ CONTRACT fusion : public contract {
         {}      
 
         //Main Actions
-        ACTION addadmin(const eosio::name& admin_to_add);
-        ACTION addcpucntrct(const eosio::name& contract_to_add);
-        ACTION claimaslswax(const eosio::name& user, const eosio::asset& minimum_output);
-        ACTION claimgbmvote(const eosio::name& cpu_contract);
+        ACTION addadmin(const name& admin_to_add);
+        ACTION addcpucntrct(const name& contract_to_add);
+        ACTION claimaslswax(const name& user, const asset& minimum_output);
+        ACTION claimgbmvote(const name& cpu_contract);
         ACTION claimrefunds();
-        ACTION claimrewards(const eosio::name& user);
-        ACTION claimswax(const eosio::name& user);
+        ACTION claimrewards(const name& user);
+        ACTION claimswax(const name& user);
         ACTION compound();
-        ACTION clearexpired(const eosio::name& user);
+        ACTION clearexpired(const name& user);
         ACTION createfarms();
         ACTION init(const asset& initial_reward_pool);
         ACTION inittop21();
