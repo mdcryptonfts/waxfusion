@@ -183,7 +183,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
     else if ( memo == "lp_incentives" ) {
 
-        global g = global_s.get();
+        global  g = global_s.get();
         rewards r = rewards_s.get();
 
         sync_epoch( g );
@@ -252,9 +252,9 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
                 amount_added = amount_remaining_to_add;
             }
 
-            total_added_to_redemption_bucket.amount = safecast::add(total_added_to_redemption_bucket.amount, amount_added);
-            amount_to_send_to_rental_bucket.amount  = safecast::sub(amount_to_send_to_rental_bucket.amount, amount_added);
-            g.wax_for_redemption.amount             = safecast::add(g.wax_for_redemption.amount, amount_added);
+            total_added_to_redemption_bucket.amount +=  amount_added;
+            amount_to_send_to_rental_bucket.amount  -=  amount_added;
+            g.wax_for_redemption.amount             +=  amount_added;
         }
 
         if (amount_to_send_to_rental_bucket.amount > 0) {
@@ -297,17 +297,15 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         g.wax_available_for_rentals.amount -= int64_t(amount_to_rent_with_precision);
 
         uint64_t    seconds_to_rent             = get_seconds_to_rent_cpu(g, epoch_id_to_rent_from);
-        int64_t     expected_amount_received    = g.cost_to_rent_1_wax.amount * wax_amount_to_rent * seconds_to_rent / days_to_seconds(1);
+        int64_t     expected_amount_received    = mulDiv( uint64_t(g.cost_to_rent_1_wax.amount) * wax_amount_to_rent, seconds_to_rent, uint128_t(days_to_seconds(1)) );
 
         check( quantity.amount >= expected_amount_received, ( "expected to receive " + eosio::asset( expected_amount_received, WAX_SYMBOL ).to_string() ).c_str() );
         
         g.revenue_awaiting_distribution.amount += expected_amount_received;
 
         if ( quantity.amount > expected_amount_received ) {
-
             int64_t amount_to_refund = safecast::sub(quantity.amount, expected_amount_received);
             transfer_tokens( from, asset( amount_to_refund, WAX_SYMBOL ), WAX_CONTRACT, "cpu rental refund from waxfusion.io - liquid staking protocol" );
-        
         }
 
         transfer_tokens( epoch_itr->cpu_wallet, asset( (int64_t) amount_to_rent_with_precision, WAX_SYMBOL), WAX_CONTRACT, cpu_stake_memo(cpu_receiver, epoch_id_to_rent_from) );
