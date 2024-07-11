@@ -23,7 +23,7 @@ void fusion::readonly_extend_reward(global&g, rewards& r, staker_struct& self_st
     int64_t eco_alloc_i64           = calculate_asset_share( amount_to_distribute, g.ecosystem_share_1e6 );
     int64_t lswax_amount_to_issue   = calculate_lswax_output( eco_alloc_i64, g );
 
-    //if rounding resulted in any leftover waxtoshis, add them to the reward farm
+    // If rounding resulted in any leftover waxtoshis, add them to the reward farm
     const int64_t   sum         = user_alloc_i64 + pol_alloc_i64 + eco_alloc_i64;
     const int64_t   difference  = safecast::sub( amount_to_distribute, sum );
 
@@ -61,19 +61,16 @@ inline void fusion::readonly_sync_epoch(global& g) {
 
   while ( now() >= next_epoch_start_time ) {
 
-    eosio::name next_cpu_contract = get_next_cpu_contract( g );
+    name next_cpu_contract = get_next_cpu_contract( g );
 
-    g.last_epoch_start_time = next_epoch_start_time;
-    g.current_cpu_contract  = next_cpu_contract;
-
-    auto epoch_itr = epochs_t.find(next_epoch_start_time);
-
-    next_epoch_start_time += g.seconds_between_epochs;
+    g.last_epoch_start_time =   next_epoch_start_time;
+    g.current_cpu_contract  =   next_cpu_contract;
+    next_epoch_start_time   +=  g.seconds_between_epochs;
   }
 }
 
 /**
- * readonly action to show if there is a need to unstake cpu
+ * Readonly action to show if there is a need to unstake cpu
  * 
  * @param epoch_id - pass `0` for the current epoch. pass a valid epoch_id to check
  * a specific epoch.
@@ -87,9 +84,9 @@ inline void fusion::readonly_sync_epoch(global& g) {
 
     global g = global_s.get();
 
-    uint64_t epoch_to_check = epoch_id == 0 ? g.last_epoch_start_time - g.seconds_between_epochs : epoch_id;
+    uint64_t    epoch_to_check  = epoch_id == 0 ? g.last_epoch_start_time - g.seconds_between_epochs : epoch_id;
+    auto        epoch_itr       = epochs_t.find( epoch_to_check );
 
-    auto epoch_itr = epochs_t.find( epoch_to_check );
     if(epoch_itr == epochs_t.end()) return uint64_t(NOT_FOUND);
     if(epoch_itr->time_to_unstake > now()) return uint64_t(NOT_TIME_YET);
 
@@ -102,7 +99,7 @@ inline void fusion::readonly_sync_epoch(global& g) {
 }
 
 /**
- * allows front ends to see if there are any refunds to claim from system contract
+ * Allows front ends to see if there are any refunds to claim from system contract
  * 
  * @return bool, whether there are refunds to claim or not
  */
@@ -112,9 +109,8 @@ inline void fusion::readonly_sync_epoch(global& g) {
     global g = global_s.get();
 
     for (name ctrct : g.cpu_contracts) {
-        refunds_table refunds_t = refunds_table( SYSTEM_CONTRACT, ctrct.value );
-
-        auto refund_itr = refunds_t.find( ctrct.value );
+        refunds_table   refunds_t   = refunds_table( SYSTEM_CONTRACT, ctrct.value );
+        auto            refund_itr  = refunds_t.find( ctrct.value );
 
         if ( refund_itr != refunds_t.end() && refund_itr->request_time + seconds(REFUND_DELAY_SEC) <= current_time_point() ) {
             return true;
@@ -125,7 +121,7 @@ inline void fusion::readonly_sync_epoch(global& g) {
 }
 
 /**
- * allows front ends to view the claimable rewards of a `user`
+ * Allows front ends to view the claimable rewards of a `user`
  * 
  * @param user - the wax address of the user to view rewards for
  * 
@@ -134,7 +130,7 @@ inline void fusion::readonly_sync_epoch(global& g) {
 
 [[eosio::action, eosio::read_only]] asset fusion::showreward(const name& user)
 {
-    global g = global_s.get();
+    global  g = global_s.get();
     rewards r = rewards_s.get();
 
     readonly_sync_epoch( g );
@@ -145,13 +141,11 @@ inline void fusion::readonly_sync_epoch(global& g) {
     update_reward(staker, r);
     update_reward(self_staker, r);
 
-    asset claimable_wax = staker.claimable_wax;
-
-    return claimable_wax;
+    return staker.claimable_wax;
 }
 
 /**
- * allows front ends to check if there are voting rewards to claim from system contract
+ * Allows front ends to check if there are voting rewards to claim from system contract
  * 
  * @return vector<name> of the `cpu_contracts` to claim from
  */
@@ -164,6 +158,7 @@ inline void fusion::readonly_sync_epoch(global& g) {
     for (name ctrct : g.cpu_contracts) {
         voters_ns::voters_table voters_t(SYSTEM_CONTRACT, SYSTEM_CONTRACT.value);
         auto itr = voters_t.find(ctrct.value);
+
         if( itr != voters_t.end() && 
             uint64_t(itr->last_claim_time.sec_since_epoch()) + days_to_seconds(1) <= now() && 
             itr->unpaid_voteshare > 0.0 )
