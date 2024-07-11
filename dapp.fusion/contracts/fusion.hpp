@@ -59,10 +59,10 @@ CONTRACT fusion : public contract {
         ACTION setincentive(const uint64_t& poolId, const eosio::symbol& symbol_to_incentivize, const eosio::name& contract_to_incentivize, const uint64_t& percent_share_1e6);
         ACTION setpolshare(const uint64_t& pol_share_1e6);
         ACTION setredeemfee(const uint64_t& protocol_fee_1e6);
-        ACTION setrentprice(const eosio::name& caller, const eosio::asset& cost_to_rent_1_wax);
-        ACTION stake(const eosio::name& user);
+        ACTION setrentprice(const name& caller, const asset& cost_to_rent_1_wax);
+        ACTION stake(const name& user);
         ACTION stakeallcpu();
-        ACTION sync(const eosio::name& caller);
+        ACTION sync(const name& caller);
         ACTION unstakecpu(const uint64_t& epoch_id, const int& limit);
         ACTION updatetop21();
 

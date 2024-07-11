@@ -139,7 +139,7 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] lpfarms {
   uint64_t                poolId;
   eosio::symbol           symbol_to_incentivize;
   eosio::name             contract_to_incentivize;
-  uint64_t                percent_share_1e6; //percentage of ecosystem fund, not percentage of total revenue
+  uint64_t                percent_share_1e6;   // percentage of ecosystem fund, not percentage of total revenue
 
   uint64_t primary_key() const { return poolId; }
 };
@@ -222,11 +222,7 @@ eosio::indexed_by<"prototalvote"_n, eosio::const_mem_fun<producer_info, double, 
 > producers_table;
 
 
-/**
-* redeem_requests table stores requests for redemptions
-* scoped by user
-*/
-
+// Scoped by user
 struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] redeem_requests {
   uint64_t        epoch_id;
   eosio::asset    wax_amount_requested;

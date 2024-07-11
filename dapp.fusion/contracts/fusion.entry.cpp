@@ -931,6 +931,14 @@ ACTION fusion::rmvcpucntrct(const name& contract_to_remove) {
     global_s.set(g, _self);
 }
 
+/**
+ * Removes an LP incentive from the `lp_farms` table
+ * 
+ * @param poolId - the poolId of the liquidity pair, in Alcor's `pools` table
+ * 
+ * @required_auth - this contract
+ */
+
 ACTION fusion::rmvincentive(const uint64_t& poolId) {
     require_auth( _self );
 
@@ -1038,9 +1046,14 @@ ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_
 
 
 /**
-* setpolshare
-* Adjusts the percentage of revenue that goes to POL, within a limited range of 5-10%
-*/
+ * Sets the percentage of revenue that goes to `pol.fusion`
+ * 
+ * NOTE: Values between 5 and 10% are allowed
+ * 
+ * @param pol_share_1e6 - the percentage to allocate to `pol.fusion`, scaled by 1e6
+ * 
+ * @required_auth - this contract
+ */
 
 ACTION fusion::setpolshare(const uint64_t& pol_share_1e6) {
     require_auth( _self );
@@ -1052,10 +1065,14 @@ ACTION fusion::setpolshare(const uint64_t& pol_share_1e6) {
 }
 
 /**
-* setredeemfee
-* Adjusts the percentage fee for instant redemptions
-* allows values between 0 and 1%
-*/
+ * Sets the instant redemption fee in the `global` singleton
+ * 
+ * NOTE: Values between 0 and 1% are allowed
+ * 
+ * @param protocol_fee_1e6 - the new instant redemption fee, scaled by 1e6
+ * 
+ * @required_auth - this contract
+ */
 
 ACTION fusion::setredeemfee(const uint64_t& protocol_fee_1e6) {
     require_auth( _self );
@@ -1066,12 +1083,19 @@ ACTION fusion::setredeemfee(const uint64_t& protocol_fee_1e6) {
     global_s.set(g, _self);
 }
 
-/** setrentprice
- *  updates the cost of renting CPU from the protocol
- *  also inline updates the CPU cost on the POL contract
+/**
+ * Sets the CPU rental price in the `global` singleton
+ * 
+ * NOTE: This also calls an inline action to set the CPU rental
+ * price on the `pol.fusion` contract
+ * 
+ * @param caller - the wax address of the wallet calling this action
+ * @param cost_to_rent_1_wax - the amount of WAX that users will pay for renting 1 WAX for 1 day
+ * 
+ * @required_auth - any admin in the global singleton
  */
 
-ACTION fusion::setrentprice(const eosio::name& caller, const eosio::asset& cost_to_rent_1_wax) {
+ACTION fusion::setrentprice(const name& caller, const asset& cost_to_rent_1_wax) {
     require_auth(caller);
 
     global g = global_s.get();
@@ -1086,12 +1110,17 @@ ACTION fusion::setrentprice(const eosio::name& caller, const eosio::asset& cost_
 }
 
 /**
-* stake
-* this just opens a row if necessary so we can react to transfers etc
-* also syncs the user if they exist
-*/
+ * Opens a row for `user` in the `stakers` table
+ * 
+ * NOTE: If the user already has a row, this action will
+ * sync their data and modify the row.
+ * 
+ * @param user - the wax address of the user calling this action
+ * 
+ * @required_auth - user
+ */
 
-ACTION fusion::stake(const eosio::name& user) {
+ACTION fusion::stake(const name& user) {
 
     require_auth(user);
 
@@ -1127,9 +1156,11 @@ ACTION fusion::stake(const eosio::name& user) {
 }
 
 /**
-* stakeallcpu
-* once every 24h, this can be called to take any un-rented wax and just stake it so it earns the normal amount
-*/
+ * Stakes any unrented WAX at the end of each day
+ * 
+ * NOTE: In order to keep the protocol earning as much rewards as possible,
+ * unused funds need to occasionally be staked to the `fallback_cpu_receiver`.
+ */
 
 ACTION fusion::stakeallcpu() {
     
@@ -1164,15 +1195,19 @@ ACTION fusion::stakeallcpu() {
 }
 
 /**
-* sync
-* this only exists to keep data refreshed and make it easier for front ends to display fresh data
-* it's not necessary for the dapp to function properly
-* therefore it requires admin auth to avoid random people spamming the network and running this constantly
-* also, the logic in this action gets executed any time a user interacts with this contract, so the only
-* reason to call this action is if there hasn't been a contract interaction from users
-*/
+ * Creates the current epoch if it hasn't been created yet
+ * 
+ * NOTE: This action is not necessary for the contract to function properly.
+ * It's only used for providing front ends with up to date information, so
+ * they can display things properly. Therefore, it requires admin auth to 
+ * avoid unncessary spamming of transactions.
+ * 
+ * @param caller - the wallet address submitting this transaction
+ * 
+ * @required_auth - any admin in the global singleton
+ */
 
-ACTION fusion::sync(const eosio::name& caller) {
+ACTION fusion::sync(const name& caller) {
 
     require_auth( caller );
 
@@ -1230,6 +1265,8 @@ ACTION fusion::unstakecpu(const uint64_t& epoch_id, const int& limit) {
     }
 
 }
+
+/** Updates the list of block producers in the `top21` singleton */
 
 ACTION fusion::updatetop21() {
     top21 t = top21_s.get();
