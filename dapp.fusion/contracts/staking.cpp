@@ -1,7 +1,10 @@
 #pragma once
 
 /**
- * extends the reward period if the existing period has ended
+ * Extends the reward period if the existing period has ended
+ * 
+ * NOTE: If there are no rewards to distribute, a 
+ * `zero_distribution` will occur
  * 
  * @param g - global singleton
  * @param r - rewards singleton
@@ -106,6 +109,14 @@ void fusion::modify_staker(staker_struct& staker){
     });
 }
 
+/**
+ * Calculates the current accumulated rewards per token
+ * 
+ * @param r - `rewards` singleton with current reward pool state
+ * 
+ * @return `uint128_t` - updated rewardPerTokenStored for the reward pool
+ */
+
 uint128_t fusion::reward_per_token(rewards& r)
 {
     if ( r.totalSupply == 0 ) return 0;
@@ -117,6 +128,18 @@ uint128_t fusion::reward_per_token(rewards& r)
 
     return r.rewardPerTokenStored + mulDiv128( a, b, c );
 }
+
+/**
+ * Updates the current rewards for a `staker`
+ * 
+ * NOTE: This also updates the reward pool itself (if needed)
+ * before updating the `staker`, as not doing so would result
+ * in miscalculation of the user's rewards (and potentially
+ * overallocation of the reward pool)
+ * 
+ * @param staker - `staker_struct` containing the user's data
+ * @param r - `rewards` singleton with the reward pool state
+ */
 
 void fusion::update_reward(staker_struct& staker, rewards& r) {
         
@@ -139,6 +162,13 @@ void fusion::update_reward(staker_struct& staker, rewards& r) {
     staker.userRewardPerTokenPaid   = r.rewardPerTokenStored;
     staker.last_update              = now();
 }
+
+/**
+ * If there are no rewards to distribute, extends the farm with 0 as `rewardRate`
+ * 
+ * @param g - `global` singleton
+ * @param r - `rewards` singleton
+ */
 
 void fusion::zero_distribution(global& g, rewards& r) {
     if( r.lastUpdateTime < r.periodFinish ){
