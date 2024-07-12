@@ -126,7 +126,7 @@ CONTRACT fusion : public contract {
         //Staking
         int64_t earned(staker_struct& staker, rewards& r);
         void extend_reward(global&g, rewards& r, staker_struct& self_staker);
-        std::pair<staker_struct, staker_struct> get_stakers(const eosio::name& user, const eosio::name& self);
+        std::pair<staker_struct, staker_struct> get_stakers(const name& user);
         void modify_staker(staker_struct& staker);
         void readonly_extend_reward(global&g, rewards& r, staker_struct& self_staker);
         uint128_t reward_per_token(rewards& r);

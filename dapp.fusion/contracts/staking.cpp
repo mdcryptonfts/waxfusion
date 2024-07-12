@@ -61,6 +61,15 @@ void fusion::extend_reward(global&g, rewards& r, staker_struct& self_staker) {
     transfer_tokens( POL_CONTRACT, asset(pol_alloc_i64, WAX_SYMBOL), WAX_CONTRACT, std::string("pol allocation from waxfusion distribution") );
 }
 
+/**
+ * Calculates how much staking rewards a `staker` has earned since their `last_update`
+ * 
+ * @param staker - `staker_struct` containing the user's data
+ * @param r - `rewards` singleton with the current farm data
+ * 
+ * @return int64_t - amount of WAX earned by the staker
+ */
+
 int64_t fusion::earned(staker_struct& staker, rewards& r) {
 
     uint128_t amount_to_add = mulDiv128( uint128_t(staker.swax_balance.amount),
@@ -71,9 +80,17 @@ int64_t fusion::earned(staker_struct& staker, rewards& r) {
     return safecast::safe_cast<int64_t>(amount_to_add);
 }
 
-std::pair<staker_struct, staker_struct> fusion::get_stakers(const eosio::name& user, const eosio::name& self) {
+/**
+ * Fetches data for a staker, and `self_staker`
+ * 
+ * @param user - the wallet address of the staker
+ * 
+ * @return `pair` - staker_struct for the user, and self_staker
+ */
+
+std::pair<staker_struct, staker_struct> fusion::get_stakers(const name& user) {
     auto            staker_itr      = staker_t.require_find(user.value, ERR_STAKER_NOT_FOUND);
-    auto            self_staker_itr = staker_t.require_find(self.value, ERR_STAKER_NOT_FOUND);
+    auto            self_staker_itr = staker_t.require_find(_self.value, ERR_STAKER_NOT_FOUND);
     staker_struct   staker          = staker_struct(*staker_itr);
     staker_struct   self_staker     = staker_struct(*self_staker_itr);
     return std::make_pair(staker, self_staker);

@@ -135,7 +135,7 @@ inline void fusion::readonly_sync_epoch(global& g) {
 
     readonly_sync_epoch( g );
 
-    auto [staker, self_staker] = get_stakers(user, _self);
+    auto [staker, self_staker] = get_stakers(user);
 
     readonly_extend_reward(g, r, self_staker);
     update_reward(staker, r);

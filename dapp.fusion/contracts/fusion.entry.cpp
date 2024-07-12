@@ -71,7 +71,7 @@ ACTION fusion::claimaslswax(const name& user, const asset& minimum_output) {
 
     sync_epoch( g );
 
-    auto [staker, self_staker] = get_stakers(user, _self);  
+    auto [staker, self_staker] = get_stakers(user);  
 
     extend_reward(g, r, self_staker);
     update_reward(staker, r);
@@ -170,7 +170,7 @@ ACTION fusion::claimrewards(const name& user) {
 
     sync_epoch( g );
 
-    auto [staker, self_staker] = get_stakers(user, _self);
+    auto [staker, self_staker] = get_stakers(user);
 
     extend_reward(g, r, self_staker);
     update_reward(staker, r);
@@ -212,7 +212,7 @@ ACTION fusion::claimswax(const name& user) {
 
     sync_epoch( g );
 
-    auto [staker, self_staker] = get_stakers(user, _self);
+    auto [staker, self_staker] = get_stakers(user);
 
     extend_reward(g, r, self_staker);
     update_reward(staker, r);
@@ -594,7 +594,7 @@ ACTION fusion::instaredeem(const name& user, const asset& swax_to_redeem) {
 
     sync_epoch( g );
 
-    auto [staker, self_staker] = get_stakers(user, _self);      
+    auto [staker, self_staker] = get_stakers(user);      
 
     extend_reward(g, r, self_staker);
     update_reward(staker, r);
@@ -653,7 +653,7 @@ ACTION fusion::liquify(const name& user, const asset& quantity) {
 
     sync_epoch( g );
 
-    auto [staker, self_staker] = get_stakers(user, _self);  
+    auto [staker, self_staker] = get_stakers(user);  
 
     extend_reward(g, r, self_staker);
     update_reward(staker, r);
@@ -710,7 +710,7 @@ ACTION fusion::liquifyexact(const name& user, const asset& quantity, const asset
 
     sync_epoch( g );
 
-    auto [staker, self_staker] = get_stakers(user, _self);  
+    auto [staker, self_staker] = get_stakers(user);  
 
     extend_reward(g, r, self_staker);
     update_reward(staker, r);
@@ -779,7 +779,7 @@ ACTION fusion::redeem(const name& user) {
 
     sync_epoch( g );
 
-    auto [staker, self_staker] = get_stakers(user, _self);      
+    auto [staker, self_staker] = get_stakers(user);      
 
     extend_reward(g, r, self_staker);
     update_reward(staker, r);
@@ -862,7 +862,7 @@ ACTION fusion::reqredeem(const name& user, const asset& swax_to_redeem, const bo
 
     sync_epoch( g );
 
-    auto [staker, self_staker] = get_stakers(user, _self);  
+    auto [staker, self_staker] = get_stakers(user);  
 
     extend_reward(g, r, self_staker);
     update_reward(staker, r);

@@ -207,8 +207,8 @@ bool fusion::memo_is_expected(const std::string& memo) {
     return true;
   }
 
-  std::string               memo_copy   = memo;
-  std::vector<std::string>  words       = get_words(memo_copy);
+  string          memo_copy   = memo;
+  vector<string>  words       = get_words(memo_copy);
 
   return ( words[1] == "rent_cpu" || words[1] == "unliquify_exact" );
 }
@@ -229,8 +229,8 @@ inline void fusion::sync_epoch(global& g) {
 
   uint64_t next_epoch_start_time = g.last_epoch_start_time + g.seconds_between_epochs;
 
-  // there is an edge case possible where if the contract has no interactions over the course
-  // of an entire epoch, then the epoch would never get created. this is solved by
+  // There is an edge case possible where if the contract has no interactions over the course
+  // of an entire epoch, then the epoch would never get created. This is solved by
   // using a while loop to create any missing epochs if they got skipped
   while ( now() >= next_epoch_start_time ) {
 

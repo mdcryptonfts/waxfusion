@@ -111,7 +111,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
         check( quantity >= g.minimum_stake_amount, "minimum stake amount not met" );
 
-        auto [staker, self_staker] = get_stakers(from, _self);
+        auto [staker, self_staker] = get_stakers(from);
 
         extend_reward(g, r, self_staker);
         update_reward(staker, r);
@@ -146,7 +146,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
         int64_t converted_sWAX_i64 = calculate_swax_output(quantity.amount, g);
 
-        auto [staker, self_staker] = get_stakers(from, _self);
+        auto [staker, self_staker] = get_stakers(from);
 
         extend_reward(g, r, self_staker);
         update_reward(staker, r);
@@ -357,7 +357,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
             check( false, "output would be " + asset(converted_sWAX_i64, SWAX_SYMBOL).to_string() + " but expected " + asset(int64_t(minimum_output), SWAX_SYMBOL).to_string() );
         }
 
-        auto [staker, self_staker] = get_stakers(from, _self);
+        auto [staker, self_staker] = get_stakers(from);
 
         extend_reward(g, r, self_staker);
         update_reward(staker, r);

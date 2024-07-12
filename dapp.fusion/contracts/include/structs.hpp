@@ -14,32 +14,6 @@ struct next_farm {
     next_farm() = default;
 };
 
-
-struct reward_struct {
-    uint64_t        periodStart;
-    uint64_t        periodFinish;
-    uint128_t       rewardRate;
-    uint64_t        rewardsDuration;
-    uint64_t        lastUpdateTime;
-    uint128_t       rewardPerTokenStored;
-    eosio::asset    rewardPool;
-    eosio::asset    totalRewardsPaidOut;
-    uint128_t       totalSupply;
-
-    reward_struct(const rewards& farm)
-        : periodStart(farm.periodStart),
-          periodFinish(farm.periodFinish),
-          rewardRate(farm.rewardRate),
-          rewardsDuration(farm.rewardsDuration),
-          lastUpdateTime(farm.lastUpdateTime),
-          rewardPerTokenStored(farm.rewardPerTokenStored),
-          rewardPool(farm.rewardPool),
-          totalRewardsPaidOut(farm.totalRewardsPaidOut),
-          totalSupply(farm.totalSupply) {}
-    
-    reward_struct() = default;      
-};
-
 struct staker_struct {
     eosio::name     wallet;
     eosio::asset    swax_balance = ZERO_SWAX;
