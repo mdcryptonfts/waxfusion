@@ -63,7 +63,7 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
     auto req_itr    = requests_t.find(ep);
 
     if ( epoch_itr != epochs_t.end() && req_itr != requests_t.end() ) {
-        pending_requests.push_back({ep});
+        pending_requests.push_back(ep);
         total_amount_awaiting_redemption += req_itr->wax_amount_requested;
     }
   }
