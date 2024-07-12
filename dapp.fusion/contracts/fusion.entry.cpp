@@ -618,7 +618,7 @@ ACTION fusion::instaredeem(const name& user, const asset& swax_to_redeem) {
     check( safecast::add( protocol_share, user_share ) <= swax_to_redeem.amount, "error calculating protocol fee" );
 
     g.wax_available_for_rentals.amount      -=  swax_to_redeem.amount;
-    g.revenue_awaiting_distribution.amount  -=  protocol_share;
+    g.revenue_awaiting_distribution.amount  +=  protocol_share;
     g.swax_currently_earning.amount         -=  swax_to_redeem.amount;
 
     rewards_s.set(r, _self);

@@ -9,16 +9,15 @@
 #include <eosio/system.hpp>
 #include <eosio/symbol.hpp>
 #include <eosio/action.hpp>
-#include <eosio/transaction.hpp>
 #include <eosio/singleton.hpp>
 #include <cmath>
-#include "safecast.hpp"
-#include "tables.hpp"
-#include "alcor.hpp"
-#include "dapp.hpp"
-#include "structs.hpp"
-#include "constants.hpp"
-#include "include/uintwide_t.hpp"
+#include <safecast.hpp>
+#include <tables.hpp>
+#include <alcor.hpp>
+#include <dapp.hpp>
+#include <structs.hpp>
+#include <constants.hpp>
+#include <uintwide_t.hpp>
 #include <limits>
 
 using namespace eosio;
