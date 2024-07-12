@@ -103,7 +103,7 @@ CONTRACT fusion : public contract {
         std::string cpu_stake_memo(const eosio::name& cpu_receiver, const uint64_t& epoch_timestamp);
         eosio::name get_next_cpu_contract(global& g);
         uint64_t get_seconds_to_rent_cpu(global& g, const uint64_t& epoch_id_to_rent_from);
-        std::vector<std::string> get_words(std::string memo);
+        vector<string> get_words(string memo);
         bool is_an_admin(global& g, const eosio::name& user);
         bool is_cpu_contract(global& g, const eosio::name& contract);
         bool is_lswax_or_wax(const eosio::symbol& symbol, const eosio::name& contract);

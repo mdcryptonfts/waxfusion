@@ -273,7 +273,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
         return;
     }
 
-    std::vector<std::string> words = get_words( memo );
+    vector<string> words = get_words( memo );
 
     if ( words[1] == "rent_cpu" ) {
         check( tkcontract == WAX_CONTRACT, "only WAX can be sent with this memo" );

@@ -1,5 +1,7 @@
 #pragma once
 
+/** constructs an `active` permission object to pass to an inline action */
+
 inline eosio::permission_level fusion::active_perm(){
     return eosio::permission_level{ _self, "active"_n };
 }
@@ -24,12 +26,20 @@ void fusion::create_epoch(const global& g, const uint64_t& start_time, const nam
   });
 }
 
-/** debit_user_redemptions_if_necessary
- *  if the user had a pending redemption request and they do anything that results in
- *  their swax balance being decreased, we need to make sure that their pending redemption
- *  requests are updated to be == their new swax balance, otherwise they could prevent
- *  other users from redeeming by tying up the redemption pool with requests that they
- *  cant cover
+/**
+ * Adjusts redemption requests to make sure a user's sWAX balance is not overallocated
+ * 
+ * NOTE: When user's request redemptions, there is a waiting period. During this waiting period,
+ * their sWAX balance remains in their account. We have to avoid cases where a user has made
+ * multiple requests against the same balance, resulting in freezing the redemption pool funds
+ * and making them unavailable to other users. Whenever a user's sWAX balance decreases, we
+ * need to call this function to make sure that if they have redemption requests > their sWAX
+ * balance, we adjust those requests until they are == the user's sWAX balance.
+ * We start at the request farthest away first, so a user doesn't have to wait a long time
+ * for their remaining redemption.
+ * 
+ * @param user - the wallet address of the user whose redemptions we are adjusting
+ * @param swax_balance - `asset` containing the user's new sWAX balance
  */
 
 void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& swax_balance) {
@@ -58,46 +68,44 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
     }
   }
 
-  //if the user has pending requests that are > their swax balance, we have to debit their pending redemptions
-  if ( total_amount_awaiting_redemption.amount > swax_balance.amount ) {
+  if( total_amount_awaiting_redemption.amount <= swax_balance.amount ) return;
 
-    int64_t amount_overdrawn_i64 = safecast::sub( total_amount_awaiting_redemption.amount, swax_balance.amount );
+  int64_t amount_overdrawn = safecast::sub( total_amount_awaiting_redemption.amount, swax_balance.amount );
 
-    for (uint64_t& pending : pending_requests) {
-      auto epoch_itr  = epochs_t.require_find(pending, "error locating epoch");
-      auto req_itr    = requests_t.require_find(pending, "error locating redemption request");
+  for (uint64_t& pending : pending_requests) {
+    auto epoch_itr  = epochs_t.require_find(pending, "error locating epoch");
+    auto req_itr    = requests_t.require_find(pending, "error locating redemption request");
 
-      if ( req_itr->wax_amount_requested.amount > amount_overdrawn_i64 ) {
-        requests_t.modify(req_itr, same_payer, [&](auto & _r) {
-          _r.wax_amount_requested.amount -= amount_overdrawn_i64;
-        });
+    if ( req_itr->wax_amount_requested.amount > amount_overdrawn ) {
+      requests_t.modify(req_itr, same_payer, [&](auto & _r) {
+        _r.wax_amount_requested.amount -= amount_overdrawn;
+      });
 
-        epochs_t.modify(epoch_itr, _self, [&](auto & _e) {
-          _e.wax_to_refund.amount -= amount_overdrawn_i64;
-        });
+      epochs_t.modify(epoch_itr, _self, [&](auto & _e) {
+        _e.wax_to_refund.amount -= amount_overdrawn;
+      });
 
-        break;
-      }
+      return;
+    }
 
-      else if ( req_itr->wax_amount_requested.amount == amount_overdrawn_i64 ) {
-        epochs_t.modify(epoch_itr, _self, [&](auto & _e) {
-          _e.wax_to_refund.amount -= amount_overdrawn_i64;
-        });
+    else if ( req_itr->wax_amount_requested.amount == amount_overdrawn ) {
+      epochs_t.modify(epoch_itr, _self, [&](auto & _e) {
+        _e.wax_to_refund.amount -= amount_overdrawn;
+      });
 
-        requests_t.erase( req_itr );
-        break;
-      }
+      requests_t.erase( req_itr );
+      return;
+    }
 
-      else {
+    else {
 
-        amount_overdrawn_i64 = safecast::sub( amount_overdrawn_i64, req_itr->wax_amount_requested.amount );
+      amount_overdrawn = safecast::sub( amount_overdrawn, req_itr->wax_amount_requested.amount );
 
-        epochs_t.modify(epoch_itr, _self, [&](auto & _e) {
-          _e.wax_to_refund -= req_itr->wax_amount_requested;
-        });
+      epochs_t.modify(epoch_itr, _self, [&](auto & _e) {
+        _e.wax_to_refund -= req_itr->wax_amount_requested;
+      });
 
-        requests_t.erase( req_itr );
-      }
+      requests_t.erase( req_itr );
     }
   }
 }
@@ -151,11 +159,11 @@ uint64_t fusion::get_seconds_to_rent_cpu( global& g, const uint64_t& epoch_id_to
 }
 
 
-std::vector<std::string> fusion::get_words(std::string memo) {
-  std::string delim = "|";
-  std::vector<std::string> words{};
+vector<string> fusion::get_words(string memo) {
+  string delim = "|";
+  vector<string> words{};
   size_t pos = 0;
-  while ((pos = memo.find(delim)) != std::string::npos) {
+  while ((pos = memo.find(delim)) != string::npos) {
     words.push_back(memo.substr(0, pos));
     memo.erase(0, pos + delim.length());
   }
