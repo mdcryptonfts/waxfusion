@@ -95,12 +95,12 @@ CONTRACT fusion : public contract {
         inline eosio::permission_level active_perm();
         int64_t calculate_asset_share(const int64_t& quantity, const uint64_t& percentage);
         int64_t calculate_lswax_output(const int64_t& quantity, global& g);
-        int64_t calculate_swax_output(const int64_t& quantity, global& g);      
-        void create_alcor_farm(const uint64_t& poolId, const eosio::symbol& token_symbol, const eosio::name& token_contract);
+        int64_t calculate_swax_output(const int64_t& quantity, global& g);
+        string cpu_stake_memo(const name& cpu_receiver, const uint64_t& epoch_timestamp);
+        void create_alcor_farm(const uint64_t& poolId, const symbol& token_symbol, const name& token_contract);
         void create_epoch(const global& g, const uint64_t& start_time, const name& cpu_wallet, const asset& wax_bucket);
         uint64_t days_to_seconds(const uint64_t& days);
         void debit_user_redemptions_if_necessary(const name& user, const asset& swax_balance);
-        std::string cpu_stake_memo(const eosio::name& cpu_receiver, const uint64_t& epoch_timestamp);
         eosio::name get_next_cpu_contract(global& g);
         uint64_t get_seconds_to_rent_cpu(global& g, const uint64_t& epoch_id_to_rent_from);
         vector<string> get_words(string memo);

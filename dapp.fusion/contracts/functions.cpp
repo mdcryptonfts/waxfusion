@@ -6,10 +6,14 @@ inline eosio::permission_level fusion::active_perm(){
     return eosio::permission_level{ _self, "active"_n };
 }
 
-void fusion::create_alcor_farm(const uint64_t& poolId, const eosio::symbol& token_symbol, const eosio::name& token_contract) {
+void fusion::create_alcor_farm(const uint64_t& poolId, const symbol& token_symbol, const name& token_contract) {
   action(active_perm(), ALCOR_CONTRACT, "newincentive"_n,
-         std::tuple{ _self, poolId, eosio::extended_asset(ZERO_LSWAX, TOKEN_CONTRACT), (uint32_t) LP_FARM_DURATION_SECONDS }
+         std::tuple{ _self, poolId, extended_asset(ZERO_LSWAX, TOKEN_CONTRACT), (uint32_t) LP_FARM_DURATION_SECONDS }
         ).send();
+}
+
+string fusion::cpu_stake_memo(const name& cpu_receiver, const uint64_t& epoch_timestamp) {
+  return ("|stake_cpu|" + cpu_receiver.to_string() + "|" + std::to_string(epoch_timestamp) + "|").c_str();
 }
 
 void fusion::create_epoch(const global& g, const uint64_t& start_time, const name& cpu_wallet, const asset& wax_bucket) {
@@ -24,6 +28,10 @@ void fusion::create_epoch(const global& g, const uint64_t& start_time, const nam
     _e.total_cpu_funds_returned         = ZERO_WAX;
     _e.total_added_to_redemption_bucket = ZERO_WAX;
   });
+}
+
+uint64_t fusion::days_to_seconds(const uint64_t& days) {
+  return uint64_t(SECONDS_PER_DAY) * days;
 }
 
 /**
@@ -108,14 +116,6 @@ void fusion::debit_user_redemptions_if_necessary(const name& user, const asset& 
       requests_t.erase( req_itr );
     }
   }
-}
-
-std::string fusion::cpu_stake_memo(const eosio::name& cpu_receiver, const uint64_t& epoch_timestamp) {
-  return ("|stake_cpu|" + cpu_receiver.to_string() + "|" + std::to_string(epoch_timestamp) + "|").c_str();
-}
-
-uint64_t fusion::days_to_seconds(const uint64_t& days) {
-  return uint64_t(SECONDS_PER_DAY) * days;
 }
 
 eosio::name fusion::get_next_cpu_contract(global& g) {
