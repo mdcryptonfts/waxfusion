@@ -99,6 +99,12 @@ std::pair<staker_struct, staker_struct> fusion::get_stakers(const name& user) {
     return std::make_pair(staker, self_staker);
 }
 
+/**
+ * Modifies an existing table row for a `staker`
+ * 
+ * @param staker - `staker_struct` containing the new data for the user
+ */
+
 void fusion::modify_staker(staker_struct& staker){
     auto itr = staker_t.require_find(staker.wallet.value, ERR_STAKER_NOT_FOUND);
     staker_t.modify(itr, same_payer, [&](auto &_s){
@@ -136,6 +142,8 @@ uint128_t fusion::reward_per_token(rewards& r)
  * before updating the `staker`, as not doing so would result
  * in miscalculation of the user's rewards (and potentially
  * overallocation of the reward pool)
+ * 
+ * Throws if totalRewardsPaidOut > rewardPool (sanity check, should never happen)
  * 
  * @param staker - `staker_struct` containing the user's data
  * @param r - `rewards` singleton with the reward pool state
