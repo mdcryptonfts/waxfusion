@@ -212,8 +212,8 @@ describe('\n\ndeposit for liquidity only', () => {
 
         //make sure alcor pools are within 99.99% of the expected amount
         const outputs = calculate_wax_and_lswax_outputs(100000.0, 100000.0 / 95300.0, 1.0);
-        const dapp_state = await getDappState(true)
-        const alcor_pool = await getAlcorPool(true)
+        const dapp_state = await getDappState()
+        const alcor_pool = await getAlcorPool()
         almost_equal(parseFloat(alcor_pool.tokenA.quantity), 100000.0 + outputs[0])
         almost_equal(parseFloat(alcor_pool.tokenB.quantity), 95300.0 + outputs[1])
         
@@ -819,7 +819,7 @@ describe('\n\nsend rent_cpu memo', () => {
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
         const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
         //negative number will wrap unsigned int
-        await expectToThrow(action, ERR_MAX_DAYS_TO_RENT);
+        await expectToThrow(action, `eosio_assert: Overflow detected in safe_cast`);
     });  
 
     it('error: negative number passed for wax amount to rent', async () => {
@@ -830,7 +830,7 @@ describe('\n\nsend rent_cpu memo', () => {
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
         const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(20), memo]).send('mike@active');  
         //negative number will wrap unsigned int
-        await expectToThrow(action, ERR_MAX_AMOUNT_TO_RENT);
+        await expectToThrow(action, `eosio_assert: multiplication would result in over/underflow`);
     });   
 
     it('error: minimum amount to rent', async () => {
@@ -988,62 +988,52 @@ describe('\n\nsend increase_rental memo', () => {
     }); 
       
     it('error: rental expires in less than 1 day', async () => {
-        //rent cpu for 30 days
-        let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
+        let memo = rent_cpu_memo( 'eosio', 30, 1000 );
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
         await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');        
         
-        //fast forward time 29.5 days
         await setTime(initial_state.chain_time + (60 * 60 * 24 * 30) + 1 );
 
-        //extend
-        memo = increase_rental_memo( 'eosio', 100 ); //receiver, wax
+        memo = increase_rental_memo( 'eosio', 100 );
         const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(120), memo]).send('mike@active'); 
         await expectToThrow(action, "eosio_assert: cant increase rental with < 1 day remaining");
     });   
 
     it('error: rental was never funded', async () => {
-        //rent cpu for 30 days
-        let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
+        let memo = rent_cpu_memo( 'eosio', 30, 1000 );
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');           
 
-        //extend
-        memo = increase_rental_memo( 'eosio', 100 ); //receiver, wax
+        memo = increase_rental_memo( 'eosio', 100 );
         const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(120), memo]).send('mike@active'); 
-        await expectToThrow(action, "eosio_assert: you can't increase a rental if it hasnt been funded yet");
+        await expectToThrow(action, "eosio_assert: Overflow detected in safe_cast");
     });   
 
     it('error: rental already expired', async () => {
-        //rent cpu for 30 days
-        let memo = rent_cpu_memo( 'eosio', 30, 1000 ); //receiver, days, wax
+        let memo = rent_cpu_memo( 'eosio', 30, 1000 );
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
         await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(36), memo]).send('mike@active');        
         
-        //fast forward time 29.5 days
         await setTime(initial_state.chain_time + (60 * 60 * 24 * 31) + 1 );
 
-        //extend
-        memo = increase_rental_memo( 'eosio', 100 ); //receiver, wax
+        memo = increase_rental_memo( 'eosio', 100 );
         const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(120), memo]).send('mike@active'); 
-        await expectToThrow(action, "eosio_assert: this rental has already expired");
+        await expectToThrow(action, "eosio_assert: Overflow detected in safe_cast");
     });    
 
     it('error: didnt send enough funds', async () => {
-        //rent cpu for 30 days
-        let memo = rent_cpu_memo( 'eosio', 30, 500 ); //receiver, days, wax
+        let memo = rent_cpu_memo( 'eosio', 30, 500 );
         await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(1000), 'for staking pool only']).send('eosio@active');  
         await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(200), '']).send('eosio@active');  
         await contracts.pol_contract.actions.rentcpu(['mike', 'eosio']).send('mike@active');          
         await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(50), memo]).send('mike@active');        
 
-        //extend
-        memo = increase_rental_memo( 'eosio', 500 ); //receiver, wax
+        memo = increase_rental_memo( 'eosio', 500 );
         const action = contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(12), memo]).send('mike@active'); 
         
         //rentals give up to 1 full extra day to the user when they first rent
