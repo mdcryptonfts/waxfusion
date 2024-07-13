@@ -185,24 +185,38 @@ eosio::name fusion::get_next_cpu_contract(global& g) {
   return next_cpu_contract;
 }
 
+/**
+ * Calculates how many seconds a CPU rental will be
+ * 
+ * NOTE: Since CPU rentals from this contract are linked to epochs,
+ * which have pre-determined timeframes, a renter tells us which epoch
+ * they want to rent from, and then we dynamically calculate the price
+ * (based on time remaining in that epoch).
+ * 
+ * @param g - `global` singleton
+ * @param epoch_id_to_rent_from - which epoch the renter wants to rent from
+ * 
+ * @return uint64_t - amount of seconds remaining in the epoch
+ */
+
 uint64_t fusion::get_seconds_to_rent_cpu( global& g, const uint64_t& epoch_id_to_rent_from ) {
   
   uint64_t seconds_into_current_epoch = now() - g.last_epoch_start_time;
   uint64_t seconds_to_rent;
 
   if ( epoch_id_to_rent_from == g.last_epoch_start_time + g.seconds_between_epochs ) {
-    // renting from epoch 3 (hasnt started yet)
+    // Renting from epoch 3 (hasnt started yet)
     seconds_to_rent = days_to_seconds(18) - seconds_into_current_epoch;
 
   } else if ( epoch_id_to_rent_from == g.last_epoch_start_time ) {
-    // renting from epoch 2 (started most recently)
+    // Renting from epoch 2 (started most recently)
     seconds_to_rent = days_to_seconds(11) - seconds_into_current_epoch;
 
   } else if ( epoch_id_to_rent_from == g.last_epoch_start_time - g.seconds_between_epochs ) {
-    // renting from epoch 1 (oldest) and we need to make sure it's less than 11 days old
+    // Renting from epoch 1 (oldest) and we need to make sure it's less than 11 days old
     check( seconds_into_current_epoch < days_to_seconds(4), "it is too late to rent from this epoch, please rent from the next one" );
 
-    // if we reached here, minimum PAYMENT is 1 full day payment (even if rental is less than 1 day)
+    // If we reached here, minimum PAYMENT is 1 full day (even if rental is less than 1 day)
     seconds_to_rent = days_to_seconds(4) - seconds_into_current_epoch < days_to_seconds(1) ? days_to_seconds(1) : days_to_seconds(4) - seconds_into_current_epoch;
 
   } else {
@@ -224,19 +238,30 @@ vector<string> fusion::get_words(string memo) {
   return words;
 }
 
-
 /**
-* is_an_admin
-* this contract is multisig and all of the most important features will require msig
-* there will be some features that do not pose any major risk to users/funds
-* in which case, just having a few "admin" accounts who can call certain actions will be sufficient
-* rather than needing to organize an msig with multiple parties over a minor adjustment
-* e.g. - adjusting the cost for renting CPU or adjusting the fallback_cpu_receiver etc
-*/
+ * Checks if `user` is one of the `admin_wallets` in `global` singleton
+ * 
+ * NOTE: While this contract is under multisig, there are some less critical
+ * actions that can be called by accounts that we've given elevated permissions to.
+ * 
+ * @param g - `global` singleton
+ * @param user - the wallet address to look for in the `admin_wallets` vector
+ * 
+ * @return bool - whether or not the address was found
+ */
 
 bool fusion::is_an_admin(global& g, const name& user) {
   return std::find(g.admin_wallets.begin(), g.admin_wallets.end(), user) != g.admin_wallets.end();
 }
+
+/**
+ * Checks if `contract` is one of the `cpu_contracts` in `global` singleton
+ * 
+ * @param g - `global` singleton
+ * @param contract - the wallet address to look for in the `cpu_contracts` vector
+ * 
+ * @return bool - whether or not the address was found
+ */
 
 bool fusion::is_cpu_contract(global& g, const name& contract) {
   return std::find( g.cpu_contracts.begin(), g.cpu_contracts.end(), contract) != g.cpu_contracts.end();
@@ -304,6 +329,15 @@ inline void fusion::sync_epoch(global& g) {
 void fusion::transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const string& memo) {
   action(active_perm(), contract, "transfer"_n, std::tuple{ get_self(), user, amount_to_send, memo}).send();
 }
+
+/**
+ * Sums up a vector of `allocations` and makes sure the total <= `quantity`
+ * 
+ * Throws if sum is > quantity
+ * 
+ * @param quantity - `int64_t` maximum acceptable sum of `allocations` parts
+ * @param allocations - `vector<int64_t>` parts to calculate the sum of
+ */
 
 void fusion::validate_allocations( const int64_t& quantity, const vector<int64_t> allocations ) {
   int64_t sum = 0;
