@@ -104,19 +104,19 @@ CONTRACT fusion : public contract {
         eosio::name get_next_cpu_contract(global& g);
         uint64_t get_seconds_to_rent_cpu(global& g, const uint64_t& epoch_id_to_rent_from);
         vector<string> get_words(string memo);
-        bool is_an_admin(global& g, const eosio::name& user);
-        bool is_cpu_contract(global& g, const eosio::name& contract);
-        bool is_lswax_or_wax(const eosio::symbol& symbol, const eosio::name& contract);
-        void issue_lswax(const int64_t& amount, const eosio::name& receiver);
+        bool is_an_admin(global& g, const name& user);
+        bool is_cpu_contract(global& g, const name& contract);
+        bool is_lswax_or_wax(const symbol& symbol, const name& contract);
+        void issue_lswax(const int64_t& amount, const name& receiver);
         void issue_swax(const int64_t& amount);
-        bool memo_is_expected(const std::string& memo);
+        bool memo_is_expected(const string& memo);
         inline uint64_t now();
         inline void readonly_sync_epoch(global& g);
         void retire_lswax(const int64_t& amount);
         void retire_swax(const int64_t& amount);
         inline void sync_epoch(global& g);
-        void transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const std::string& memo);
-        void validate_allocations( const int64_t& quantity, const std::vector<int64_t> allocations );
+        void transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const string& memo);
+        void validate_allocations( const int64_t& quantity, const vector<int64_t> allocations );
 
         //Redemptions
         void handle_available_request(global& g, bool& request_can_be_filled, staker_struct& staker, asset& remaining_amount_to_fill);

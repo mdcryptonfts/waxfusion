@@ -1,6 +1,5 @@
 #include "fusion.hpp"
 #include "functions.cpp"
-#include "integer_functions.cpp"
 #include "safe.cpp"
 #include "on_notify.cpp"
 #include "staking.cpp"

@@ -6,6 +6,60 @@ inline eosio::permission_level fusion::active_perm(){
     return eosio::permission_level{ _self, "active"_n };
 }
 
+/**
+ * Calculates how much of an asset belongs to a certain percentage share
+ * 
+ * @param quantity - `int64_t` asset amount to calculate a share of
+ * @param percentage - `uint64_t` the percentage of `quantity` to allocate, scaled by 1e6
+ * 
+ * @return int64_t - the calculated output amount
+ */
+
+int64_t fusion::calculate_asset_share(const int64_t& quantity, const uint64_t& percentage) {
+    // Percentage uses a scaling factor of 1e6
+    // 0.01% = 10,000
+    // 0.1% = 100,000
+    // 1% = 1,000,000
+    // 10% = 10,000,000
+    // 100% = 100,000,000
+
+    if (quantity <= 0) return 0;
+
+    return mulDiv( uint64_t(quantity), percentage, SCALE_FACTOR_1E8 );
+}
+
+/**
+ * Converts an sWAX amount into its lsWAX value
+ * 
+ * @param quantity - `int64_t` amount of sWAX to convert
+ * @param g - global singleton
+ * 
+ * @return int64_t - calculated output amount of lsWAX
+ */
+
+int64_t fusion::calculate_lswax_output(const int64_t& quantity, global& g) {
+
+    if ( g.liquified_swax.amount == g.swax_currently_backing_lswax.amount ) {
+        return quantity;
+    } else {
+        return mulDiv( uint64_t(g.liquified_swax.amount), uint64_t(quantity), uint128_t(g.swax_currently_backing_lswax.amount) );
+    }
+
+}
+
+/**
+ * Converts an lsWAX amount into its underlying sWAX value
+ * 
+ * @param quantity - `int64_t` amount of lsWAX to convert
+ * @param g - global singleton
+ * 
+ * @return int64_t - calculated output amount of sWAX
+ */
+
+int64_t fusion::calculate_swax_output(const int64_t& quantity, global& g) {
+    return mulDiv( uint64_t(g.swax_currently_backing_lswax.amount), uint64_t(quantity), uint128_t(g.liquified_swax.amount) );
+}
+
 void fusion::create_alcor_farm(const uint64_t& poolId, const symbol& token_symbol, const name& token_contract) {
   action(active_perm(), ALCOR_CONTRACT, "newincentive"_n,
          std::tuple{ _self, poolId, extended_asset(ZERO_LSWAX, TOKEN_CONTRACT), (uint32_t) LP_FARM_DURATION_SECONDS }
@@ -180,20 +234,20 @@ vector<string> fusion::get_words(string memo) {
 * e.g. - adjusting the cost for renting CPU or adjusting the fallback_cpu_receiver etc
 */
 
-bool fusion::is_an_admin(global& g, const eosio::name& user) {
+bool fusion::is_an_admin(global& g, const name& user) {
   return std::find(g.admin_wallets.begin(), g.admin_wallets.end(), user) != g.admin_wallets.end();
 }
 
-bool fusion::is_cpu_contract(global& g, const eosio::name& contract) {
+bool fusion::is_cpu_contract(global& g, const name& contract) {
   return std::find( g.cpu_contracts.begin(), g.cpu_contracts.end(), contract) != g.cpu_contracts.end();
 }
 
-bool fusion::is_lswax_or_wax(const eosio::symbol& symbol, const eosio::name& contract)
+bool fusion::is_lswax_or_wax(const symbol& symbol, const name& contract)
 {
   return (symbol == LSWAX_SYMBOL && contract == TOKEN_CONTRACT) || (symbol == WAX_SYMBOL && contract == WAX_CONTRACT);
 }
 
-void fusion::issue_lswax(const int64_t& amount, const eosio::name& receiver) {
+void fusion::issue_lswax(const int64_t& amount, const name& receiver) {
   action(active_perm(), TOKEN_CONTRACT, "issue"_n, std::tuple{ _self, receiver, asset(amount, LSWAX_SYMBOL), std::string("issuing lsWAX to liquify") }).send();
 }
 
@@ -201,7 +255,7 @@ void fusion::issue_swax(const int64_t& amount) {
   action(active_perm(), TOKEN_CONTRACT, "issue"_n, std::tuple{ _self, _self, asset(amount, SWAX_SYMBOL), std::string("issuing sWAX for staking") }).send();
 }
 
-bool fusion::memo_is_expected(const std::string& memo) {
+bool fusion::memo_is_expected(const string& memo) {
 
   if ( memo == "instant redeem" || memo == "rebalance" || memo == "wax_lswax_liquidity" || memo == "stake" || memo == "unliquify" || memo == "waxfusion_revenue" || memo == "cpu rental return" || memo == "lp_incentives" ) {
     return true;
@@ -218,11 +272,11 @@ inline uint64_t fusion::now() {
 }
 
 void fusion::retire_lswax(const int64_t& amount) {
-  action(active_perm(), TOKEN_CONTRACT, "retire"_n, std::tuple{ eosio::asset(amount, LSWAX_SYMBOL), std::string("retiring lsWAX to unliquify")}).send();
+  action(active_perm(), TOKEN_CONTRACT, "retire"_n, std::tuple{ asset(amount, LSWAX_SYMBOL), std::string("retiring lsWAX to unliquify")}).send();
 }
 
 void fusion::retire_swax(const int64_t& amount) {
-  action(active_perm(), TOKEN_CONTRACT, "retire"_n, std::tuple{ eosio::asset(amount, SWAX_SYMBOL), std::string("retiring sWAX for redemption")}).send();
+  action(active_perm(), TOKEN_CONTRACT, "retire"_n, std::tuple{ asset(amount, SWAX_SYMBOL), std::string("retiring sWAX for redemption")}).send();
 }
 
 inline void fusion::sync_epoch(global& g) {
@@ -247,11 +301,11 @@ inline void fusion::sync_epoch(global& g) {
   }
 }
 
-void fusion::transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const std::string& memo) {
+void fusion::transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const string& memo) {
   action(active_perm(), contract, "transfer"_n, std::tuple{ get_self(), user, amount_to_send, memo}).send();
 }
 
-void fusion::validate_allocations( const int64_t& quantity, const std::vector<int64_t> allocations ) {
+void fusion::validate_allocations( const int64_t& quantity, const vector<int64_t> allocations ) {
   int64_t sum = 0;
 
   for (int64_t a : allocations) {
