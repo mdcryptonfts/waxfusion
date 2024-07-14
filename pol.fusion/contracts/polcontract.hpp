@@ -34,7 +34,7 @@ CONTRACT polcontract : public contract {
         top21_s(DAPP_CONTRACT, DAPP_CONTRACT.value)
         {}
 
-        //Main Actions
+        // Main Actions
         ACTION claimgbmvote();
         ACTION claimrefund();
         ACTION clearexpired(const int& limit);
@@ -42,11 +42,11 @@ CONTRACT polcontract : public contract {
         ACTION initconfig(const uint64_t& lswax_pool_id);
         ACTION initstate3();
         ACTION rebalance();
-        ACTION rentcpu(const eosio::name& renter, const eosio::name& cpu_receiver);
+        ACTION rentcpu(const name& renter, const name& cpu_receiver);
         ACTION setallocs(const uint64_t& liquidity_allocation_percent_1e6);
-        ACTION setrentprice(const eosio::asset& cost_to_rent_1_wax);
+        ACTION setrentprice(const asset& cost_to_rent_1_wax);
 
-        //Notifications
+        // Notifications
         [[eosio::on_notify("eosio.token::transfer")]] void receive_wax_transfer(const name& from, const name& to, const asset& quantity, const std::string& memo);
         [[eosio::on_notify("token.fusion::transfer")]] void receive_lswax_transfer(const name& from, const name& to, const asset& quantity, const std::string& memo);
 
@@ -55,18 +55,18 @@ CONTRACT polcontract : public contract {
 
     private:
 
-        //Singletons
+        // Singletons
         config_singleton_2              config_s_2;
         dapp_tables::global_singleton   dapp_state_s;
         state_singleton_3               state_s_3;
         top21_singleton                 top21_s;
 
-        //Multi Index Tables
+        // Multi Index Tables
         alcor_contract::pools_table pools_t     = alcor_contract::pools_table(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
         refunds_table               refunds_t   = refunds_table(SYSTEM_CONTRACT, get_self().value);
         renters_table               renters_t   = renters_table(get_self(), get_self().value);
 
-        //Functions
+        // Functions
         void add_liquidity( state3& s, liquidity_struct& lp_details );
         int64_t calculate_asset_share(const int64_t& quantity, const uint64_t& percentage);
         void calculate_liquidity_allocations(const liquidity_struct& lp_details, 
@@ -91,7 +91,7 @@ CONTRACT polcontract : public contract {
         void validate_allocations(const int64_t& quantity, const std::vector<int64_t> allocations);
         void validate_liquidity_pair(const eosio::extended_asset& a, const eosio::extended_asset& b);
 
-        //Safemath
+        // Safemath
         using uint256_t = math::wide_integer::uint256_t;
 
         int64_t mulDiv(const uint64_t& a, const uint64_t& b, const uint128_t& denominator);

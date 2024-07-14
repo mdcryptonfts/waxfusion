@@ -291,12 +291,15 @@ ACTION polcontract::rebalance(){
 }
 
 /**
-* rentcpu
-* to announce a rental and create a table row if it doesnt exist yet
-* user is the ram payer on the row
-*/
+ * Opens a row for a CPU rental if it doesn't exist yet
+ * 
+ * @param renter - the WAX address paying for the rental
+ * @param cpu_receiver - the WAX address to rent the CPU to
+ * 
+ * @required_auth - renter
+ */
 
-ACTION polcontract::rentcpu(const eosio::name& renter, const eosio::name& cpu_receiver){
+ACTION polcontract::rentcpu(const name& renter, const name& cpu_receiver){
     require_auth(renter);
     update_state();
 
@@ -304,8 +307,7 @@ ACTION polcontract::rentcpu(const eosio::name& renter, const eosio::name& cpu_re
 
     auto            renter_receiver_idx     = renters_t.get_index<"fromtocombo"_n>();
     const uint128_t renter_receiver_combo   = mix64to128(renter.value, cpu_receiver.value);
-
-    auto itr = renter_receiver_idx.find(renter_receiver_combo); 
+    auto            itr                     = renter_receiver_idx.find(renter_receiver_combo); 
 
     if(itr == renter_receiver_idx.end()){
         renters_t.emplace(renter, [&](auto &_r){
@@ -318,18 +320,19 @@ ACTION polcontract::rentcpu(const eosio::name& renter, const eosio::name& cpu_re
     }
 }
 
-/** setallocs
- *  allows this contract to adjust the allocation of revenue that is used for liquidity
- *  the only other allocation is the rental pool allocation,
- *  so calling this action will also set the rental pool allocation at
- *  100% - liquidity allocation
+/**
+ * Adjusts the percentage of revenue that goes to providing liquidity on Alcor
+ * 
+ * Throws if the value is < 1% or > 100%
+ * 
+ * @param liquidity_allocation_percent_1e6 - the percentage to allocate to liquidity, scaled by 1e6
+ * 
+ * @required_auth - this contract
  */
 
 ACTION polcontract::setallocs(const uint64_t& liquidity_allocation_percent_1e6){
     require_auth( _self );
-    eosio::check(config_s_2.exists(), "config2 doesnt exist");
 
-    //allow 1-100%
     check( liquidity_allocation_percent_1e6 >= 1000000 && liquidity_allocation_percent_1e6 <= ONE_HUNDRED_PERCENT_1E6, "percent must be between > 1e6 && <= 100 * 1e6" );
 
     config2 c = config_s_2.get();
@@ -338,17 +341,22 @@ ACTION polcontract::setallocs(const uint64_t& liquidity_allocation_percent_1e6){
     config_s_2.set(c, _self);
 }
 
-/** setrentprice
- *  this is called inline on the dapp.fusion contract
- *  it adjusts the cost that we charge for CPU rentals
- *  cost_to_rent_1_wax = the price of renting 1.00000000 WAX for 24 hours
+/**
+ * Adjusts the price for renting CPU from this contract
+ * 
+ * NOTE: This action is called inline when setting the rent price
+ * on the dapp.fusion contract
+ * 
+ * @param cost_to_rent_1_wax - the WAX amount that a user will pay to rent 1 WAX for 1 day
+ * 
+ * @required_auth - dapp.fusion
  */
 
-ACTION polcontract::setrentprice(const eosio::asset& cost_to_rent_1_wax){
+ACTION polcontract::setrentprice(const asset& cost_to_rent_1_wax){
     require_auth( DAPP_CONTRACT );
     update_state();
-    check( cost_to_rent_1_wax.amount > 0, "cost must be positive" );
-    check( cost_to_rent_1_wax.symbol == WAX_SYMBOL, "symbol and precision must match WAX" );
+
+    check( cost_to_rent_1_wax > ZERO_WAX, "cost must be positive" );
 
     state3 s = state_s_3.get();
     s.cost_to_rent_1_wax = cost_to_rent_1_wax;
