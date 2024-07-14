@@ -7,36 +7,33 @@
 
 //contractName: polcontract
 
-/** claimgbmvote
- *  if this contract has any voting rewards available on the system contract,
- *  this will claim them so the rewards can be distributed to the dapp.fusion contract
- *  (see: "voter pay" memo in on_notify.cpp)
- */
+
+/** Claims voting rewards from the system contract if they are available */
 
 ACTION polcontract::claimgbmvote()
 {
-    //Can be called by anyone
     update_state();
     action(permission_level{get_self(), "active"_n}, SYSTEM_CONTRACT,"claimgbmvote"_n,std::tuple{ get_self() }).send();
 }
 
-/** claimrefund
- *  if this contract has any available refunds on the system contract (from unstaking CPU)
- *  this will claim them so the funds become available again for renting
- */
+/** Claims refunds from the system contract if they are available */
 
 ACTION polcontract::claimrefund()
 {
-    //Can be called by anyone
     update_state();
     action(permission_level{get_self(), "active"_n}, SYSTEM_CONTRACT,"refund"_n,std::tuple{ get_self() }).send();
 }
 
 /**
-* clearexpired
-* unstakes and removes all expired rentals
-* can be called by anyone
-*/ 
+ * Unstakes and erases any CPU rentals that are expired
+ * 
+ * NOTE: Since we may need to unstake large batches in multiple transactions
+ * (due to transaction size limits), but we also don't want to reset the refund
+ * timer if a refund has been pending for a long time, this action will throw if
+ * there is an existing refund that is > 5 minutes old.
+ * 
+ * @param limit - the maximum amount of rows to unstake/erase
+ */
 
 ACTION polcontract::clearexpired(const int& limit)
 {
@@ -48,14 +45,6 @@ ACTION polcontract::clearexpired(const int& limit)
     if(refund_itr != refunds_t.end()){
         bool shouldContinue = false;
 
-        /** the refund is less than 5 mins old, proceed
-         *  the reason for this is that once we have refunds pending for any significant
-         *  amount of time, we don't want to reset the timer on the refund request
-         *  by submitting a new unstake request.
-         *  however, we may need to submit multiple unstake requests in a short period
-         *  of time (for example if there are 100k accounts that we are renting to)
-         *  this allows us to break up unstake requests into multiple batches if needed
-         */
         if( now() - (5 * 60) < uint64_t(refund_itr->request_time.sec_since_epoch()) ){
             shouldContinue = true;
         }
@@ -68,16 +57,14 @@ ACTION polcontract::clearexpired(const int& limit)
         check( shouldContinue, "there is a pending refund > 5 mins and < 3 days old" );
     }
 
-    auto expires_idx = renters_t.get_index<"expires"_n>();
+    // Lower bound of 1 because we don't want to pay for deletion of unpaid rentals,
+    // which are set to expire at 0 by default
+    auto    expires_idx     = renters_t.get_index<"expires"_n>();
+    auto    expires_lower   = expires_idx.lower_bound( 1 );
+    auto    expires_upper   = expires_idx.upper_bound( now() );
+    auto    itr             = expires_lower;
+    int     count           = 0;
 
-    //lower bound of 1 because we don't want to pay for deletion of unpaid rentals,
-    //which are set to expire at 0 by default
-    auto expires_lower = expires_idx.lower_bound( 1 );
-    auto expires_upper = expires_idx.upper_bound( now() );
-
-    int count = 0;
-
-    auto itr = expires_lower;
     while (itr != expires_upper) {
         if( count == limit ) break;
         if( itr->expires < now() && itr->expires != 0 ){
@@ -97,16 +84,28 @@ ACTION polcontract::clearexpired(const int& limit)
     state_s_3.set(s, _self);
 }
 
-/** deleterental
- *  in case a user uses the rentcpu action and doesnt pay for the rental
- *  this will allow them to delete it and free up their ram
+/**
+ * Allows a `renter` to erase their CPU rental row if it was never paid for
+ * 
+ * @param rental_id - the primary key of the row in the `rentals` table
+ * 
+ * @required_auth - `renter`
  */
+
 ACTION polcontract::deleterental(const uint64_t& rental_id){
     auto itr = renters_t.require_find( rental_id, "rental does not exist" );
     require_auth( itr->renter );
     check( itr->expires == 0, "can not delete a rental after funding it, use the clearexpired action" );
     renters_t.erase( itr );
 }
+
+/**
+ * Initializes the `config2` singleton if it doesnt exist yet
+ * 
+ * @param lswax_pool_id - the pool ID of the lsWAX/WAX pair on Alcor
+ * 
+ * @required_auth - this contract
+ */
 
 ACTION polcontract::initconfig(const uint64_t& lswax_pool_id){
     require_auth( _self );
@@ -126,6 +125,11 @@ ACTION polcontract::initconfig(const uint64_t& lswax_pool_id){
     config_s_2.set(c, _self);
 }
 
+/**
+ * Initializes the `state3` singleton if it doesnt exist yet
+ * 
+ * @required_auth - this contract
+ */
 
 ACTION polcontract::initstate3(){
     require_auth( _self );
@@ -146,14 +150,13 @@ ACTION polcontract::initstate3(){
 }
 
 /**
-* rebalance
-* can be called by anyone
-* if assets in the wax/lswax buckets are not
-* proportional based on the real price (according to the dapp.fusion contract),
-* the assets will be rebalanced accordingly
-* if its been >= 1 week since the last time alcor's price was acceptable, this will
-* also move stale funds from the buckets into the rental pool so people can rent wax
-*/
+ * Rebalances our WAX/lsWAX buckets if the weights are not equal
+ * 
+ * NOTE: Since we only add LP to Alcor if the market price is acceptable,
+ * this action will also move stale funds into the CPU rental pool if it has
+ * been 1 week since the last time Alcor's price was acceptable.
+ * Throws if the last rebalance was < 24 hours ago.
+ */
 
 ACTION polcontract::rebalance(){
     update_state();
