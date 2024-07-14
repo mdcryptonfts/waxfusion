@@ -2,7 +2,6 @@
 
 #include "polcontract.hpp"
 #include "functions.cpp"
-#include "integer_functions.cpp"
 #include "on_notify.cpp"
 #include "safe.cpp"
 
@@ -303,8 +302,8 @@ ACTION polcontract::rentcpu(const eosio::name& renter, const eosio::name& cpu_re
 
     check( is_account(cpu_receiver), (cpu_receiver.to_string() + " is not a valid account").c_str() );
 
-    auto renter_receiver_idx = renters_t.get_index<"fromtocombo"_n>();
-    const uint128_t renter_receiver_combo = mix64to128(renter.value, cpu_receiver.value);
+    auto            renter_receiver_idx     = renters_t.get_index<"fromtocombo"_n>();
+    const uint128_t renter_receiver_combo   = mix64to128(renter.value, cpu_receiver.value);
 
     auto itr = renter_receiver_idx.find(renter_receiver_combo); 
 
