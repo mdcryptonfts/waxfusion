@@ -59,6 +59,16 @@ int64_t polcontract::calculate_asset_share(const int64_t& quantity, const uint64
     return mulDiv( uint64_t(quantity), percentage, SCALE_FACTOR_1E8 );
 }
 
+/**
+ * NOTE: We only deposit liquidity to Alcor if their price is acceptable. However, this
+ * does not guarantee that the Alcor price is identical to the "real" price on dapp.fusion.
+ * The goal is to allocate 100% of our buckets to liquidity. In order to do this, we need
+ * to account for both prices (Alcor's and the "real" price). This allows us to calculate
+ * the exact amount of lsWAX that needs to be bought/sold in order to fully allocate our buckets.
+ * If we only used Alcor's price, or only used the real price, we would fail to fully 
+ * allocate our buckets.
+ */
+
 void polcontract::calculate_liquidity_allocations(  const liquidity_struct& lp_details,
                                                     int64_t& liquidity_allocation,
                                                     int64_t& wax_bucket_allocation,

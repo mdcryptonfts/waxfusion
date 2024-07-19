@@ -112,11 +112,11 @@ ACTION polcontract::initconfig(const uint64_t& lswax_pool_id){
 
     check( !config_s_2.exists(), "config2 already exists" );
 
-    auto itr = pools_t.require_find( lswax_pool_id, "pool does not exist on alcor" );
+    uint64_t    rental_pool_allocation_1e6  = 14285714; //14.28% or 1/7th
+    uint64_t    liquidity_allocation_1e6    = ONE_HUNDRED_PERCENT_1E6 - rental_pool_allocation_1e6;
+    auto        itr                         = pools_t.require_find( lswax_pool_id, "pool does not exist on alcor" );
+    
     validate_liquidity_pair( itr->tokenA, itr->tokenB );
-
-    uint64_t rental_pool_allocation_1e6 = 14285714; //14.28% or 1/7th
-    uint64_t liquidity_allocation_1e6   = ONE_HUNDRED_PERCENT_1E6 - rental_pool_allocation_1e6;
 
     config2 c{};
     c.liquidity_allocation_1e6      = liquidity_allocation_1e6;
