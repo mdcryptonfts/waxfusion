@@ -272,6 +272,7 @@ const verifyState = async (log = false) => {
 
 /* Tests */
 
+
 describe('\n\ncompound action', () => {
 
     it('error: hasnt been 5 minutes', async () => {
@@ -390,7 +391,76 @@ describe('\n\nclaimaslswax action', () => {
         await stake('bob', 1000)
         await simulate_days(10)
         await contracts.dapp_contract.actions.claimaslswax(['bob', lswax(0.15)]).send('bob@active');
-    });                           
+    });   
+
+
+    it('success without extend_reward', async () => {
+        await setTime(1710482400)
+        await stake('bob', 1000)
+
+        const rewards_before = await getRewardFarm()
+        const global_before = await getDappGlobal()
+        const self_staker_before = await getSWaxStaker('dapp.fusion')
+        const swax_supply_before = await getSupply(contracts.token_contract, 'SWAX')
+
+        await incrementTime(600)
+
+        const total_swax = parseFloat(global_before.swax_currently_earning) + parseFloat(global_before.swax_currently_backing_lswax)
+        const bobs_percentage = 1000 / total_swax
+
+        await contracts.dapp_contract.actions.claimaslswax(['bob', lswax(0.1)]).send('bob@active');        
+
+        const rewards_after = await getRewardFarm()
+        const global_after = await getDappGlobal()
+        const self_staker_after = await getSWaxStaker('dapp.fusion')
+        const swax_supply_after = await getSupply(contracts.token_contract, 'SWAX')
+
+        // verify bob's lsWAX balance == 10 mins worth of rewards
+        const expected_rewards = (1000 / 86400) * 600 * bobs_percentage;
+        const bobs_balances = await getBalances('bob', contracts.token_contract)
+        assert( parseFloat(bobs_balances[0]?.balance) == expected_rewards.toFixed(8), "rewards do not match expected amount" )
+
+        // verify r total rewards paid out == 100% of 10 mins rewards
+        const expected_total_paid_out = (1000 / 86400) * 600;
+        assert( parseFloat(rewards_after?.totalRewardsPaidOut) == expected_total_paid_out.toFixed(8), "total paid out does not match expected amount" )
+
+        // verify r totalSupply was increased by the claimed amount
+        const claimed_amount = parseInt(expected_rewards.toFixed(8).toString().replace('.', ''), 10)
+        const expected_total_supply = Number(rewards_before?.totalSupply) + claimed_amount
+        assert( rewards_after?.totalSupply == expected_total_supply, "r.totalSupply is not the expected amount" )
+
+        // verify staker.claimable_wax is 0 and staker.userRewardPerTokenPaid == r.rewardPerTokenStored
+        const staker = await getSWaxStaker('bob')
+        assert( staker?.claimable_wax == wax(0), "bob should have 0 wax to claim" )
+        assert( staker?.userRewardPerTokenPaid == rewards_after?.rewardPerTokenStored, "userRewardPerTokenPaid != rewardPerTokenStored" )
+
+        // verify self_staker.swax_balance was increased by claimed amount
+        // claimable wax and userRewardPerTokenPaid should also be up to date
+        const expected_claimable_wax = Number(expected_total_paid_out - expected_rewards).toFixed(8)
+        const expected_swax_balance = Number(parseFloat(self_staker_before?.swax_balance) + expected_rewards).toFixed(8)
+        assert( parseFloat(self_staker_after?.claimable_wax) == expected_claimable_wax, "self staker claimable_wax does not match expected amount" )
+        assert( self_staker_after?.userRewardPerTokenPaid == rewards_after?.rewardPerTokenStored, "self_staker rewardPerTokenPaid does not match rewardPerTokenStored" )
+        assert( parseFloat(self_staker_after?.swax_balance) == expected_swax_balance, "self_staker_after swax_balance does not match expected amount" )
+
+        // verify g.swax_currently_backing_lswax, g.liquified_swax and lswax supply all increased by claimed amount
+        // * this is actually all handled in `afterEach()`, since we know self_staker.swax_balance increased properly
+
+        // verify swax supply increased by claimed amount
+        const expected_swax_supply = parseFloat(swax_supply_before?.supply) + expected_rewards
+        assert( swax_supply_after?.supply == swax(expected_swax_supply), "swax_supply_after does not match expected amount" )
+
+        // verify swax_currently_earning is still 1000
+        assert( global_after?.swax_currently_earning == global_before?.swax_currently_earning, "swax_currently_earning should not have changed" )
+
+        // verify g.wax_available_for_rentals increased by claimed amount
+        const expected_rental_bucket = wax(parseFloat(global_before.wax_available_for_rentals) + expected_rewards)
+        assert( global_after?.wax_available_for_rentals == expected_rental_bucket, "wax_available_for_rentals does not match expected amount" )
+
+        // verify g.total_rewards_claimed == claimed amount
+        assert( global_after?.total_rewards_claimed == wax(expected_rewards), "total rewards claimed does not match claimed amount" )
+
+    });  
+
 });
 
 
