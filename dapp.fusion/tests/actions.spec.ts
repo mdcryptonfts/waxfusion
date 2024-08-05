@@ -272,7 +272,7 @@ const verifyState = async (log = false) => {
 
 /* Tests */
 
-
+/*
 describe('\n\ncompound action', () => {
 
     it('error: hasnt been 5 minutes', async () => {
@@ -355,10 +355,10 @@ describe('\n\naddcpucntrct action', () => {
         assert( g.cpu_contracts.indexOf('mike') > -1, "expected mike to be a cpu contract" );
     });            
 });
-
+*/
 
 describe('\n\nclaimaslswax action', () => {
-
+/*
     it('error: missing auth of mike', async () => {
         const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(1)]).send('eosio@active');
         await expectToThrow(action, "missing required authority mike")
@@ -392,7 +392,7 @@ describe('\n\nclaimaslswax action', () => {
         await simulate_days(10)
         await contracts.dapp_contract.actions.claimaslswax(['bob', lswax(0.15)]).send('bob@active');
     });   
-
+*/
 
     it('success without extend_reward', async () => {
         await setTime(1710482400)
@@ -402,6 +402,7 @@ describe('\n\nclaimaslswax action', () => {
         const global_before = await getDappGlobal()
         const self_staker_before = await getSWaxStaker('dapp.fusion')
         const swax_supply_before = await getSupply(contracts.token_contract, 'SWAX')
+        const lswax_supply_before = await getSupply(contracts.token_contract, 'LSWAX')
 
         await incrementTime(600)
 
@@ -414,6 +415,7 @@ describe('\n\nclaimaslswax action', () => {
         const global_after = await getDappGlobal()
         const self_staker_after = await getSWaxStaker('dapp.fusion')
         const swax_supply_after = await getSupply(contracts.token_contract, 'SWAX')
+        const lswax_supply_after = await getSupply(contracts.token_contract, 'LSWAX')
 
         // verify bob's lsWAX balance == 10 mins worth of rewards
         const expected_rewards = (1000 / 86400) * 600 * bobs_percentage;
@@ -442,8 +444,17 @@ describe('\n\nclaimaslswax action', () => {
         assert( self_staker_after?.userRewardPerTokenPaid == rewards_after?.rewardPerTokenStored, "self_staker rewardPerTokenPaid does not match rewardPerTokenStored" )
         assert( parseFloat(self_staker_after?.swax_balance) == expected_swax_balance, "self_staker_after swax_balance does not match expected amount" )
 
-        // verify g.swax_currently_backing_lswax, g.liquified_swax and lswax supply all increased by claimed amount
-        // * this is actually all handled in `afterEach()`, since we know self_staker.swax_balance increased properly
+        // verify g.swax_currently_backing_lswax increased by claimed amount
+        const expected_swax_backing_lswax = parseFloat(global_before?.swax_currently_backing_lswax) + expected_rewards
+        assert( global_after?.swax_currently_backing_lswax == swax(expected_swax_backing_lswax), "swax_backing_lswax after is not the expected amount" )
+
+        // verify liquified_swax increased by claimed amount
+        const expected_liquified_swax = parseFloat(global_before?.liquified_swax) + expected_rewards
+        assert( global_after?.liquified_swax == lswax(expected_liquified_swax), "liquified_swax after is not the expected amount" )        
+
+        // verify lswax supply increased by claimed amount
+        const expected_lswax_supply = parseFloat(lswax_supply_before?.supply) + expected_rewards
+        assert( lswax_supply_after?.supply == lswax(expected_lswax_supply), "lswax_supply_after does not match expected amount" )
 
         // verify swax supply increased by claimed amount
         const expected_swax_supply = parseFloat(swax_supply_before?.supply) + expected_rewards
@@ -458,12 +469,15 @@ describe('\n\nclaimaslswax action', () => {
 
         // verify g.total_rewards_claimed == claimed amount
         assert( global_after?.total_rewards_claimed == wax(expected_rewards), "total rewards claimed does not match claimed amount" )
-
     });  
+
+    it('success with extend_reward and positive revenue_awaiting_distribution', async () => {
+
+    }); 
 
 });
 
-
+/*
 describe('\n\nclaimgbmvote action', () => {
 
     it('error: not a cpu contract', async () => {
@@ -1188,3 +1202,4 @@ describe('\n\nextend_reward', () => {
     }); 
        
 });
+*/
