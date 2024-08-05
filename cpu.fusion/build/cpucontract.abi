@@ -29,20 +29,6 @@
             ]
         },
         {
-            "name": "top21",
-            "base": "",
-            "fields": [
-                {
-                    "name": "block_producers",
-                    "type": "name[]"
-                },
-                {
-                    "name": "last_update",
-                    "type": "uint64"
-                }
-            ]
-        },
-        {
             "name": "unstakebatch",
             "base": "",
             "fields": [
@@ -79,13 +65,6 @@
         {
             "name": "state",
             "type": "state",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "top21",
-            "type": "top21",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

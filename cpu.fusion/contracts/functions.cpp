@@ -17,7 +17,6 @@ uint64_t cpucontract::now(){
 
 void cpucontract::transfer_tokens(const name& user, const asset& amount_to_send, const name& contract, const std::string& memo){
 	action(permission_level{get_self(), "active"_n}, contract,"transfer"_n,std::tuple{ get_self(), user, amount_to_send, memo}).send();
-	return;
 }
 
 void cpucontract::update_votes(){
@@ -32,6 +31,4 @@ void cpucontract::update_votes(){
 		s.last_vote_time = now();
 		state_s.set(s, _self);
 	}
-
-	return;
 }

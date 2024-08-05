@@ -26,7 +26,7 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] state {
 using state_singleton = eosio::singleton<"state"_n, state>;
 
 
-struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] top21 {
+struct [[eosio::table]] top21 {
   std::vector<eosio::name>    block_producers;
   uint64_t                    last_update;
 
