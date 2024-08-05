@@ -494,7 +494,7 @@ describe('\n\nclaimaslswax action', () => {
         const swax_supply_after = await getSupply(contracts.token_contract, 'SWAX')
         const lswax_supply_after = await getSupply(contracts.token_contract, 'LSWAX')
 
-        // verify bob's lsWAX balance == 10 mins worth of rewards
+        // verify bob's lsWAX balance == 1 day worth of rewards
         const expected_rewards = 1000 * bobs_percentage;
         const bobs_balances = await getBalances('bob', contracts.token_contract)
         almost_equal( parseFloat(bobs_balances[0]?.balance), expected_rewards.toFixed(8) )
@@ -555,7 +555,106 @@ describe('\n\nclaimaslswax action', () => {
     });
 
     it('success with extend_reward and positive revenue_awaiting_distribution', async () => {
+        await setTime(1710482400)
+        await stake('bob', 1000)
 
+        // deposit new revenue
+        await contracts.wax_contract.actions.transfer(['eosio', 'dapp.fusion', wax(2000), 'waxfusion_revenue']).send('eosio@active');        
+
+        const rewards_before = await getRewardFarm()
+        const global_before = await getDappGlobal()
+        const self_staker_before = await getSWaxStaker('dapp.fusion')
+        const swax_supply_before = await getSupply(contracts.token_contract, 'SWAX')
+        const lswax_supply_before = await getSupply(contracts.token_contract, 'LSWAX')
+
+        // verify revenue_awaiting_distribution is the deposited amount
+        assert( global_before?.revenue_awaiting_distribution == wax(2000), "revenue_awaiting_distribution should be 2000" )
+
+        await incrementTime(120000)
+
+        // extend_reward will send 7% to POL
+        // POL will allocate 85.714286% of this 7% to liquidity on alcor
+        // alcor's price is 100 / 95.3 (1.04931794 WAX per lsWAX)
+        // POL should transfer back enough wax to put liquidity on alcor at this price
+        // 2000 * 0.07 = 140
+        // 140 * 0.85714286 = 120 wax for liquidity
+        const pol_transfer = Number(calculate_wax_and_lswax_outputs(120, 100000 / 95300, 1)[1])   // 58.55606759 wax
+
+        const total_swax = parseFloat(global_before.swax_currently_earning) + parseFloat(global_before.swax_currently_backing_lswax)
+        const bobs_percentage = 1000 / total_swax
+        const expected_day1_rewards = 1000 * bobs_percentage;   // 100% of initial rewards go to stakers
+        const day_2_reward_pool = 2000 * 0.85                   // only 85% go to stakers after initial reward day 
+        const expected_day2_rewards = (day_2_reward_pool / 86400) * 33600 * bobs_percentage;  
+        const expected_rewards = expected_day1_rewards + expected_day2_rewards
+
+        await contracts.dapp_contract.actions.claimaslswax(['bob', lswax(0.1)]).send('bob@active');        
+
+        const rewards_after = await getRewardFarm()
+        const global_after = await getDappGlobal()
+        const self_staker_after = await getSWaxStaker('dapp.fusion')
+        const swax_supply_after = await getSupply(contracts.token_contract, 'SWAX')
+        const lswax_supply_after = await getSupply(contracts.token_contract, 'LSWAX')
+
+        // verify bob's lsWAX balance == 1 day of rewards at rate1 + 33600 seconds worth at rate2
+        const bobs_balances = await getBalances('bob', contracts.token_contract)
+        almost_equal( parseFloat(bobs_balances[0]?.balance), expected_rewards.toFixed(8) )
+
+        // verify r total rewards paid out == 100% of 1 day's rewards
+        const expected_total_paid_out = 1000 + ( (day_2_reward_pool / 86400) * 33600 );
+        almost_equal( parseFloat(rewards_after?.totalRewardsPaidOut), expected_total_paid_out.toFixed(8) )
+
+        // verify r totalSupply was increased by the claimed amount + eco_alloc + pol_transfer
+        const ecosystem_allocation = 2000 * 0.08 * 1e8;
+        const claimed_amount = parseInt(expected_rewards.toFixed(8).toString().replace('.', ''), 10)
+        const pol_amount = parseInt(pol_transfer.toFixed(8).toString().replace('.', ''), 10)
+        const expected_total_supply = Number(rewards_before?.totalSupply) + claimed_amount + ecosystem_allocation + pol_amount;
+        almost_equal( rewards_after?.totalSupply, expected_total_supply )
+
+        // verify staker.claimable_wax is 0 and staker.userRewardPerTokenPaid == r.rewardPerTokenStored
+        const staker = await getSWaxStaker('bob')
+        assert( staker?.claimable_wax == wax(0), "bob should have 0 wax to claim" )
+        assert( staker?.userRewardPerTokenPaid == rewards_after?.rewardPerTokenStored, "userRewardPerTokenPaid != rewardPerTokenStored" )
+
+        // verify self_staker.swax_balance was increased by (claimed amount + eco_alloc + pol_transfer)
+        // claimable wax and userRewardPerTokenPaid should also be up to date
+        const expected_claimable_wax = Number(expected_total_paid_out - expected_rewards).toFixed(8)
+        const expected_swax_balance = Number(parseFloat(self_staker_before?.swax_balance) + expected_rewards + pol_transfer + 160).toFixed(8)
+        assert( parseFloat(self_staker_after?.claimable_wax) == expected_claimable_wax, "self staker claimable_wax does not match expected amount" )
+        assert( self_staker_after?.userRewardPerTokenPaid == rewards_after?.rewardPerTokenStored, "self_staker rewardPerTokenPaid does not match rewardPerTokenStored" )
+        almost_equal( parseFloat(self_staker_after?.swax_balance), expected_swax_balance )
+
+        // verify g.swax_currently_backing_lswax increased by claimed amount + eco_alloc + pol_transfer
+        const expected_swax_backing_lswax = parseFloat(global_before?.swax_currently_backing_lswax) + expected_rewards + 160 + pol_transfer
+        almost_equal( parseFloat(global_after?.swax_currently_backing_lswax), expected_swax_backing_lswax )
+
+        // verify liquified_swax increased by claimed amount + eco_alloc + pol_transfer
+        const expected_liquified_swax = parseFloat(global_before?.liquified_swax) + expected_rewards + 160 + pol_transfer
+        almost_equal( parseFloat(global_after?.liquified_swax), expected_liquified_swax )        
+
+        // verify lswax supply increased by claimed amount + eco_alloc + pol_transfer
+        const expected_lswax_supply = parseFloat(lswax_supply_before?.supply) + expected_rewards + 160 + pol_transfer
+        almost_equal( parseFloat(lswax_supply_after?.supply), expected_lswax_supply )
+
+        // verify swax supply increased by claimed amount + 160 + pol_transfer
+        const expected_swax_supply = parseFloat(swax_supply_before?.supply) + expected_rewards + 160 + pol_transfer
+        almost_equal( parseFloat(swax_supply_after?.supply), expected_swax_supply )
+
+        // verify swax_currently_earning is still 1000
+        assert( global_after?.swax_currently_earning == global_before?.swax_currently_earning, "swax_currently_earning should not have changed" )
+
+        // verify g.wax_available_for_rentals increased by claimed amount + 160 + pol_transfer
+        const expected_rental_bucket = parseFloat(global_before.wax_available_for_rentals) + expected_rewards + 160 + pol_transfer
+        almost_equal( parseFloat(global_after?.wax_available_for_rentals), expected_rental_bucket )
+
+        // verify g.total_rewards_claimed == claimed amount
+        almost_equal( parseFloat(global_after?.total_rewards_claimed), expected_rewards )
+
+        // verify that the reward period has been extended
+        assert( rewards_after?.periodFinish == rewards_before?.periodFinish + 86400, "periodFinish should be extended by a day" )
+
+        // verify that the current reward rate is based on 1700 wax
+        const expected_reward_rate = parseInt(Number((2000 * 0.85 / 86400) * 1e8).toFixed(8).toString().replace('.', ''), 10)
+        assert( rewards_after?.rewardRate == expected_reward_rate, `rewardRate should be ${expected_reward_rate}` )
     }); 
 
 });
