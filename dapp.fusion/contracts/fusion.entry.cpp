@@ -304,7 +304,7 @@ ACTION fusion::compound(){
 
     g.swax_currently_backing_lswax.amount   +=  amount_to_compound;
     g.total_rewards_claimed.amount          +=  amount_to_compound;
-    //g.wax_available_for_rentals.amount      +=  amount_to_compound;
+    g.wax_available_for_rentals.amount      +=  amount_to_compound;
     g.last_compound_time                    =   now();
 
     issue_swax( amount_to_compound );
