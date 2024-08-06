@@ -11,7 +11,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
     check( quantity.amount < MAX_ASSET_AMOUNT, "quantity too large" );
     check( is_lswax_or_wax( quantity.symbol, tkcontract ), "only WAX and lsWAX are accepted" );
 
-    if ( !memo_is_expected( memo ) /* && from != "eosio"_n */ ) {
+    if ( !memo_is_expected( memo ) && from != "eosio"_n ) {
         // if we reached here, the token is either wax or lswax, but the memo is not expected
         // allow transfers from eosio with unexpected memos during testing
         check( false, "must include a memo for transfers to dapp.fusion, see docs.waxfusion.io for a list of memos" );

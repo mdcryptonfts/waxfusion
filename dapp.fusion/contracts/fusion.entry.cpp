@@ -304,6 +304,7 @@ ACTION fusion::compound(){
 
     g.swax_currently_backing_lswax.amount   +=  amount_to_compound;
     g.total_rewards_claimed.amount          +=  amount_to_compound;
+    //g.wax_available_for_rentals.amount      +=  amount_to_compound;
     g.last_compound_time                    =   now();
 
     issue_swax( amount_to_compound );
@@ -460,6 +461,7 @@ ACTION fusion::init(const asset& initial_reward_pool){
  * the contract on production networks.
  */
 
+/*
 ACTION fusion::inittop21() {
     require_auth(get_self());
 
@@ -503,6 +505,7 @@ ACTION fusion::inittop21() {
     top21_s.set(t, _self);
 
 }
+*/
 
 /**
  * Initializes the top 21 singleton
@@ -514,7 +517,7 @@ ACTION fusion::inittop21() {
  * than the real system contracts.
  */
 
-/*
+
 ACTION fusion::inittop21() {
     require_auth(get_self());
 
@@ -568,7 +571,7 @@ ACTION fusion::inittop21() {
     top21_s.set(t, _self);
 
 }
-*/
+
 
 /**
  * Allows a `user` to instantly redeem their sWAX

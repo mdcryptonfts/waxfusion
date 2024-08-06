@@ -272,9 +272,10 @@ const verifyState = async (log = false) => {
 
 /* Tests */
 
-/*
+
 describe('\n\ncompound action', () => {
 
+    /*
     it('error: hasnt been 5 minutes', async () => {
         const action = contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
         await expectToThrow(action, "eosio_assert: must wait 5 minutes between compounds")
@@ -303,10 +304,77 @@ describe('\n\ncompound action', () => {
 
         const action = contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
         await expectToThrow(action, "eosio_assert: must wait 5 minutes between compounds")
-    });           
+    });   
+    */
+
+    it('demonstrating the available_for_rentals issue', async () => {
+        // set the chain time to the beginning of the rewardPeriod
+        await incrementTime( (60*60*6) )
+
+        // fetch the contract states
+        const state_before = await getDappGlobal()
+        const rewards_before = await getRewardFarm()        
+        const dapp_balances = await getBalances('dapp.fusion', contracts.wax_contract)
+        const dapp_wax_balance = parseFloat(dapp_balances[0]?.balance)
+
+        // so far, 0 sWAX exists. 0 lsWAX exists. dapp has 1000 wax balance. initial reward pool is 1000 wax.
+        assert( state_before?.swax_currently_earning == swax(0), "there should be no sWAX yet" )
+        assert( state_before?.liquified_swax == lswax(0), "there should be no lsWAX yet" )
+        assert( dapp_wax_balance == 1000, "dapp should have a balance of 1000 wax" )
+        assert( rewards_before?.rewardPool == wax(1000), "rewardPool should be 1000 wax" )
+
+        // now, let's have mike stake 1000 wax and liquify it
+        await stake('mike', 1000, true)
+
+        // refetch the states + self_staker
+        const state_2 = await getDappGlobal()    
+        const dapp_balances_2 = await getBalances('dapp.fusion', contracts.wax_contract)
+        const dapp_wax_balance_2 = parseFloat(dapp_balances_2[0]?.balance)  
+        const self_staker = await getSWaxStaker('dapp.fusion')
+
+        // mike should get 1000 lsWAX since it's still 1:1
+        assert( state_2?.liquified_swax == lswax(1000), "there should be 1000 lswax now" )
+
+        // self staker should have 1000 sWAX now since mike deposited 1000
+        assert( self_staker?.swax_balance == swax(1000), "self_staker should have 1000 sWAX" )
+
+        // dapp should have a balance of 2000 wax now (initial reward pool + mike's deposit)
+        assert( dapp_wax_balance_2 == 2000, "dapp should have a balance of 2000 wax" )
+
+        // rewardPeriod is 24 hours, let's fast forward a day and compound
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
+
+        // final states
+        const state_final = await getDappGlobal()
+        const rewards_final = await getRewardFarm()        
+
+        // all rewards should've been paid out
+        almost_equal( parseFloat(rewards_final?.totalRewardsPaidOut), 1000 )
+
+        // same function taken from `functions.cpp` in dapp.fusion contract
+        const calculate_swax_output = (quantity, g) => {
+            return parseFloat(g.swax_currently_backing_lswax) * quantity / parseFloat(g.liquified_swax)
+        }
+
+        // the value of mike's 1000 lsWAX should now be 2000 wax instead of 1000
+        almost_equal( 2000, calculate_swax_output(1000, state_final) )
+
+        // if you look at the following actions:
+        // instaredeem: https://github.com/mdcryptonfts/waxfusion/blob/main/dapp.fusion/contracts/fusion.entry.cpp#L587
+        // reqredeem: https://github.com/mdcryptonfts/waxfusion/blob/main/dapp.fusion/contracts/fusion.entry.cpp#L897
+        // stakeallcpu: https://github.com/mdcryptonfts/waxfusion/blob/main/dapp.fusion/contracts/fusion.entry.cpp#L1164
+        // you will notice that all redemptions etc come from `wax_available_for_rentals`
+        // mike's 2000 wax should be in `wax_available_for_rentals` right now since it's been claimed and 
+        // converted into lsWAX. But it is not there...
+        assert( state_final?.wax_available_for_rentals == wax(2000), "where is the other 1000 wax???" )
+
+    });
+
+
 });
 
-
+/*
 describe('\n\naddadmin action', () => {
 
     it('error: missing auth of _self', async () => {
@@ -355,10 +423,10 @@ describe('\n\naddcpucntrct action', () => {
         assert( g.cpu_contracts.indexOf('mike') > -1, "expected mike to be a cpu contract" );
     });            
 });
-*/
+
 
 describe('\n\nclaimaslswax action', () => {
-/*
+
     it('error: missing auth of mike', async () => {
         const action = contracts.dapp_contract.actions.claimaslswax(['mike', lswax(1)]).send('eosio@active');
         await expectToThrow(action, "missing required authority mike")
@@ -392,7 +460,6 @@ describe('\n\nclaimaslswax action', () => {
         await simulate_days(10)
         await contracts.dapp_contract.actions.claimaslswax(['bob', lswax(0.15)]).send('bob@active');
     });   
-*/
 
     it('success without extend_reward', async () => {
         await setTime(1710482400)
@@ -659,7 +726,7 @@ describe('\n\nclaimaslswax action', () => {
 
 });
 
-/*
+
 describe('\n\nclaimgbmvote action', () => {
 
     it('error: not a cpu contract', async () => {
