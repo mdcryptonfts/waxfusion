@@ -346,7 +346,7 @@ describe('\n\ncompound action', () => {
         await contracts.dapp_contract.actions.compound([]).send('dapp.fusion@active');
 
         // final states
-        const state_final = await getDappGlobal()
+        const state_final = await getDappGlobal(true)
         const rewards_final = await getRewardFarm()        
 
         // all rewards should've been paid out
@@ -366,8 +366,8 @@ describe('\n\ncompound action', () => {
         // stakeallcpu: https://github.com/mdcryptonfts/waxfusion/blob/main/dapp.fusion/contracts/fusion.entry.cpp#L1164
         // you will notice that all redemptions etc come from `wax_available_for_rentals`
         // mike's 2000 wax should be in `wax_available_for_rentals` right now since it's been claimed and 
-        // converted into lsWAX. But it is not there...
-        assert( state_final?.wax_available_for_rentals == wax(2000), "where is the other 1000 wax???" )
+        // converted into lsWAX.
+        almost_equal( parseFloat(state_final?.wax_available_for_rentals), 2000 )
 
     });
 
