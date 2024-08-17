@@ -27,9 +27,11 @@ CONTRACT fusion : public contract {
         fusion(name receiver, name code, datastream<const char *> ds):
         contract(receiver, code, ds),
         global_s(receiver, receiver.value),
+        global_s_2(receiver, receiver.value),
         rewards_s(receiver, receiver.value),
         pol_state_s_3(POL_CONTRACT, POL_CONTRACT.value),
-        top21_s(receiver, receiver.value)
+        top21_s(receiver, receiver.value),
+        version_s(receiver, receiver.value)
         {}      
 
         //Main Actions
@@ -59,6 +61,7 @@ CONTRACT fusion : public contract {
         ACTION setpolshare(const uint64_t& pol_share_1e6);
         ACTION setredeemfee(const uint64_t& protocol_fee_1e6);
         ACTION setrentprice(const name& caller, const asset& cost_to_rent_1_wax);
+        ACTION setversion(const name& caller, const std::string& version_id, const std::string& changelog_url);
         ACTION stake(const name& user);
         ACTION stakeallcpu();
         ACTION sync(const name& caller);
@@ -79,13 +82,16 @@ CONTRACT fusion : public contract {
         //Singletons
         pol_contract::state_singleton_3     pol_state_s_3;
         global_singleton                    global_s;
+        global_singleton_2                  global_s_2;
         rewards_singleton                   rewards_s;
         top21_singleton                     top21_s;
+        version_singleton                   version_s;
 
         //Multi Index Tables
         alcor_contract::incentives_table    incentives_t    = alcor_contract::incentives_table(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
         alcor_contract::pools_table         pools_t         = alcor_contract::pools_table(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
         epochs_table                        epochs_t        = epochs_table(get_self(), get_self().value);
+        incentive_ids_table                 incent_ids_t    = incentive_ids_table(get_self(), get_self().value);
         lpfarms_table                       lpfarms_t       = lpfarms_table(get_self(), get_self().value);
         producers_table                     _producers      = producers_table(SYSTEM_CONTRACT, SYSTEM_CONTRACT.value);
         staker_table                        staker_t        = staker_table(get_self(), get_self().value);
@@ -97,7 +103,7 @@ CONTRACT fusion : public contract {
         int64_t calculate_lswax_output(const int64_t& quantity, global& g);
         int64_t calculate_swax_output(const int64_t& quantity, global& g);
         string cpu_stake_memo(const name& cpu_receiver, const uint64_t& epoch_timestamp);
-        void create_alcor_farm(const uint64_t& poolId, const symbol& token_symbol, const name& token_contract);
+        void create_alcor_farm(const uint64_t& poolId, const symbol& token_symbol, const name& token_contract, const uint32_t& duration);
         void create_epoch(const global& g, const uint64_t& start_time, const name& cpu_wallet, const asset& wax_bucket);
         uint64_t days_to_seconds(const uint64_t& days);
         void debit_user_redemptions_if_necessary(const name& user, const asset& swax_balance);
@@ -127,8 +133,10 @@ CONTRACT fusion : public contract {
         int64_t earned(staker_struct& staker, rewards& r);
         void extend_reward(global&g, rewards& r, staker_struct& self_staker);
         std::pair<staker_struct, staker_struct> get_stakers(const name& user);
+        int64_t max_reward(global& g, rewards& r);
         void modify_staker(staker_struct& staker);
         void readonly_extend_reward(global&g, rewards& r, staker_struct& self_staker);
+        int64_t readonly_max_reward(global& g, rewards& r);
         uint128_t reward_per_token(rewards& r);
         void update_reward(staker_struct& staker, rewards& r);  
         void zero_distribution(global& g, rewards& r);  

@@ -132,8 +132,28 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] epochs {
 
   uint64_t primary_key() const { return start_time; }
 };
-using epochs_table = eosio::multi_index<"epochs"_n, epochs
-                     >;
+using epochs_table = eosio::multi_index<"epochs"_n, epochs>;
+
+/**
+ * The incentive_ids table stores the ids of incentives created on Alcor.
+ * 
+ * NOTE: The `lpfarms` table stores most of the data related to farms.
+ * The idea to also store incentive ids came after the contract was already
+ * on mainnet, so rather than modifying the existing table and potentially 
+ * breaking other contracts/indexers, it was decided to create a second 
+ * table as an extension instead.
+ * 
+ * Scoped by _self
+ */ 
+
+struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] incentive_ids {
+  uint64_t  pool_id;
+  uint64_t  incentive_id;                
+
+  uint64_t primary_key() const { return pool_id; }
+};
+using incentive_ids_table = eosio::multi_index<"incentiveids"_n, incentive_ids>;
+
 
 struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] lpfarms {
   uint64_t                poolId;
@@ -143,8 +163,7 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] lpfarms {
 
   uint64_t primary_key() const { return poolId; }
 };
-using lpfarms_table = eosio::multi_index<"lpfarms"_n, lpfarms
-                      >;
+using lpfarms_table = eosio::multi_index<"lpfarms"_n, lpfarms>;
 
 inline eosio::block_signing_authority convert_to_block_signing_authority( const eosio::public_key& producer_key ) {
   return eosio::block_signing_authority_v0{ .threshold = 1, .keys = {{producer_key, 1}} };
@@ -314,3 +333,12 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] top21 {
   EOSLIB_SERIALIZE(top21, (block_producers)(last_update))
 };
 using top21_singleton = eosio::singleton<"top21"_n, top21>;
+
+
+struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] version {
+  std::string     version_id;
+  std::string     changelog_url;
+
+  EOSLIB_SERIALIZE(version, (version_id)(changelog_url))
+};
+using version_singleton = eosio::singleton< "version"_n, version >;

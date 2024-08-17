@@ -11,7 +11,7 @@
  * @param self_staker - staker_struct that stakes the sWAX backing lsWAX
  */
 
-void fusion::extend_reward(global&g, rewards& r, staker_struct& self_staker) {
+void fusion::extend_reward(global& g, rewards& r, staker_struct& self_staker) {
 
     if ( now() <= r.periodFinish ) return;
 
@@ -20,7 +20,7 @@ void fusion::extend_reward(global&g, rewards& r, staker_struct& self_staker) {
         return;
     }
 
-    int64_t amount_to_distribute    = g.revenue_awaiting_distribution.amount;
+    int64_t amount_to_distribute    = max_reward(g, r);
     int64_t user_alloc_i64          = calculate_asset_share( amount_to_distribute, g.user_share_1e6 );
     int64_t pol_alloc_i64           = calculate_asset_share( amount_to_distribute, g.pol_share_1e6 );
     int64_t eco_alloc_i64           = calculate_asset_share( amount_to_distribute, g.ecosystem_share_1e6 );
@@ -36,7 +36,7 @@ void fusion::extend_reward(global&g, rewards& r, staker_struct& self_staker) {
 
     g.total_revenue_distributed.amount      +=  amount_to_distribute;
     g.wax_available_for_rentals.amount      +=  eco_alloc_i64;
-    g.revenue_awaiting_distribution.amount  =   0;
+    g.revenue_awaiting_distribution.amount  -=  amount_to_distribute;
     g.incentives_bucket.amount              +=  lswax_amount_to_issue;
     g.swax_currently_backing_lswax.amount   +=  eco_alloc_i64;
     g.liquified_swax.amount                 +=  lswax_amount_to_issue;
@@ -97,6 +97,33 @@ std::pair<staker_struct, staker_struct> fusion::get_stakers(const name& user) {
     staker_struct   staker          = staker_struct(*staker_itr);
     staker_struct   self_staker     = staker_struct(*self_staker_itr);
     return std::make_pair(staker, self_staker);
+}
+
+/**
+ * Calculates the maximum reward to distribute during `extend_reward`
+ * 
+ * NOTE: Please see the following Github issue for more details
+ * on why this function exists:
+ * https://github.com/mdcryptonfts/waxfusion/issues/1
+ * 
+ * Also, the max_apr in `global2` is the amount that we want sWAX/lsWAX holders 
+ * to receive. For this, we need to account for the fact that they are only getting 
+ * 85% of rewards (depending on the global state). This is the reason that mulDiv 
+ * is called when calculating `adjusted_max_apr`.
+ * 
+ * @param g - the `global` singleton
+ * @param r - the `rewards` singleton
+ * 
+ * @return `int64_t` - the amount of WAX to distribute
+ */
+
+int64_t fusion::max_reward(global& g, rewards& r){
+    global2     g2                  = global_s_2.get_or_create( _self, global2{} );
+    uint64_t    adjusted_max_apr    = mulDiv( g2.max_staker_apr_1e6, uint64_t(SCALE_FACTOR_1E8), uint128_t(g.user_share_1e6) );
+    int64_t     max_yearly_reward   = calculate_asset_share( r.totalSupply, adjusted_max_apr );
+    int64_t     max_daily_reward    = safecast::div( max_yearly_reward, int64_t(365) );
+
+    return std::min( max_daily_reward, g.revenue_awaiting_distribution.amount );
 }
 
 /**

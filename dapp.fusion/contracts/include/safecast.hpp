@@ -25,6 +25,13 @@ namespace safecast {
         return static_cast<int64_t>(value);
     }
 
+    //specialization to convert uint64_t to uint32_t
+    template<>
+    uint32_t safe_cast<uint32_t, uint64_t>(uint64_t value) {
+        eosio::check(value <= static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()), "Overflow detected in safe_cast");
+        return static_cast<uint32_t>(value);
+    }    
+
     template<typename T>
     T add(T a, T b){
         T sum;

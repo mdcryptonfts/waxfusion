@@ -68,3 +68,12 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] global {
                     )
 };
 using global_singleton = eosio::singleton<"global"_n, global>;
+
+
+struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] global2 {
+    uint64_t    max_staker_apr_1e6  = 12000000;
+    bool        panic               = false;   // Not currently used, only here in case needed later
+
+    EOSLIB_SERIALIZE(global2, (max_staker_apr_1e6)(panic))
+};
+using global_singleton_2 = eosio::singleton<"global2"_n, global2>;

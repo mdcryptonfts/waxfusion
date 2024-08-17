@@ -275,6 +275,52 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
     vector<string> words = get_words( memo );
 
+    /**
+     * Used for creating an LP farm on Alcor
+     * 
+     * Note: Only the token issuer can use a token as a reward on Alcor.
+     * Since this contract is the token issuer of LSWAX, it prevents anyone 
+     * from creating a reward with a different wallet. To bypass this, approved
+     * wallets can send LSWAX to this contract and have it create the farm on
+     * their behalf.
+     */
+
+    if( words [1] == "new_incentive" ){
+        global          g               = global_s.get();
+        const uint64_t  pool_id         = std::strtoull( words[2].c_str(), NULL, 0 );
+        const uint64_t  duration_days   = std::strtoull( words[3].c_str(), NULL, 0 );
+        auto            alcor_itr       = pools_t.require_find( pool_id, "alcor pool id does not exist" );        
+
+        check( tkcontract == TOKEN_CONTRACT, "only LSWAX can be sent with this memo" );
+        check( words.size() >= 4, "memo for new_incentive operation is incomplete" );
+        check( is_an_admin( g, from ), "only admins can create new incentives" );
+        check( duration_days >= 7 && duration_days <= 365, "duration must be between 7 and 365 days" );
+
+        check(  (alcor_itr->tokenA.quantity.symbol == LSWAX_SYMBOL && alcor_itr->tokenA.contract == TOKEN_CONTRACT) 
+                ||
+                (alcor_itr->tokenB.quantity.symbol == LSWAX_SYMBOL && alcor_itr->tokenB.contract == TOKEN_CONTRACT),
+                "one of the tokens in the liquidity pool must be LSWAX"  
+            );
+
+        bool    a_is_lswax      = alcor_itr->tokenA.quantity.symbol == LSWAX_SYMBOL && alcor_itr->tokenA.contract == TOKEN_CONTRACT;
+        symbol  paired_symbol   = a_is_lswax ? alcor_itr->tokenB.quantity.symbol : alcor_itr->tokenA.quantity.symbol;
+        name    paired_contract = a_is_lswax ? alcor_itr->tokenB.contract : alcor_itr->tokenA.contract;
+
+        uint64_t    next_key    = 0;
+        auto        it          = incentives_t.end();
+
+        if ( incentives_t.begin() != incentives_t.end() ) {
+            it --;
+            next_key = it->id + 1;
+        }
+
+        create_alcor_farm( pool_id, paired_symbol, paired_contract, safecast::safe_cast<uint32_t>(days_to_seconds(duration_days)) );
+
+        const std::string outgoing_memo = "incentreward#" + std::to_string( next_key );
+        transfer_tokens( ALCOR_CONTRACT, quantity, TOKEN_CONTRACT, outgoing_memo );
+        return;        
+    }
+
     if ( words[1] == "rent_cpu" ) {
         check( tkcontract == WAX_CONTRACT, "only WAX can be sent with this memo" );
         check( words.size() >= 5, "memo for rent_cpu operation is incomplete" );

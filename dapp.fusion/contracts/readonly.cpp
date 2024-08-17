@@ -8,7 +8,7 @@
  * @param self_staker - staker_struct that stores data about sWAX backing lsWAX
  */
 
-void fusion::readonly_extend_reward(global&g, rewards& r, staker_struct& self_staker) {
+void fusion::readonly_extend_reward(global& g, rewards& r, staker_struct& self_staker) {
 
     if ( now() <= r.periodFinish ) return;
 
@@ -17,7 +17,7 @@ void fusion::readonly_extend_reward(global&g, rewards& r, staker_struct& self_st
         return;
     }
 
-    int64_t amount_to_distribute    = g.revenue_awaiting_distribution.amount;
+    int64_t amount_to_distribute    = readonly_max_reward(g, r);
     int64_t user_alloc_i64          = calculate_asset_share( amount_to_distribute, g.user_share_1e6 );
     int64_t pol_alloc_i64           = calculate_asset_share( amount_to_distribute, g.pol_share_1e6 );
     int64_t eco_alloc_i64           = calculate_asset_share( amount_to_distribute, g.ecosystem_share_1e6 );
@@ -47,6 +47,27 @@ void fusion::readonly_extend_reward(global&g, rewards& r, staker_struct& self_st
 
     r.totalSupply               += uint128_t(eco_alloc_i64);
     self_staker.swax_balance    += asset(eco_alloc_i64, SWAX_SYMBOL);
+}
+
+/**
+ * max_reward function, but with `get()` instead of `get_or_create()`
+ * 
+ * NOTE: The compiler didn't require a separate readonly function here,
+ * but it's better practice to not risk undesired behavior.
+ * 
+ * @param g - the `global` singleton
+ * @param r - the `rewards` singleton
+ * 
+ * @return `int64_t` - the amount of WAX to distribute
+ */
+
+int64_t fusion::readonly_max_reward(global& g, rewards& r){
+    global2     g2                  = global_s_2.get();
+    uint64_t    adjusted_max_apr    = mulDiv( g2.max_staker_apr_1e6, uint64_t(SCALE_FACTOR_1E8), uint128_t(g.user_share_1e6) );
+    int64_t     max_yearly_reward   = calculate_asset_share( r.totalSupply, adjusted_max_apr );
+    int64_t     max_daily_reward    = safecast::div( max_yearly_reward, int64_t(365) );
+
+    return std::min( max_daily_reward, g.revenue_awaiting_distribution.amount );
 }
 
 /** 

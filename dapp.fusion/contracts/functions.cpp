@@ -60,9 +60,9 @@ int64_t fusion::calculate_swax_output(const int64_t& quantity, global& g) {
     return mulDiv( uint64_t(g.swax_currently_backing_lswax.amount), uint64_t(quantity), uint128_t(g.liquified_swax.amount) );
 }
 
-void fusion::create_alcor_farm(const uint64_t& poolId, const symbol& token_symbol, const name& token_contract) {
+void fusion::create_alcor_farm(const uint64_t& poolId, const symbol& token_symbol, const name& token_contract, const uint32_t& duration) {
   action(active_perm(), ALCOR_CONTRACT, "newincentive"_n,
-         std::tuple{ _self, poolId, extended_asset(ZERO_LSWAX, TOKEN_CONTRACT), (uint32_t) LP_FARM_DURATION_SECONDS }
+         std::tuple{ _self, poolId, extended_asset(ZERO_LSWAX, TOKEN_CONTRACT), duration }
         ).send();
 }
 
@@ -289,7 +289,7 @@ bool fusion::memo_is_expected(const string& memo) {
   string          memo_copy   = memo;
   vector<string>  words       = get_words(memo_copy);
 
-  return ( words[1] == "rent_cpu" || words[1] == "unliquify_exact" );
+  return ( words[1] == "rent_cpu" || words[1] == "unliquify_exact" || words[1] == "new_incentive" );
 }
 
 inline uint64_t fusion::now() {

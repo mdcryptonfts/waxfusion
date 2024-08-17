@@ -339,19 +339,30 @@ ACTION fusion::createfarms() {
 
     for (auto lp_itr = lpfarms_t.begin(); lp_itr != lpfarms_t.end(); lp_itr++) {
 
-        int64_t lswax_allocation_i64 = calculate_asset_share( g.incentives_bucket.amount, lp_itr->percent_share_1e6 );
+        int64_t         lswax_allocation_i64    = calculate_asset_share( g.incentives_bucket.amount, lp_itr->percent_share_1e6 );
+        auto            incent_itr              = incent_ids_t.find( lp_itr->poolId );
+        std::string     memo;
 
         total_lswax_allocated = safecast::add( total_lswax_allocated, lswax_allocation_i64 );
 
-        create_alcor_farm(lp_itr->poolId, lp_itr->symbol_to_incentivize, lp_itr->contract_to_incentivize);
+        if( incent_itr == incent_ids_t.end() ){
+            create_alcor_farm( lp_itr->poolId, lp_itr->symbol_to_incentivize, lp_itr->contract_to_incentivize, safecast::safe_cast<uint32_t>(LP_FARM_DURATION_SECONDS) );
+
+            incent_ids_t.emplace(_self, [&](auto &_incent){
+                _incent.pool_id         = lp_itr->poolId;
+                _incent.incentive_id    = next_key;
+            });
+
+            memo = "incentreward#" + std::to_string( next_key );
+            next_key ++;
+        } else {
+            memo = "incentreward#" + std::to_string( incent_itr->incentive_id );
+        }
 
         // Only the incentive creator can deposit rewards to an Alcor farm,
         // so we can assume this is safe and someone didn't inject an inline action
         // to get these rewards added to their own farm
-        const std::string memo = "incentreward#" + std::to_string( next_key );
         transfer_tokens( ALCOR_CONTRACT, asset(lswax_allocation_i64, LSWAX_SYMBOL), TOKEN_CONTRACT, memo );
-
-        next_key ++;
     }
 
     check(total_lswax_allocated <= g.incentives_bucket.amount, "overallocation of incentives_bucket");
@@ -1109,6 +1120,19 @@ ACTION fusion::setrentprice(const name& caller, const asset& cost_to_rent_1_wax)
     global_s.set(g, _self);
 
     action(active_perm(), POL_CONTRACT, "setrentprice"_n, std::tuple{ cost_to_rent_1_wax }).send();
+}
+
+ACTION fusion::setversion(const name& caller, const std::string& version_id, const std::string& changelog_url){
+    require_auth(caller);
+
+    global  g = global_s.get();
+    version v = version_s.get_or_create(_self, version{});
+
+    check( is_an_admin(g, caller), "this action requires auth from one of the admin_wallets in the config table" );
+
+    v.version_id    = version_id;
+    v.changelog_url = changelog_url;
+    version_s.set(v, _self);
 }
 
 /**

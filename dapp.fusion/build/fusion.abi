@@ -265,6 +265,34 @@
             ]
         },
         {
+            "name": "global2",
+            "base": "",
+            "fields": [
+                {
+                    "name": "max_staker_apr_1e6",
+                    "type": "uint64"
+                },
+                {
+                    "name": "panic",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "incentive_ids",
+            "base": "",
+            "fields": [
+                {
+                    "name": "pool_id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "incentive_id",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
             "name": "init",
             "base": "",
             "fields": [
@@ -559,6 +587,24 @@
             ]
         },
         {
+            "name": "setversion",
+            "base": "",
+            "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                },
+                {
+                    "name": "version_id",
+                    "type": "string"
+                },
+                {
+                    "name": "changelog_url",
+                    "type": "string"
+                }
+            ]
+        },
+        {
             "name": "showexpcpu",
             "base": "",
             "fields": [
@@ -671,6 +717,20 @@
             "name": "updatetop21",
             "base": "",
             "fields": []
+        },
+        {
+            "name": "version",
+            "base": "",
+            "fields": [
+                {
+                    "name": "version_id",
+                    "type": "string"
+                },
+                {
+                    "name": "changelog_url",
+                    "type": "string"
+                }
+            ]
         }
     ],
     "actions": [
@@ -805,6 +865,11 @@
             "ricardian_contract": ""
         },
         {
+            "name": "setversion",
+            "type": "setversion",
+            "ricardian_contract": ""
+        },
+        {
             "name": "showexpcpu",
             "type": "showexpcpu",
             "ricardian_contract": ""
@@ -866,6 +931,20 @@
             "key_types": []
         },
         {
+            "name": "global2",
+            "type": "global2",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "incentiveids",
+            "type": "incentive_ids",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
             "name": "lpfarms",
             "type": "lpfarms",
             "index_type": "i64",
@@ -906,9 +985,15 @@
             "index_type": "i64",
             "key_names": [],
             "key_types": []
+        },
+        {
+            "name": "version",
+            "type": "version",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
         }
     ],
-    "kv_tables": {},
     "ricardian_clauses": [],
     "variants": [],
     "action_results": [
