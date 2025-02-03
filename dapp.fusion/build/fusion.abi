@@ -273,7 +273,15 @@
                     "type": "uint64"
                 },
                 {
+                    "name": "minimum_new_incentive",
+                    "type": "asset"
+                },
+                {
                     "name": "panic",
+                    "type": "bool"
+                },
+                {
+                    "name": "stake_unused_funds",
                     "type": "bool"
                 }
             ]
@@ -686,6 +694,16 @@
             ]
         },
         {
+            "name": "tgglstakeall",
+            "base": "",
+            "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                }
+            ]
+        },
+        {
             "name": "top21",
             "base": "",
             "fields": [
@@ -902,6 +920,11 @@
         {
             "name": "sync",
             "type": "sync",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "tgglstakeall",
+            "type": "tgglstakeall",
             "ricardian_contract": ""
         },
         {

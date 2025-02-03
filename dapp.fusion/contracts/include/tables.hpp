@@ -1,7 +1,5 @@
 #pragma once
 
-
-
 namespace alcor_contract {
 
   struct CurrSlotS {

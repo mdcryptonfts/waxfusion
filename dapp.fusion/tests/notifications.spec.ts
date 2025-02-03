@@ -117,7 +117,7 @@ const getSWaxStaker = async (user, log = false) => {
     }
     return staker; 
 }
-/*
+
 describe('\n\nstake memo', () => {
 
     it('error: need to use the stake action first', async () => {
@@ -394,6 +394,9 @@ describe('\n\ninstant redeem memo', () => {
         await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(100000), '']).send('mike@active');
         await stake('pol.fusion', 100000, true)
         await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');  
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.tgglstakeall(['dapp.fusion']).send('dapp.fusion@active');        
         await contracts.dapp_contract.actions.stakeallcpu([]).send()
         const action = contracts.token_contract.actions.transfer(['pol.fusion', 'dapp.fusion', lswax(100000), 'instant redeem']).send('pol.fusion@active');
         await expectToThrow(action, `eosio_assert: not enough instaredeem funds available`)
@@ -431,6 +434,9 @@ describe('\n\nrebalance memo', () => {
         await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(100000), '']).send('mike@active');
         await stake('pol.fusion', 100000, true)
         await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');  
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.tgglstakeall(['dapp.fusion']).send('dapp.fusion@active');        
         await contracts.dapp_contract.actions.stakeallcpu([]).send()
         const action = contracts.token_contract.actions.transfer(['pol.fusion', 'dapp.fusion', lswax(100000), 'rebalance']).send('pol.fusion@active');
         await expectToThrow(action, `eosio_assert: not enough instaredeem funds available`)
@@ -457,4 +463,3 @@ describe('\n\nwax_lswax_liquidity memo', () => {
     }); 
       
 });
-*/

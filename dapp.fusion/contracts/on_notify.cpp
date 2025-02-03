@@ -280,21 +280,21 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
      * 
      * Note: Only the token issuer can use a token as a reward on Alcor.
      * Since this contract is the token issuer of LSWAX, it prevents anyone 
-     * from creating a reward with a different wallet. To bypass this, approved
-     * wallets can send LSWAX to this contract and have it create the farm on
+     * from creating a reward with a different wallet. To bypass this, people
+     * can send LSWAX to this contract and have it create the farm on
      * their behalf.
      */
 
     if( words [1] == "new_incentive" ){
-        global          g               = global_s.get();
+        global2         g2              = global_s_2.get();
         const uint64_t  pool_id         = std::strtoull( words[2].c_str(), NULL, 0 );
         const uint64_t  duration_days   = std::strtoull( words[3].c_str(), NULL, 0 );
         auto            alcor_itr       = pools_t.require_find( pool_id, "alcor pool id does not exist" );        
 
         check( tkcontract == TOKEN_CONTRACT, "only LSWAX can be sent with this memo" );
         check( words.size() >= 4, "memo for new_incentive operation is incomplete" );
-        check( is_an_admin( g, from ), "only admins can create new incentives" );
         check( duration_days >= 7 && duration_days <= 365, "duration must be between 7 and 365 days" );
+        check( quantity >= g2.minimum_new_incentive, ( "minimum incentive is " + g2.minimum_new_incentive.to_string() ).c_str() );
 
         check(  (alcor_itr->tokenA.quantity.symbol == LSWAX_SYMBOL && alcor_itr->tokenA.contract == TOKEN_CONTRACT) 
                 ||

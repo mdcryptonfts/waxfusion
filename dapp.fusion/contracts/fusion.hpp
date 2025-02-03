@@ -65,6 +65,7 @@ CONTRACT fusion : public contract {
         ACTION stake(const name& user);
         ACTION stakeallcpu();
         ACTION sync(const name& caller);
+        ACTION tgglstakeall(const name& caller);
         ACTION unstakecpu(const uint64_t& epoch_id, const int& limit);
         ACTION updatetop21();
 

@@ -472,6 +472,7 @@ ACTION fusion::init(const asset& initial_reward_pool){
  * the contract on production networks.
  */
 
+/*
 ACTION fusion::inittop21() {
     require_auth(get_self());
 
@@ -515,7 +516,7 @@ ACTION fusion::inittop21() {
     top21_s.set(t, _self);
 
 }
-
+*/
 
 /**
  * Initializes the top 21 singleton
@@ -527,7 +528,7 @@ ACTION fusion::inittop21() {
  * than the real system contracts.
  */
 
-/*
+
 ACTION fusion::inittop21() {
     require_auth(get_self());
 
@@ -581,7 +582,7 @@ ACTION fusion::inittop21() {
     top21_s.set(t, _self);
 
 }
-*/
+
 
 
 /**
@@ -1190,13 +1191,14 @@ ACTION fusion::stake(const name& user) {
 
 ACTION fusion::stakeallcpu() {
     
-    global g = global_s.get();
+    global      g   = global_s.get();
+    global2     g2  = global_s_2.get_or_create( _self, global2{} );
 
     sync_epoch( g );
 
     check( now() >= g.next_stakeall_time, ( "next stakeall time is not until " + std::to_string(g.next_stakeall_time) ).c_str() );
 
-    if (g.wax_available_for_rentals.amount > 0) {
+    if (g2.stake_unused_funds && g.wax_available_for_rentals.amount > 0) {
 
         name        next_cpu_contract       = get_next_cpu_contract( g );
         uint64_t    next_epoch_start_time   = g.last_epoch_start_time + g.seconds_between_epochs;
@@ -1244,6 +1246,33 @@ ACTION fusion::sync(const name& caller) {
     sync_epoch( g );
 
     global_s.set(g, _self);
+}
+
+/**
+ * Changes the state of `stake_unused_funds` to opposite of current state
+ * 
+ * NOTE: In the `global2` singleton, the `stake_unused_funds` field can
+ * be set to true/false. If true, once per day, all `wax_available_for_rentals`
+ * will be staked to the `fallback_cpu_receiver`. This is useful if rentals
+ * are not in high demand, however it results in lower APRs if rentals
+ * are in high demand. Having flexibility to change this state based on
+ * current CPU rental demand is desirable.
+ * 
+ * @param caller - wax address of the user submitting this transaction
+ * 
+ * @required_auth - caller (must be an admin in global singleton)
+ */
+
+ACTION fusion::tgglstakeall(const name& caller) {
+    require_auth( caller );
+
+    global  g   = global_s.get();
+    global2 g2  = global_s_2.get();
+
+    check( is_an_admin( g, caller ), ( caller.to_string() + " is not an admin" ).c_str() );
+
+    g2.stake_unused_funds = !g2.stake_unused_funds;
+    global_s_2.set(g2, _self);
 }
 
 /**

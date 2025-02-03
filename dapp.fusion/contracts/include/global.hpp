@@ -1,5 +1,7 @@
 #pragma once
 
+#include <constants.hpp>
+
 struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] global {
     eosio::asset                swax_currently_earning;
     eosio::asset                swax_currently_backing_lswax;
@@ -34,46 +36,52 @@ struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] global {
     eosio::asset                total_rewards_claimed;
 
 
-    EOSLIB_SERIALIZE(global, (swax_currently_earning)
-                     (swax_currently_backing_lswax)
-                     (liquified_swax)
-                     (revenue_awaiting_distribution)
-                     (total_revenue_distributed)
-                     (wax_for_redemption)
-                     (last_epoch_start_time)
-                     (wax_available_for_rentals)
-                     (cost_to_rent_1_wax)
-                     (current_cpu_contract)
-                     (next_stakeall_time)
-                     (last_incentive_distribution)
-                     (incentives_bucket)
-                     (total_value_locked)
-                     (total_shares_allocated)
-                     (last_compound_time)
-                     (minimum_stake_amount)
-                     (minimum_unliquify_amount)
-                     (initial_epoch_start_time)
-                     (cpu_rental_epoch_length_seconds)
-                     (seconds_between_epochs)
-                     (user_share_1e6)
-                     (pol_share_1e6)
-                     (ecosystem_share_1e6)
-                     (admin_wallets)
-                     (cpu_contracts)
-                     (redemption_period_length_seconds)
-                     (seconds_between_stakeall)
-                     (fallback_cpu_receiver)
-                     (protocol_fee_1e6)
-                     (total_rewards_claimed)
+    EOSLIB_SERIALIZE(global,    (swax_currently_earning)
+                                (swax_currently_backing_lswax)
+                                (liquified_swax)
+                                (revenue_awaiting_distribution)
+                                (total_revenue_distributed)
+                                (wax_for_redemption)
+                                (last_epoch_start_time)
+                                (wax_available_for_rentals)
+                                (cost_to_rent_1_wax)
+                                (current_cpu_contract)
+                                (next_stakeall_time)
+                                (last_incentive_distribution)
+                                (incentives_bucket)
+                                (total_value_locked)
+                                (total_shares_allocated)
+                                (last_compound_time)
+                                (minimum_stake_amount)
+                                (minimum_unliquify_amount)
+                                (initial_epoch_start_time)
+                                (cpu_rental_epoch_length_seconds)
+                                (seconds_between_epochs)
+                                (user_share_1e6)
+                                (pol_share_1e6)
+                                (ecosystem_share_1e6)
+                                (admin_wallets)
+                                (cpu_contracts)
+                                (redemption_period_length_seconds)
+                                (seconds_between_stakeall)
+                                (fallback_cpu_receiver)
+                                (protocol_fee_1e6)
+                                (total_rewards_claimed)
                     )
 };
 using global_singleton = eosio::singleton<"global"_n, global>;
 
 
 struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] global2 {
-    uint64_t    max_staker_apr_1e6  = 12000000;
-    bool        panic               = false;   // Not currently used, only here in case needed later
+    uint64_t        max_staker_apr_1e6      = 12000000;
+    eosio::asset    minimum_new_incentive   = eosio::asset( 5000000000, LSWAX_SYMBOL );
+    bool            panic                   = false;   // Not currently used, only here in case needed later
+    bool            stake_unused_funds      = false;
 
-    EOSLIB_SERIALIZE(global2, (max_staker_apr_1e6)(panic))
+    EOSLIB_SERIALIZE(global2,   (max_staker_apr_1e6)
+                                (minimum_new_incentive)
+                                (panic)
+                                (stake_unused_funds)
+                    )
 };
 using global_singleton_2 = eosio::singleton<"global2"_n, global2>;
