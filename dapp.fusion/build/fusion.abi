@@ -297,6 +297,10 @@
                 {
                     "name": "incentive_id",
                     "type": "uint64"
+                },
+                {
+                    "name": "pending_boosts",
+                    "type": "asset"
                 }
             ]
         },
@@ -519,6 +523,10 @@
             "base": "",
             "fields": [
                 {
+                    "name": "caller",
+                    "type": "name"
+                },
+                {
                     "name": "poolId",
                     "type": "uint64"
                 }
@@ -542,6 +550,10 @@
             "name": "setincentive",
             "base": "",
             "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                },
                 {
                     "name": "poolId",
                     "type": "uint64"

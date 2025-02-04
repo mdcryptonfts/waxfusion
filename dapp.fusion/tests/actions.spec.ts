@@ -865,7 +865,7 @@ describe('\n\ncreatefarms action', () => {
     });  
 
     it('success with 2 farms', async () => {
-        await contracts.dapp_contract.actions.setincentive([3, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        await contracts.dapp_contract.actions.setincentive(['dapp.fusion', 3, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
         const incentives_after = await getDappIncentives()
         assert( incentives_after.length == 2, "there should be 2 incentives in the table" )
         await simulate_days(7, true)
@@ -879,7 +879,7 @@ describe('\n\ncreatefarms action', () => {
     });  
 
     it('success with previous farms in table', async () => {
-        await contracts.dapp_contract.actions.setincentive([3, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        await contracts.dapp_contract.actions.setincentive(['dapp.fusion', 3, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
         const incentives_after = await getDappIncentives()
         assert( incentives_after.length == 2, "there should be 2 incentives in the table" )
         await simulate_days(7, true)
@@ -1202,19 +1202,19 @@ describe('\n\nrmvcpucntrct action', () => {
 describe('\n\nrmvincentive action', () => {
 
     it('error: missing auth of self', async () => {
-        const action = contracts.dapp_contract.actions.rmvincentive([2]).send('eosio@active');
+        const action = contracts.dapp_contract.actions.rmvincentive(['dapp.fusion', 2]).send('eosio@active');
         await expectToThrow(action, "missing required authority dapp.fusion")
     }); 
      
     it(`error: this poolId doesn't exist in the lpfarms table`, async () => {
-        const action = contracts.dapp_contract.actions.rmvincentive([1]).send('dapp.fusion@active');
+        const action = contracts.dapp_contract.actions.rmvincentive(['dapp.fusion', 1]).send('dapp.fusion@active');
         await expectToThrow(action, `eosio_assert: this poolId doesn't exist in the lpfarms table`)
     });   
 
     it(`success`, async () => {
         const incentives_before = await getDappIncentives()
         assert( incentives_before.length == 1, "there should be 1 incentive in the table" )
-        await contracts.dapp_contract.actions.rmvincentive([2]).send('dapp.fusion@active');
+        await contracts.dapp_contract.actions.rmvincentive(['dapp.fusion', 2]).send('dapp.fusion@active');
         const incentives_after = await getDappIncentives()
         assert( incentives_after.length == 0, "there should be 0 incentives in the table" )        
     });         
@@ -1249,32 +1249,32 @@ describe('\n\nsetfallback action', () => {
 describe('\n\nsetincentive action', () => {
 
     it('error: missing auth of self', async () => {
-        const action = contracts.dapp_contract.actions.setincentive([3, '4,HONEY', 'nfthivehoney', 1000000]).send('eosio@active');
+        const action = contracts.dapp_contract.actions.setincentive(['dapp.fusion', 3, '4,HONEY', 'nfthivehoney', 1000000]).send('eosio@active');
         await expectToThrow(action, "missing required authority dapp.fusion")        
     }); 
      
     it('error: share must be positive', async () => {
-        const action = contracts.dapp_contract.actions.setincentive([3, '4,HONEY', 'nfthivehoney', 0]).send('dapp.fusion@active');
+        const action = contracts.dapp_contract.actions.setincentive(['dapp.fusion', 3, '4,HONEY', 'nfthivehoney', 0]).send('dapp.fusion@active');
         await expectToThrow(action, `eosio_assert: percent_share_1e6 must be positive`)        
     });   
 
     it('error: pool does not exist', async () => {
-        const action = contracts.dapp_contract.actions.setincentive([4, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        const action = contracts.dapp_contract.actions.setincentive(['dapp.fusion', 4, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
         await expectToThrow(action, `eosio_assert: this poolId does not exist`)        
     });  
 
     it('error: pool does not contain the token entered', async () => {
-        const action = contracts.dapp_contract.actions.setincentive([2, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        const action = contracts.dapp_contract.actions.setincentive(['dapp.fusion', 2, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
         await expectToThrow(action, `eosio_assert: this poolId does not contain the symbol/contract combo you entered`)        
     });   
 
     it('error: tokenA should be lsWAX', async () => {
-        const action = contracts.dapp_contract.actions.setincentive([2, '8,LSWAX', 'token.fusion', 1000000]).send('dapp.fusion@active');
+        const action = contracts.dapp_contract.actions.setincentive(['dapp.fusion', 2, '8,LSWAX', 'token.fusion', 1000000]).send('dapp.fusion@active');
         await expectToThrow(action, `eosio_assert: tokenA should be lsWAX`)        
     });  
 
     it('success', async () => {
-        await contracts.dapp_contract.actions.setincentive([3, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        await contracts.dapp_contract.actions.setincentive(['dapp.fusion', 3, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
         const incentives_after = await getDappIncentives()
         assert( incentives_after.length == 2, "there should be 2 incentives in the table" )
     });                          
@@ -1496,4 +1496,30 @@ describe('\n\nextend_reward', () => {
         assert( g.revenue_awaiting_distribution == wax(10), `there should be 0 wax awaiting distribution` )     
     }); 
        
+});
+
+describe('\n\ntgglstakeall action', () => {
+
+    it('error: missing auth of caller', async () => {
+        const action = contracts.dapp_contract.actions.tgglstakeall(['mike']).send('eosio@active');
+        await expectToThrow(action, `missing required authority mike`)
+    }); 
+      
+    it('error: caller is not an admin', async () => {
+        await incrementTime(86400)  
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');
+        const action = contracts.dapp_contract.actions.tgglstakeall(['mike']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: mike is not an admin`)
+    });
+
+    it('success', async () => {
+        await incrementTime(86400)  
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');
+        const global_before = await getDappGlobal2();
+        await contracts.dapp_contract.actions.tgglstakeall(['oig']).send('oig@active');
+        const global_after = await getDappGlobal2();
+
+        assert(!global_before?.stake_unused_funds, "stake_unused_funds should be false before");
+        assert(global_after?.stake_unused_funds, "stake_unused_funds should be true after");
+    });           
 });

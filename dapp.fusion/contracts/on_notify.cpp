@@ -283,6 +283,7 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
      * from creating a reward with a different wallet. To bypass this, people
      * can send LSWAX to this contract and have it create the farm on
      * their behalf.
+     * 
      */
 
     if( words [1] == "new_incentive" ){
@@ -301,6 +302,24 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
                 (alcor_itr->tokenB.quantity.symbol == LSWAX_SYMBOL && alcor_itr->tokenB.contract == TOKEN_CONTRACT),
                 "one of the tokens in the liquidity pool must be LSWAX"  
             );
+
+        /**
+         * We don't want people interfering with our ecosystem fund by spamming a 
+         * bunch of new farms for the ecosystem tokens. So if the pool_id is one of 
+         * the pairs in our ecosystem fund, the amount sent will be added to `pending_boosts` 
+         * for next week's farm, instead of creating a new farm on demand.
+         * This results in the same amount of farms that we would have anyway, in reference
+         * to the ecosystem fund. `createfarms` action will distribute these funds later,
+         * in this scenario.
+         */
+        auto lpfarms_itr = lpfarms_t.find(pool_id);
+        if(lpfarms_itr != lpfarms_t.end()){
+            auto incent_id_itr = incent_ids_t.require_find(pool_id, "incentive_id for this pair is not known yet, try again soon");
+            incent_ids_t.modify(incent_id_itr, _self, [&](auto & _incent) {
+                _incent.pending_boosts += quantity;
+            });
+            return;
+        }
 
         bool    a_is_lswax      = alcor_itr->tokenA.quantity.symbol == LSWAX_SYMBOL && alcor_itr->tokenA.contract == TOKEN_CONTRACT;
         symbol  paired_symbol   = a_is_lswax ? alcor_itr->tokenB.quantity.symbol : alcor_itr->tokenA.quantity.symbol;

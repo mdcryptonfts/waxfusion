@@ -356,6 +356,14 @@ ACTION fusion::createfarms() {
             memo = "incentreward#" + std::to_string( next_key );
             next_key ++;
         } else {
+            if(incent_itr->pending_boosts > ZERO_LSWAX){
+                lswax_allocation_i64 = safecast::add( incent_itr->pending_boosts.amount, lswax_allocation_i64 );
+
+                incent_ids_t.modify(incent_itr, _self, [&](auto & _incent) {
+                    _incent.pending_boosts = ZERO_LSWAX;
+                });                
+            }
+
             memo = "incentreward#" + std::to_string( incent_itr->incentive_id );
         }
 
@@ -948,16 +956,19 @@ ACTION fusion::rmvcpucntrct(const name& contract_to_remove) {
 /**
  * Removes an LP incentive from the `lp_farms` table
  * 
+ * @param caller - the wallet of the admin calling this action
  * @param poolId - the poolId of the liquidity pair, in Alcor's `pools` table
  * 
- * @required_auth - this contract
+ * @required_auth - caller
  */
 
-ACTION fusion::rmvincentive(const uint64_t& poolId) {
-    require_auth( _self );
+ACTION fusion::rmvincentive(const name& caller, const uint64_t& poolId) {
+    require_auth( caller );
 
     global  g       = global_s.get();
     auto    lp_itr  = lpfarms_t.require_find( poolId, "this poolId doesn't exist in the lpfarms table" );
+
+    check( is_an_admin(g, caller), "this action requires auth from one of the admin_wallets in the global table" );
 
     g.total_shares_allocated = safecast::sub( g.total_shares_allocated, lp_itr->percent_share_1e6 );
 
@@ -996,19 +1007,23 @@ ACTION fusion::setfallback(const name& caller, const name& receiver) {
  * creating Alcor incentives for certain lsWAX pairs. This action allows
  * us to specify which pairs get those incentives.
  * 
+ * @param caller - the admin who is calling this action
  * @param poolId - the poolID of the pair to incentivize, in Alcor's `pools` table
  * @param symbol_to_incentivize - the `symbol` of the token that is paired against lsWAX
  * @param contract_to_incentivize - the `contract` of the token that is paired against lsWAX
  * @param percent_share_1e6 - the percent of the ecosystem fund to allocate to this pair, scaled by 1e6
  * 
- * @required_auth - this contract
+ * @required_auth - caller
  */
 
-ACTION fusion::setincentive(const uint64_t& poolId, const eosio::symbol& symbol_to_incentivize, const eosio::name& contract_to_incentivize, const uint64_t& percent_share_1e6) {
-    require_auth( _self );
-    check(percent_share_1e6 > 0, "percent_share_1e6 must be positive");
+ACTION fusion::setincentive(const name& caller, const uint64_t& poolId, const eosio::symbol& symbol_to_incentivize, const eosio::name& contract_to_incentivize, const uint64_t& percent_share_1e6) {
+    require_auth( caller );
 
     global  g   = global_s.get();
+
+    check( is_an_admin(g, caller), "this action requires auth from one of the admin_wallets in the global table" );
+    check(percent_share_1e6 > 0, "percent_share_1e6 must be positive");
+
     auto    itr = pools_t.require_find(poolId, "this poolId does not exist");
 
     if( itr->tokenA.quantity.symbol == symbol_to_incentivize && itr->tokenA.contract == contract_to_incentivize ){
@@ -1230,6 +1245,9 @@ ACTION fusion::stakeallcpu() {
  * they can display things properly. Therefore, it requires admin auth to 
  * avoid unncessary spamming of transactions.
  * 
+ * NOTE: Action was updated to create the "next" epoch (to allow rentals up to 18 days)
+ * in cases where stakeallcpu is not called, or stake_unused_funds is disabled.
+ * 
  * @param caller - the wallet address submitting this transaction
  * 
  * @required_auth - any admin in the global singleton
@@ -1244,6 +1262,14 @@ ACTION fusion::sync(const name& caller) {
     check( is_an_admin( g, caller ), ( caller.to_string() + " is not an admin" ).c_str() );
 
     sync_epoch( g );
+
+    name        next_cpu_contract       = get_next_cpu_contract( g );
+    uint64_t    next_epoch_start_time   = g.last_epoch_start_time + g.seconds_between_epochs;
+    auto        next_epoch_itr          = epochs_t.find(next_epoch_start_time);
+
+    if (next_epoch_itr == epochs_t.end()) {
+        create_epoch( g, next_epoch_start_time, next_cpu_contract, ZERO_WAX );
+    }
 
     global_s.set(g, _self);
 }

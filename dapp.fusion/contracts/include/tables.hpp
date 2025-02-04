@@ -145,8 +145,9 @@ using epochs_table = eosio::multi_index<"epochs"_n, epochs>;
  */ 
 
 struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] incentive_ids {
-  uint64_t  pool_id;
-  uint64_t  incentive_id;                
+  uint64_t        pool_id;
+  uint64_t        incentive_id;
+  eosio::asset    pending_boosts = ZERO_LSWAX;        
 
   uint64_t primary_key() const { return pool_id; }
 };
