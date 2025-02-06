@@ -20,31 +20,31 @@ using namespace eosio;
 
 
 CONTRACT alcor : public contract {
-	public:
-		using contract::contract;
-		alcor(name receiver, name code, datastream<const char *> ds):
-		contract(receiver, code, ds)
-		{}
+    public:
+        using contract::contract;
+        alcor(name receiver, name code, datastream<const char *> ds):
+        contract(receiver, code, ds)
+        {}
 
-		//Main Actions
-		ACTION createpool(const eosio::name& account, const eosio::extended_asset& tokenA, const eosio::extended_asset& tokenB);
-		ACTION initunittest(const eosio::asset& wax_amount, const eosio::asset& lswax_amount);
-		ACTION newincentive(const name& creator, const uint64_t& poolId, const extended_asset& rewardToken, const uint32_t& duration);
+        //Main Actions
+        ACTION createpool(const eosio::name& account, const eosio::extended_asset& tokenA, const eosio::extended_asset& tokenB);
+        ACTION initunittest(const eosio::asset& wax_amount, const eosio::asset& lswax_amount);
+        ACTION newincentive(const name& creator, const uint64_t& poolId, const extended_asset& rewardToken, const uint32_t& duration);
 
-		//Notifications
-		[[eosio::on_notify("*::transfer")]] void receive_token_transfer(const name& from, const name& to, const asset& quantity, const std::string& memo);
+        //Notifications
+        [[eosio::on_notify("*::transfer")]] void receive_token_transfer(const name& from, const name& to, const asset& quantity, const std::string& memo);
 
 
-	private:
+    private:
 
-		//Multi Index Tables
-		incentives_table incentives_t = incentives_table( _self, _self.value );
-		pools_table pools_t = pools_table( _self, _self.value);
+        //Multi Index Tables
+        incentives_table incentives_t = incentives_table( _self, _self.value );
+        pools_table pools_t = pools_table( _self, _self.value);
 
-		//Functions
-		uint128_t calculate_sqrtPriceX64(int64_t amountA, int64_t amountB);
-		uint64_t get_incentive_id_from_string(const std::string& str);
-		uint64_t now();
+        //Functions
+        uint128_t calculate_sqrtPriceX64(int64_t amountA, int64_t amountB);
+        uint64_t get_incentive_id_from_string(const std::string& str);
+        uint64_t now();
 
 };
 
