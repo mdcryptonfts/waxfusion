@@ -386,7 +386,6 @@ describe('\n\ncompound action', () => {
 
 });
 
-
 describe('\n\naddadmin action', () => {
 
     it('error: missing auth of _self', async () => {
@@ -1259,7 +1258,7 @@ describe('\n\nsetincentive action', () => {
     });   
 
     it('error: pool does not exist', async () => {
-        const action = contracts.dapp_contract.actions.setincentive(['dapp.fusion', 4, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
+        const action = contracts.dapp_contract.actions.setincentive(['dapp.fusion', 10, '4,HONEY', 'nfthivehoney', 1000000]).send('dapp.fusion@active');
         await expectToThrow(action, `eosio_assert: this poolId does not exist`)        
     });  
 
@@ -1522,4 +1521,64 @@ describe('\n\ntgglstakeall action', () => {
         assert(!global_before?.stake_unused_funds, "stake_unused_funds should be false before");
         assert(global_after?.stake_unused_funds, "stake_unused_funds should be true after");
     });           
+});
+
+describe('\n\nsync action', () => {
+
+    it('success: farthest epoch was created (with stakeallcpu disabled)', async () => {
+        await incrementTime(86400)  
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');
+        const epochs_before = await getEpochs()
+        await contracts.dapp_contract.actions.sync(['dapp.fusion']).send('dapp.fusion@active');
+        const epochs_after = await getEpochs()
+        assert(epochs_before?.length == 1, "should only be 1 epoch before");
+        assert(epochs_after?.length == 2, "should be 2 epochs after");
+        assert(epochs_after[1]?.start_time == initial_state.chain_time + (86400*7), "2nd epoch should start 7 days after first");
+    });       
+});
+
+
+describe('\n\nsetincentcfg action', () => {
+
+    it('error: missing auth of caller', async () => {
+        const action = contracts.dapp_contract.actions.setincentcfg(['mike', '100.00000000 LSWAX', '1.00000000 LSWAX']).send('eosio@active');
+        await expectToThrow(action, `missing required authority mike`)
+    });  
+
+    it('error: caller not an admin', async () => {
+        const action = contracts.dapp_contract.actions.setincentcfg(['mike', '100.00000000 LSWAX', '1.00000000 LSWAX']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: this action requires auth from one of the admin_wallets in the global table`)
+    });  
+
+    it('error: minimum must be in LSWAX', async () => {
+        const action = contracts.dapp_contract.actions.setincentcfg(['dapp.fusion', '100.00000000 WAX', '1.00000000 LSWAX']).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: minimum_new_incentive must be denomitated in LSWAX`)
+    });  
+
+    it('error: fee must be in LSWAX', async () => {
+        const action = contracts.dapp_contract.actions.setincentcfg(['dapp.fusion', '100.00000000 LSWAX', '1.00000000 WAX']).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: new_incentive_fee must be denomitated in LSWAX`)
+    });  
+
+    it('error: minimum must be > fee', async () => {
+        const action = contracts.dapp_contract.actions.setincentcfg(['dapp.fusion', '100.00000000 LSWAX', '100.00000000 LSWAX']).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: minimum incentive must be greater than the fee`)
+    });
+
+    it('error: minimum incentive must be at least 10 LSWAX', async () => {
+        const action = contracts.dapp_contract.actions.setincentcfg(['dapp.fusion', '9.00000000 LSWAX', '1.00000000 LSWAX']).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: minimum incentive must be at least 10 LSWAX`)
+    });  
+
+    it('error: new_incentive_fee must be at least 1 LSWAX', async () => {
+        const action = contracts.dapp_contract.actions.setincentcfg(['dapp.fusion', '10.00000000 LSWAX', '0.99900000 LSWAX']).send('dapp.fusion@active');
+        await expectToThrow(action, `eosio_assert: new_incentive_fee must be at least 1 LSWAX`)
+    });    
+
+    it('success', async () => {
+        await contracts.dapp_contract.actions.setincentcfg(['dapp.fusion', '150.00000000 LSWAX', '5.00000000 LSWAX']).send('dapp.fusion@active');
+        const g2 = await getDappGlobal2();
+        assert(g2.minimum_new_incentive == lswax(150), `minimum_new_incentive should be 150 LSWAX`);
+        assert(g2.new_incentive_fee == lswax(5), `new_incentive_fee should be 5 LSWAX`);
+    });                     
 });

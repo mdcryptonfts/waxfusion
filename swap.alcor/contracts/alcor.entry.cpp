@@ -20,7 +20,19 @@ uint128_t alcor::calculate_sqrtPriceX64(int64_t amountA, int64_t amountB){
     return sqrtPriceX64;
 }
 
-uint64_t now(){
+uint64_t alcor::get_incentive_id_from_string(const std::string& str){
+    size_t pos = str.find('#');
+    
+    if (pos == std::string::npos || pos + 1 >= str.size()) {
+        check(false, "missing number after #");
+    }
+
+    std::string 		pool_id_str = str.substr(pos + 1);
+    const uint64_t 	pool_id_64 	=	std::strtoull(pool_id_str.c_str(),NULL,0);
+    return pool_id_64;
+}
+
+uint64_t alcor::now(){
   return current_time_point().sec_since_epoch();
 }
 

@@ -43,6 +43,8 @@ CONTRACT alcor : public contract {
 
 		//Functions
 		uint128_t calculate_sqrtPriceX64(int64_t amountA, int64_t amountB);
+		uint64_t get_incentive_id_from_string(const std::string& str);
+		uint64_t now();
 
 };
 

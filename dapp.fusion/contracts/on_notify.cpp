@@ -335,8 +335,11 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
         create_alcor_farm( pool_id, paired_symbol, paired_contract, safecast::safe_cast<uint32_t>(days_to_seconds(duration_days)) );
 
-        const std::string outgoing_memo = "incentreward#" + std::to_string( next_key );
-        transfer_tokens( ALCOR_CONTRACT, quantity, TOKEN_CONTRACT, outgoing_memo );
+        const asset         amount_to_send_alcor    = quantity - g2.new_incentive_fee;
+        const std::string   outgoing_memo           = "incentreward#" + std::to_string( next_key );
+
+        transfer_tokens( POL_CONTRACT, g2.new_incentive_fee, TOKEN_CONTRACT, "new_incentive fee" );
+        transfer_tokens( ALCOR_CONTRACT, amount_to_send_alcor, TOKEN_CONTRACT, outgoing_memo );
         return;        
     }
 

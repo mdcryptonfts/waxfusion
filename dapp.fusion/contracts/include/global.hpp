@@ -74,12 +74,14 @@ using global_singleton = eosio::singleton<"global"_n, global>;
 
 struct [[eosio::table, eosio::contract(CONTRACT_NAME)]] global2 {
     uint64_t        max_staker_apr_1e6      = 12000000;
-    eosio::asset    minimum_new_incentive   = eosio::asset( 5000000000, LSWAX_SYMBOL );
+    eosio::asset    minimum_new_incentive   = eosio::asset( 10000000000, LSWAX_SYMBOL );   // 100 LSWAX
+    eosio::asset    new_incentive_fee       = eosio::asset( 100000000, LSWAX_SYMBOL );     // 1 LSWAX
     bool            panic                   = false;   // Not currently used, only here in case needed later
     bool            stake_unused_funds      = false;
 
     EOSLIB_SERIALIZE(global2,   (max_staker_apr_1e6)
                                 (minimum_new_incentive)
+                                (new_incentive_fee)
                                 (panic)
                                 (stake_unused_funds)
                     )

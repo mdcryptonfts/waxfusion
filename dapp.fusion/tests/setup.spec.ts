@@ -61,7 +61,9 @@ const init = async () => {
     await contracts.cpu1.actions.initstate().send();
     await contracts.cpu2.actions.initstate().send();
     await contracts.cpu3.actions.initstate().send();  
-    await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 HONEY', contract: 'nfthivehoney'}, {quantity: lswax(0), contract: 'token.fusion'}]).send('eosio@active');       
+    await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 HONEY', contract: 'nfthivehoney'}, {quantity: lswax(0), contract: 'token.fusion'}]).send('eosio@active');
+    await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 CHEESE', contract: 'cheeseburger'}, {quantity: lswax(0), contract: 'token.fusion'}]).send('eosio@active');       
+    await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 CHEESE', contract: 'cheeseburger'}, {quantity: wax(0), contract: 'eosio.token'}]).send('eosio@active');       
     await contracts.honey_contract.actions.create(['mike', initial_state.honey_supply]).send();
     await contracts.honey_contract.actions.issue(['mike', initial_state.honey_supply, 'issuing honey']).send('mike@active');
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.swax_supply]).send();

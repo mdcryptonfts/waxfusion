@@ -277,6 +277,10 @@
                     "type": "asset"
                 },
                 {
+                    "name": "new_incentive_fee",
+                    "type": "asset"
+                },
+                {
                     "name": "panic",
                     "type": "bool"
                 },
@@ -543,6 +547,24 @@
                 {
                     "name": "receiver",
                     "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "setincentcfg",
+            "base": "",
+            "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                },
+                {
+                    "name": "minimum_new_incentive",
+                    "type": "asset"
+                },
+                {
+                    "name": "new_incentive_fee",
+                    "type": "asset"
                 }
             ]
         },
@@ -872,6 +894,11 @@
         {
             "name": "setfallback",
             "type": "setfallback",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setincentcfg",
+            "type": "setincentcfg",
             "ricardian_contract": ""
         },
         {

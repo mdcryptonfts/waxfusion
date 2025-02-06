@@ -1001,6 +1001,40 @@ ACTION fusion::setfallback(const name& caller, const name& receiver) {
 }
 
 /**
+ * Allows an admin to update the config for `minimum_new_incentive` and `new_incentive_fee`
+ * 
+ * Note: Allowing people to create farms on Alcor by depositing LSWAX to this contract opens
+ * up some possible ways of taking advantage of RAM (we pay ram for farms we create), and for
+ * blocking other people from creating new farms for a pair. Rather than trying to police people,
+ * we disincentivize this malicious behavior by charging a fee (which goes to POL), and by having
+ * a minimum_incentive (you have to risk e.g. 100 LSWAX per farm that you create).
+ * 
+ * @param caller - admin calling this action
+ * @param minimum_new_incentive - minimum amount of LSWAX to create a farm with
+ * @param new_incentive_fee - the fee that goes to POL when a user creates a new farm
+ * 
+ * @required_auth - any admin in the global singleton
+ */
+
+ACTION fusion::setincentcfg(const name& caller, const asset& minimum_new_incentive, const asset& new_incentive_fee){
+    require_auth( caller );
+
+    global      g   = global_s.get();
+    global2     g2  = global_s_2.get_or_create( _self, global2{} );
+
+    check( is_an_admin(g, caller), "this action requires auth from one of the admin_wallets in the global table" );
+    check( minimum_new_incentive.symbol == LSWAX_SYMBOL, "minimum_new_incentive must be denomitated in LSWAX");
+    check( new_incentive_fee.symbol == LSWAX_SYMBOL, "new_incentive_fee must be denomitated in LSWAX");
+    check( minimum_new_incentive > new_incentive_fee, "minimum incentive must be greater than the fee" );
+    check( minimum_new_incentive >= asset(1000000000, LSWAX_SYMBOL), "minimum incentive must be at least 10 LSWAX");
+    check( new_incentive_fee >= asset(100000000, LSWAX_SYMBOL), "new_incentive_fee must be at least 1 LSWAX");
+
+    g2.minimum_new_incentive    = minimum_new_incentive;
+    g2.new_incentive_fee        = new_incentive_fee;
+    global_s_2.set(g2, _self);
+}
+
+/**
  * Adds or modifies an LP pair to the `lp_farms` table
  * 
  * NOTE: Our ecosystem fund allocates a portion of protocol revenue to 
