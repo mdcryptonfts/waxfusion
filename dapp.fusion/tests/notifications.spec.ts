@@ -16,6 +16,17 @@ const scopes = {
     system: contracts.system_contract.value
 }
 
+const getAlcorIncentives = async (log = false) => {
+    const incentives = await contracts.alcor_contract.tables
+        .incentives(scopes.alcor)
+        .getTableRows()
+    if(log){
+        console.log("alcor incentives:")
+        console.log(incentives) 
+    }  
+    return incentives 
+}
+
 const getAlcorPool = async (log = false) => {
     const alcor_pool = await contracts.alcor_contract.tables
         .pools(scopes.alcor)
@@ -25,6 +36,17 @@ const getAlcorPool = async (log = false) => {
         console.log(alcor_pool) 
     }  
     return alcor_pool 
+}
+
+const getAllAlcorPools = async (log = false) => {
+    const alcor_pools = await contracts.alcor_contract.tables
+        .pools(scopes.alcor)
+        .getTableRows()
+    if(log){
+        console.log("all alcor pools:")
+        console.log(alcor_pools) 
+    }  
+    return alcor_pools
 }
 
 const getBalances = async (user, contract, log = false) => {
@@ -50,6 +72,16 @@ const getDappGlobal = async (log = false) => {
     return g 
 }
 
+const getDappGlobal2 = async (log = false) => {
+    const g2 = await contracts.dapp_contract.tables
+        .global2(scopes.dapp)
+        .getTableRows()[0]
+    if(log){
+        console.log('global2:')
+        console.log(g2)
+    }
+    return g2
+}
 
 const getDappTop21 = async (log = false) => {
     const top21 = await contracts.dapp_contract.tables
@@ -60,6 +92,28 @@ const getDappTop21 = async (log = false) => {
         console.log(top21)  
     }
     return top21    
+}
+
+const getEcosystemFund = async (log = false) => {
+    const lpfarms = await contracts.dapp_contract.tables
+        .lpfarms(scopes.dapp)
+        .getTableRows()
+    if(log){
+        console.log('lpfarms:')
+        console.log(lpfarms)  
+    }
+    return lpfarms    
+}
+
+const getIncentiveIdsTable = async (log = false) => {
+    const incentiveids = await contracts.dapp_contract.tables
+        .incentiveids(scopes.dapp)
+        .getTableRows()
+    if(log){
+        console.log('incentiveids:')
+        console.log(incentiveids)  
+    }
+    return incentiveids    
 }
 
 const getPolConfig = async (log = false) => {
@@ -117,7 +171,8 @@ const getSWaxStaker = async (user, log = false) => {
     }
     return staker; 
 }
-/*
+
+
 describe('\n\nstake memo', () => {
 
     it('error: need to use the stake action first', async () => {
@@ -394,6 +449,9 @@ describe('\n\ninstant redeem memo', () => {
         await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(100000), '']).send('mike@active');
         await stake('pol.fusion', 100000, true)
         await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');  
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.tgglstakeall(['dapp.fusion']).send('dapp.fusion@active');        
         await contracts.dapp_contract.actions.stakeallcpu([]).send()
         const action = contracts.token_contract.actions.transfer(['pol.fusion', 'dapp.fusion', lswax(100000), 'instant redeem']).send('pol.fusion@active');
         await expectToThrow(action, `eosio_assert: not enough instaredeem funds available`)
@@ -431,6 +489,9 @@ describe('\n\nrebalance memo', () => {
         await contracts.wax_contract.actions.transfer(['mike', 'pol.fusion', wax(100000), '']).send('mike@active');
         await stake('pol.fusion', 100000, true)
         await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');  
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.tgglstakeall(['dapp.fusion']).send('dapp.fusion@active');        
         await contracts.dapp_contract.actions.stakeallcpu([]).send()
         const action = contracts.token_contract.actions.transfer(['pol.fusion', 'dapp.fusion', lswax(100000), 'rebalance']).send('pol.fusion@active');
         await expectToThrow(action, `eosio_assert: not enough instaredeem funds available`)
@@ -457,4 +518,132 @@ describe('\n\nwax_lswax_liquidity memo', () => {
     }); 
       
 });
-*/
+
+describe('\n\nnew_incentive memo for non-ecosystem farms', () => {
+
+    it('error: alcor pool id does not exist', async () => {
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');         
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(100), '|new_incentive|100|365|']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: alcor pool id does not exist`)
+    }); 
+
+    it('error: only lswax accepted', async () => {
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');         
+        const action = contracts.wax_contract.actions.transfer(['mike', 'dapp.fusion', wax(100), '|new_incentive|4|365|']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: only LSWAX can be sent with this memo`)        
+    });  
+
+    it('error: incomplete memo', async () => {
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');         
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(100), '|new_incentive|4|']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: memo for new_incentive operation is incomplete`) 
+    });   
+
+    it('error: duration too short', async () => {
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');         
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(100), '|new_incentive|4|6|']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: duration must be between 7 and 365 days`)
+    });  
+
+    it('error: duration too long', async () => {
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');         
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(100), '|new_incentive|4|366|']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: duration must be between 7 and 365 days`)
+    });   
+
+    it('error: minimum incentive not met', async () => {
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');         
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(99.9), '|new_incentive|4|365|']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: minimum incentive is 100.00000000 LSWAX`)
+    });            
+      
+    it('error: one of the tokens must be LSWAX', async () => {
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');         
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(100), '|new_incentive|5|365|']).send('mike@active');
+        await expectToThrow(action, `eosio_assert: one of the tokens in the liquidity pool must be LSWAX`)
+    });      
+
+    it('success', async () => {
+        const alcors_lswax_before = await getBalances('swap.alcor', contracts.token_contract)
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');     
+        const g2 = await getDappGlobal2()    
+        await stake('mike', 1000, true)
+        await contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(100), '|new_incentive|3|365|']).send('mike@active');
+        const alcors_lswax_after = await getBalances('swap.alcor', contracts.token_contract)
+        const expected_added_to_alcor = 100 - parseFloat(g2?.new_incentive_fee)
+        assert(parseFloat(alcors_lswax_before[0]?.balance) + expected_added_to_alcor == parseFloat(alcors_lswax_after[0]?.balance), `alcor should have ${expected_added_to_alcor} more lswax` )
+    });     
+});
+
+describe('\n\nnew_incentive memo for ecosystem farm', () => {
+    
+    it('error: incentive_id not known yet', async () => {
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');         
+        await stake('mike', 1000, true)
+        const action = contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(100), '|new_incentive|2|365|']).send('mike@active');        
+        await expectToThrow(action, `eosio_assert: incentive_id for this pair is not known yet, try again soon`)
+    });
+       
+    it('success: stored as pending boost', async () => {        
+        await simulate_days(7, true)
+        await stake('mike', 1000, true)
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');         
+        await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
+        const alcors_lswax_before = await getBalances('swap.alcor', contracts.token_contract)   
+        await contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(100), '|new_incentive|2|365|']).send('mike@active');
+        const incentive_ids = await getIncentiveIdsTable()
+        const alcors_lswax_after = await getBalances('swap.alcor', contracts.token_contract)
+        assert(incentive_ids[0]?.pending_boosts == lswax(100), "pending boosts should be 100 lswax")
+        assert(alcors_lswax_before[0]?.balance == alcors_lswax_after[0]?.balance, "alcors lswax should not have changed")
+    }); 
+
+    it('success: pending boost used the next week', async () => {        
+        await simulate_days(7, true)
+        await stake('mike', 1000, true)
+        await incrementTime(86400)
+        await contracts.dapp_contract.actions.stakeallcpu([]).send('mike@active');         
+        await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
+        const alcors_lswax_before = await getBalances('swap.alcor', contracts.token_contract)   
+        await contracts.token_contract.actions.transfer(['mike', 'dapp.fusion', lswax(100), '|new_incentive|2|365|']).send('mike@active');
+        const incentive_ids = await getIncentiveIdsTable()
+        const global_before_extension = await getDappGlobal();
+        const alcors_lswax_after = await getBalances('swap.alcor', contracts.token_contract)
+        assert(incentive_ids[0]?.pending_boosts == lswax(100), "pending boosts should be 100 lswax")
+        assert(alcors_lswax_before[0]?.balance == alcors_lswax_after[0]?.balance, "alcors lswax should not have changed")
+        await incrementTime(86400*7)
+        await contracts.dapp_contract.actions.createfarms([]).send('mike@active');
+        const incentive_ids_after = await getIncentiveIdsTable()
+        assert(incentive_ids_after[0]?.pending_boosts == lswax(0), "pending boosts should be 0 lswax")
+        const alcors_lswax_3 = await getBalances('swap.alcor', contracts.token_contract)
+        const alcor_incentives = await getAlcorIncentives()
+
+        const alcors_expected_balance =     Number(
+                                                parseFloat(alcors_lswax_after[0]?.balance)
+                                                + 100 // pending_boosts before farm extension
+                                                + (parseFloat(global_before_extension?.incentives_bucket) * 0.25)
+                                            ).toFixed(8)
+
+        const expected_incentive_amount =   Number(
+                                                100 + (parseFloat(global_before_extension?.incentives_bucket) * 0.25)
+                                            ).toFixed(8)
+
+        assert(alcors_expected_balance == parseFloat(alcors_lswax_3[0]?.balance), `alcor should have ${alcors_expected_balance} but has ${parseFloat(alcors_lswax_3[0]?.balance)}`)
+        assert(expected_incentive_amount == parseFloat(alcor_incentives[0]?.reward?.quantity), `alcor should have ${expected_incentive_amount} but has ${parseFloat(alcor_incentives[0]?.reward?.quantity)}`)
+    });           
+});

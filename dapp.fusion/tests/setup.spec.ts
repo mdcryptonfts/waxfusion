@@ -61,7 +61,9 @@ const init = async () => {
     await contracts.cpu1.actions.initstate().send();
     await contracts.cpu2.actions.initstate().send();
     await contracts.cpu3.actions.initstate().send();  
-    await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 HONEY', contract: 'nfthivehoney'}, {quantity: lswax(0), contract: 'token.fusion'}]).send('eosio@active');       
+    await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 HONEY', contract: 'nfthivehoney'}, {quantity: lswax(0), contract: 'token.fusion'}]).send('eosio@active');
+    await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 CHEESE', contract: 'cheeseburger'}, {quantity: lswax(0), contract: 'token.fusion'}]).send('eosio@active');       
+    await contracts.alcor_contract.actions.createpool(['eosio', {quantity: '0.0000 CHEESE', contract: 'cheeseburger'}, {quantity: wax(0), contract: 'eosio.token'}]).send('eosio@active');       
     await contracts.honey_contract.actions.create(['mike', initial_state.honey_supply]).send();
     await contracts.honey_contract.actions.issue(['mike', initial_state.honey_supply, 'issuing honey']).send('mike@active');
     await contracts.token_contract.actions.create(['dapp.fusion', initial_state.swax_supply]).send();
@@ -69,9 +71,9 @@ const init = async () => {
     await contracts.wax_contract.actions.transfer(['eosio', 'mike', wax(1000000), '1M wax for mike']).send('eosio@active');
     await contracts.wax_contract.actions.transfer(['eosio', 'bob', wax(1000000), '1M wax for bob']).send('eosio@active');
     await contracts.wax_contract.actions.transfer(['eosio', 'ricky', wax(1000000), '1M wax for ricky']).send('eosio@active');
-    //await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for liquidity only']).send('eosio@active');
+    await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for liquidity only']).send('eosio@active');
     await contracts.wax_contract.actions.transfer(['eosio', 'pol.fusion', wax(100000), 'for staking pool only']).send('eosio@active');
-    await contracts.dapp_contract.actions.setincentive([2, '8,WAX', 'eosio.token', 25000000]).send('dapp.fusion@active')
+    await contracts.dapp_contract.actions.setincentive(['dapp.fusion', 2, '8,WAX', 'eosio.token', 25000000]).send('dapp.fusion@active')
 
 }
 

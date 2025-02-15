@@ -55,9 +55,10 @@ CONTRACT fusion : public contract {
         ACTION removeadmin(const name& admin_to_remove);
         ACTION reqredeem(const name& user, const asset& swax_to_redeem, const bool& accept_replacing_prev_requests);
         ACTION rmvcpucntrct(const name& contract_to_remove);
-        ACTION rmvincentive(const uint64_t& poolId);
+        ACTION rmvincentive(const name& caller, const uint64_t& poolId);
         ACTION setfallback(const name& caller, const name& receiver);
-        ACTION setincentive(const uint64_t& poolId, const eosio::symbol& symbol_to_incentivize, const eosio::name& contract_to_incentivize, const uint64_t& percent_share_1e6);
+        ACTION setincentcfg(const name& caller, const asset& minimum_new_incentive, const asset& new_incentive_fee);
+        ACTION setincentive(const name& caller, const uint64_t& poolId, const eosio::symbol& symbol_to_incentivize, const eosio::name& contract_to_incentivize, const uint64_t& percent_share_1e6);
         ACTION setpolshare(const uint64_t& pol_share_1e6);
         ACTION setredeemfee(const uint64_t& protocol_fee_1e6);
         ACTION setrentprice(const name& caller, const asset& cost_to_rent_1_wax);
@@ -65,6 +66,7 @@ CONTRACT fusion : public contract {
         ACTION stake(const name& user);
         ACTION stakeallcpu();
         ACTION sync(const name& caller);
+        ACTION tgglstakeall(const name& caller);
         ACTION unstakecpu(const uint64_t& epoch_id, const int& limit);
         ACTION updatetop21();
 

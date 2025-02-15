@@ -280,27 +280,46 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
      * 
      * Note: Only the token issuer can use a token as a reward on Alcor.
      * Since this contract is the token issuer of LSWAX, it prevents anyone 
-     * from creating a reward with a different wallet. To bypass this, approved
-     * wallets can send LSWAX to this contract and have it create the farm on
+     * from creating a reward with a different wallet. To bypass this, people
+     * can send LSWAX to this contract and have it create the farm on
      * their behalf.
+     * 
      */
 
     if( words [1] == "new_incentive" ){
-        global          g               = global_s.get();
+        global2         g2              = global_s_2.get();
         const uint64_t  pool_id         = std::strtoull( words[2].c_str(), NULL, 0 );
         const uint64_t  duration_days   = std::strtoull( words[3].c_str(), NULL, 0 );
         auto            alcor_itr       = pools_t.require_find( pool_id, "alcor pool id does not exist" );        
 
         check( tkcontract == TOKEN_CONTRACT, "only LSWAX can be sent with this memo" );
         check( words.size() >= 4, "memo for new_incentive operation is incomplete" );
-        check( is_an_admin( g, from ), "only admins can create new incentives" );
         check( duration_days >= 7 && duration_days <= 365, "duration must be between 7 and 365 days" );
+        check( quantity >= g2.minimum_new_incentive, ( "minimum incentive is " + g2.minimum_new_incentive.to_string() ).c_str() );
 
         check(  (alcor_itr->tokenA.quantity.symbol == LSWAX_SYMBOL && alcor_itr->tokenA.contract == TOKEN_CONTRACT) 
                 ||
                 (alcor_itr->tokenB.quantity.symbol == LSWAX_SYMBOL && alcor_itr->tokenB.contract == TOKEN_CONTRACT),
                 "one of the tokens in the liquidity pool must be LSWAX"  
             );
+
+        /**
+         * We don't want people interfering with our ecosystem fund by spamming a 
+         * bunch of new farms for the ecosystem tokens. So if the pool_id is one of 
+         * the pairs in our ecosystem fund, the amount sent will be added to `pending_boosts` 
+         * for next week's farm, instead of creating a new farm on demand.
+         * This results in the same amount of farms that we would have anyway, in reference
+         * to the ecosystem fund. `createfarms` action will distribute these funds later,
+         * in this scenario.
+         */
+        auto lpfarms_itr = lpfarms_t.find(pool_id);
+        if(lpfarms_itr != lpfarms_t.end()){
+            auto incent_id_itr = incent_ids_t.require_find(pool_id, "incentive_id for this pair is not known yet, try again soon");
+            incent_ids_t.modify(incent_id_itr, _self, [&](auto & _incent) {
+                _incent.pending_boosts += quantity;
+            });
+            return;
+        }
 
         bool    a_is_lswax      = alcor_itr->tokenA.quantity.symbol == LSWAX_SYMBOL && alcor_itr->tokenA.contract == TOKEN_CONTRACT;
         symbol  paired_symbol   = a_is_lswax ? alcor_itr->tokenB.quantity.symbol : alcor_itr->tokenA.quantity.symbol;
@@ -316,8 +335,11 @@ void fusion::receive_token_transfer(name from, name to, eosio::asset quantity, s
 
         create_alcor_farm( pool_id, paired_symbol, paired_contract, safecast::safe_cast<uint32_t>(days_to_seconds(duration_days)) );
 
-        const std::string outgoing_memo = "incentreward#" + std::to_string( next_key );
-        transfer_tokens( ALCOR_CONTRACT, quantity, TOKEN_CONTRACT, outgoing_memo );
+        const asset         amount_to_send_alcor    = quantity - g2.new_incentive_fee;
+        const std::string   outgoing_memo           = "incentreward#" + std::to_string( next_key );
+
+        transfer_tokens( POL_CONTRACT, g2.new_incentive_fee, TOKEN_CONTRACT, "new_incentive fee" );
+        transfer_tokens( ALCOR_CONTRACT, amount_to_send_alcor, TOKEN_CONTRACT, outgoing_memo );
         return;        
     }
 

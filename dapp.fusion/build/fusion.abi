@@ -273,7 +273,19 @@
                     "type": "uint64"
                 },
                 {
+                    "name": "minimum_new_incentive",
+                    "type": "asset"
+                },
+                {
+                    "name": "new_incentive_fee",
+                    "type": "asset"
+                },
+                {
                     "name": "panic",
+                    "type": "bool"
+                },
+                {
+                    "name": "stake_unused_funds",
                     "type": "bool"
                 }
             ]
@@ -289,6 +301,10 @@
                 {
                     "name": "incentive_id",
                     "type": "uint64"
+                },
+                {
+                    "name": "pending_boosts",
+                    "type": "asset"
                 }
             ]
         },
@@ -511,6 +527,10 @@
             "base": "",
             "fields": [
                 {
+                    "name": "caller",
+                    "type": "name"
+                },
+                {
                     "name": "poolId",
                     "type": "uint64"
                 }
@@ -531,9 +551,31 @@
             ]
         },
         {
+            "name": "setincentcfg",
+            "base": "",
+            "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                },
+                {
+                    "name": "minimum_new_incentive",
+                    "type": "asset"
+                },
+                {
+                    "name": "new_incentive_fee",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
             "name": "setincentive",
             "base": "",
             "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                },
                 {
                     "name": "poolId",
                     "type": "uint64"
@@ -677,6 +719,16 @@
         },
         {
             "name": "sync",
+            "base": "",
+            "fields": [
+                {
+                    "name": "caller",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "tgglstakeall",
             "base": "",
             "fields": [
                 {
@@ -845,6 +897,11 @@
             "ricardian_contract": ""
         },
         {
+            "name": "setincentcfg",
+            "type": "setincentcfg",
+            "ricardian_contract": ""
+        },
+        {
             "name": "setincentive",
             "type": "setincentive",
             "ricardian_contract": ""
@@ -902,6 +959,11 @@
         {
             "name": "sync",
             "type": "sync",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "tgglstakeall",
+            "type": "tgglstakeall",
             "ricardian_contract": ""
         },
         {

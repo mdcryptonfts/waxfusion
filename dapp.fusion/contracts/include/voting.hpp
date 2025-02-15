@@ -1,3 +1,5 @@
+#pragma once
+
 namespace voters_ns {
     struct [[eosio::table]] voter_info
     {

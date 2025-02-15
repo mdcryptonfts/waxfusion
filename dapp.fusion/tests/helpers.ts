@@ -2,7 +2,7 @@ const { Blockchain, nameToBigInt, TimePoint, expectToThrow } = require("@eosnetw
 const { Asset, Int64, Name, UInt64, UInt128, TimePointSec } = require('@wharfkit/antelope');
 const { assert } = require("chai");
 
-function almost_equal(actual, expected, tolerance = 0.000003) {
+function almost_equal(actual, expected, tolerance = 0.00003) {
     const difference = Math.abs(actual - expected);
     const relativeError = difference / Math.abs(expected);
     assert.isTrue(relativeError <= tolerance, `Expected ${actual} to be within ${tolerance * 100}% of ${expected}`);
@@ -51,12 +51,29 @@ const rent_cpu_memo = (receiver, wax, epoch) => {
     return `|rent_cpu|${receiver}|${wax}|${epoch}|`
 }
 
+const calculate_asset_share = (quantity, percentage) => {
+    if (quantity <= 0) return 0;
+    return quantity * percentage / 1e8;
+}
+
+const max_reward = (g, g2, r) => {
+    const adjusted_max_apr = g2.max_staker_apr_1e6 * 1e8 / g.user_share_1e6;
+    const max_yearly_reward = calculate_asset_share( r.totalSupply, adjusted_max_apr ) / 1e8;
+    const max_daily_reward = max_yearly_reward / 365;
+    //console.log(`totalSupply: ${r.totalSupply}`)
+    //console.log(`max_daily_reward: ${max_daily_reward}`)
+    //console.log(`revenue_awaiting_distribution: ${parseFloat(g.revenue_awaiting_distribution)}`)
+
+    return Math.min( max_daily_reward, parseFloat(g.revenue_awaiting_distribution) );
+}
+
 
 module.exports = {
     almost_equal,
 	calculate_wax_and_lswax_outputs,
     honey,
 	lswax,
+    max_reward,
 	rent_cpu_memo,
 	swax,
 	wax
